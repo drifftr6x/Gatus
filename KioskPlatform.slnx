@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/apps/" />
+  <Folder Name="/apps/api-server/">
+    <Project Path="apps/api-server/Platform.ApiServer.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Platform.Api/Platform.Api.csproj" />
+    <Project Path="src/Platform.Application/Platform.Application.csproj" />
+    <Project Path="src/Platform.Contracts/Platform.Contracts.csproj" />
+    <Project Path="src/Platform.Domain/Platform.Domain.csproj" />
+    <Project Path="src/Platform.Infrastructure/Platform.Infrastructure.csproj" />
+    <Project Path="src/Platform.Security/Platform.Security.csproj" />
+    <Project Path="src/Platform.Shared/Platform.Shared.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Platform.Api.IntegrationTests/Platform.Api.IntegrationTests.csproj" />
+    <Project Path="tests/Platform.Domain.Tests/Platform.Domain.Tests.csproj" />
+  </Folder>
+</Solution>
