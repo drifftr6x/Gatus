@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Platform.Api.Hubs;
 using Platform.Infrastructure.Persistence;
 using Platform.Security;
 using Serilog;
@@ -23,6 +24,10 @@ builder.Services.AddEndpointsApiExplorer();
 // Add DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Add SignalR for real-time updates
+builder.Services.AddSignalR();
+builder.Services.AddScoped<IDeviceEventBroadcaster, DeviceEventBroadcaster>();
 
 // Add Security (JWT, Authorization)
 builder.Services.AddPlatformSecurity(builder.Configuration);
@@ -52,6 +57,7 @@ app.UseCors("AllowAdminWeb");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<DeviceHub>("/hubs/devices");
 
 // Ensure database is created (for development; skipped for InMemory test provider)
 using (var scope = app.Services.CreateScope())
@@ -64,6 +70,13 @@ using (var scope = app.Services.CreateScope())
     else
     {
         db.Database.EnsureCreated();
+    }
+
+    // Seed development data
+    if (app.Environment.IsDevelopment())
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        await DbSeeder.SeedAsync(db, logger);
     }
 }
 

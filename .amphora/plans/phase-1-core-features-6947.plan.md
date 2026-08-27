@@ -45,13 +45,14 @@ todos:
     status: completed
   - id: t14
     content: 'Final verification: build, test, migration, web build'
-    status: in_progress
+    status: completed
 isProject: false
 created_at: '2026-08-27T06:46:28'
 session_id: sess_60616e1870d76f6b
 tool_use_id: create_plan_55
 model: FW-Kimi-K3
 mode_at_creation: auto
+dismissed: true
 content_hash: fedab52a3305a41b
 title: phase-1-core-features
 ---

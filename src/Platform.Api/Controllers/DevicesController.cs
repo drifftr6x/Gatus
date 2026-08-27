@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Platform.Api.Hubs;
 using Platform.Contracts.Requests;
 using Platform.Contracts.Responses;
 using Platform.Domain.Entities;
@@ -16,11 +17,16 @@ public class DevicesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<DevicesController> _logger;
+    private readonly IDeviceEventBroadcaster _broadcaster;
 
-    public DevicesController(ApplicationDbContext context, ILogger<DevicesController> logger)
+    public DevicesController(
+        ApplicationDbContext context,
+        ILogger<DevicesController> logger,
+        IDeviceEventBroadcaster broadcaster)
     {
         _context = context;
         _logger = logger;
+        _broadcaster = broadcaster;
     }
 
     [HttpGet]
@@ -229,9 +235,15 @@ public class DevicesController : ControllerBase
             return NotFound();
         }
 
+        var previousStatus = device.Status;
         device.LastSeenAt = DateTime.UtcNow;
         device.Status = DeviceStatus.Online;
         await _context.SaveChangesAsync();
+
+        if (previousStatus != DeviceStatus.Online)
+        {
+            await _broadcaster.DeviceStatusChanged(device.Id, device.Status.ToString(), device.LastSeenAt.Value);
+        }
 
         return Ok(new { message = "Heartbeat received", timestamp = device.LastSeenAt });
     }

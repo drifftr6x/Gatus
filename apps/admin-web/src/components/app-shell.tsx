@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
   Monitor,
-  Shield,
+  CalendarClock,
   FolderOpen,
   Settings,
 } from 'lucide-react'
@@ -11,7 +11,7 @@ import { clsx } from 'clsx'
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/devices', label: 'Devices', icon: Monitor },
-  { href: '/policies', label: 'Policies', icon: Shield },
+  { href: '/schedules', label: 'Schedules', icon: CalendarClock },
   { href: '/content', label: 'Content', icon: FolderOpen },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]

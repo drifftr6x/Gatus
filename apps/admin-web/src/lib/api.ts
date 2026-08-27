@@ -225,3 +225,89 @@ export const usersApi = {
   updateRole: (id: string, role: string) => api.put(`/users/${id}/role`, { role }),
   delete: (id: string) => api.delete(`/users/${id}`),
 }
+
+export interface ScheduleDto {
+  id: string
+  deviceId: string
+  deviceName: string
+  contentId: string
+  contentName: string
+  name: string
+  description?: string
+  startTime: string
+  endTime: string
+  priority: number
+  recurrence: string
+  recurrencePattern?: string
+  isActive: boolean
+  createdByName?: string
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface ScheduleListResponse {
+  schedules: ScheduleDto[]
+  totalCount: number
+}
+
+export interface TelemetrySummaryDto {
+  totalDevices: number
+  onlineDevices: number
+  offlineDevices: number
+  devicesInError: number
+  activeSchedules: number
+  activeContent: number
+  telemetryPointsLast24h: number
+}
+
+export interface TelemetryValueDto {
+  timestamp: string
+  value: string
+}
+
+export interface TelemetrySeriesDto {
+  metricName: string
+  unit?: string
+  points: TelemetryValueDto[]
+}
+
+export const schedulesApi = {
+  list: (params?: { deviceId?: string; isActive?: boolean }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.deviceId) searchParams.set('deviceId', params.deviceId)
+    if (params?.isActive !== undefined) searchParams.set('isActive', params.isActive.toString())
+    const query = searchParams.toString()
+    return api.get<ScheduleListResponse>(`/schedules${query ? `?${query}` : ''}`)
+  },
+  get: (id: string) => api.get<ScheduleDto>(`/schedules/${id}`),
+  create: (data: {
+    deviceId: string
+    contentId: string
+    name: string
+    description?: string
+    startTime: string
+    endTime: string
+    priority?: number
+    recurrence?: string
+  }) => api.post<ScheduleDto>('/schedules', data),
+  update: (id: string, data: {
+    name: string
+    description?: string
+    startTime: string
+    endTime: string
+    priority?: number
+    recurrence?: string
+    isActive?: boolean
+  }) => api.put<ScheduleDto>(`/schedules/${id}`, data),
+  delete: (id: string) => api.delete(`/schedules/${id}`),
+}
+
+export const telemetryApi = {
+  summary: () => api.get<TelemetrySummaryDto>('/telemetry/summary'),
+  deviceSeries: (deviceId: string, metric?: string) => {
+    const searchParams = new URLSearchParams()
+    if (metric) searchParams.set('metric', metric)
+    const query = searchParams.toString()
+    return api.get<TelemetrySeriesDto[]>(`/telemetry/device/${deviceId}${query ? `?${query}` : ''}`)
+  },
+}
