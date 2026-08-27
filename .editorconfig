@@ -58,4 +58,10 @@ dotnet_naming_rule.interfaces_should_begin_with_i.symbols = interface_symbols
 dotnet_naming_rule.interfaces_should_begin_with_i.style = begins_with_i_style
 dotnet_naming_symbols.interface_symbols.applicable_kinds = interface
 dotnet_naming_style.begins_with_i_style.required_prefix = I
+
+# Auto-generated EF Core migrations — skip style analysis
+[**/Migrations/**.cs]
+dotnet_analyzer_diagnostic.category-Style.severity = none
+csharp_style_namespace_declarations = none
+generated_code = true
 dotnet_naming_style.begins_with_i_style.capitalization = pascal_case

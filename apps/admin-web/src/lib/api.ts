@@ -1,0 +1,227 @@
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
+
+class ApiClient {
+  private accessToken: string | null = null
+  private refreshToken: string | null = null
+
+  setTokens(accessToken: string, refreshToken: string) {
+    this.accessToken = accessToken
+    this.refreshToken = refreshToken
+    localStorage.setItem('accessToken', accessToken)
+    localStorage.setItem('refreshToken', refreshToken)
+  }
+
+  loadTokens() {
+    this.accessToken = localStorage.getItem('accessToken')
+    this.refreshToken = localStorage.getItem('refreshToken')
+  }
+
+  clearTokens() {
+    this.accessToken = null
+    this.refreshToken = null
+    localStorage.removeItem('accessToken')
+    localStorage.removeItem('refreshToken')
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const url = `${API_BASE}${endpoint}`
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string>),
+    }
+
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`
+    }
+
+    const response = await fetch(url, { ...options, headers })
+
+    if (response.status === 401 && this.refreshToken) {
+      // Try to refresh token
+      const refreshed = await this.refreshAccessToken()
+      if (refreshed) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`
+        const retryResponse = await fetch(url, { ...options, headers })
+        return this.handleResponse<T>(retryResponse)
+      }
+    }
+
+    return this.handleResponse<T>(response)
+  }
+
+  private async handleResponse<T>(response: Response): Promise<T> {
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }))
+      throw new Error(error.error || `HTTP ${response.status}`)
+    }
+    return response.json()
+  }
+
+  private async refreshAccessToken(): Promise<boolean> {
+    try {
+      const response = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: this.refreshToken }),
+      })
+
+      if (!response.ok) {
+        this.clearTokens()
+        return false
+      }
+
+      const data = await response.json()
+      this.setTokens(data.accessToken, data.refreshToken)
+      return true
+    } catch {
+      this.clearTokens()
+      return false
+    }
+  }
+
+  async get<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'GET' })
+  }
+
+  async post<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    })
+  }
+
+  async put<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    })
+  }
+
+  async delete<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: 'DELETE' })
+  }
+}
+
+export const api = new ApiClient()
+api.loadTokens()
+
+// API Types
+export interface LoginRequest {
+  email: string
+  password: string
+}
+
+export interface AuthResponse {
+  accessToken: string
+  refreshToken: string
+  expiresAt: string
+  user: UserDto
+}
+
+export interface UserDto {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  displayName: string
+  role: string
+  isActive: boolean
+  lastLoginAt?: string
+}
+
+export interface DeviceDto {
+  id: string
+  name: string
+  serialNumber: string
+  description?: string
+  location?: string
+  status: string
+  lastSeenAt?: string
+  ipAddress?: string
+  macAddress?: string
+  firmwareVersion?: string
+  createdAt: string
+  updatedAt?: string
+  isActive: boolean
+}
+
+export interface DeviceListResponse {
+  devices: DeviceDto[]
+  totalCount: number
+  page: number
+  pageSize: number
+}
+
+export interface ContentDto {
+  id: string
+  name: string
+  description?: string
+  type: string
+  url: string
+  thumbnailUrl?: string
+  fileSizeBytes: number
+  durationSeconds?: number
+  mimeType?: string
+  createdAt: string
+  updatedAt?: string
+  isActive: boolean
+  createdByName?: string
+}
+
+export interface ContentListResponse {
+  contents: ContentDto[]
+  totalCount: number
+  page: number
+  pageSize: number
+}
+
+// API Functions
+export const authApi = {
+  login: (data: LoginRequest) => api.post<AuthResponse>('/auth/login', data),
+  logout: () => api.post('/auth/logout'),
+  getCurrentUser: () => api.get<UserDto>('/auth/me'),
+}
+
+export const devicesApi = {
+  list: (params?: { page?: number; pageSize?: number; status?: string; search?: string }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.pageSize) searchParams.set('pageSize', params.pageSize.toString())
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.search) searchParams.set('search', params.search)
+    const query = searchParams.toString()
+    return api.get<DeviceListResponse>(`/devices${query ? `?${query}` : ''}`)
+  },
+  get: (id: string) => api.get<DeviceDto>(`/devices/${id}`),
+  create: (data: Partial<DeviceDto>) => api.post<DeviceDto>('/devices', data),
+  update: (id: string, data: Partial<DeviceDto>) => api.put<DeviceDto>(`/devices/${id}`, data),
+  delete: (id: string) => api.delete(`/devices/${id}`),
+}
+
+export const contentApi = {
+  list: (params?: { page?: number; pageSize?: number; type?: string; search?: string }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.pageSize) searchParams.set('pageSize', params.pageSize.toString())
+    if (params?.type) searchParams.set('type', params.type)
+    if (params?.search) searchParams.set('search', params.search)
+    const query = searchParams.toString()
+    return api.get<ContentListResponse>(`/content${query ? `?${query}` : ''}`)
+  },
+  get: (id: string) => api.get<ContentDto>(`/content/${id}`),
+  create: (data: Partial<ContentDto>) => api.post<ContentDto>('/content', data),
+  update: (id: string, data: Partial<ContentDto>) => api.put<ContentDto>(`/content/${id}`, data),
+  delete: (id: string) => api.delete(`/content/${id}`),
+}
+
+export const usersApi = {
+  list: () => api.get<UserDto[]>('/users'),
+  get: (id: string) => api.get<UserDto>(`/users/${id}`),
+  create: (data: Partial<UserDto> & { password: string }) => api.post<UserDto>('/users', data),
+  update: (id: string, data: Partial<UserDto>) => api.put<UserDto>(`/users/${id}`, data),
+  updateRole: (id: string, role: string) => api.put(`/users/${id}/role`, { role }),
+  delete: (id: string) => api.delete(`/users/${id}`),
+}
