@@ -6,40 +6,41 @@ overview: Implement safe, reversible Windows lockdown policies using supported m
 todos:
   - id: p6t1
     content: Create LockdownPolicy model + LockdownEngine core
-    status: pending
+    status: completed
   - id: p6t2
     content: Create ShellLauncherProvider for Enterprise/Education
-    status: pending
+    status: completed
   - id: p6t3
     content: Create AssignedAccessProvider for single-app kiosk
-    status: pending
+    status: completed
   - id: p6t4
     content: Create RegistryPolicyProvider for UI restrictions
-    status: pending
+    status: completed
   - id: p6t5
     content: Create KeyboardFilterProvider for hotkey blocking
-    status: pending
+    status: completed
   - id: p6t6
     content: Create MaintenanceModeService with timeout + recovery
-    status: pending
+    status: completed
   - id: p6t7
     content: 'Create PowerShell scripts: enable/disable/restore lockdown'
-    status: pending
+    status: completed
   - id: p6t8
     content: Integrate LockdownEngine into Windows Agent service
-    status: pending
+    status: completed
   - id: p6t9
     content: Add lockdown status reporting to heartbeat
-    status: pending
+    status: completed
   - id: p6t10
     content: Build verification + commit
-    status: pending
+    status: completed
 isProject: false
 created_at: '2026-08-28T10:50:21'
 session_id: sess_60616e1870d76f6b
 tool_use_id: create_plan_146
 model: FW-Kimi-K3
 mode_at_creation: auto
+dismissed: true
 content_hash: 843aca80b5714971
 title: phase-6-windows-lockdown
 ---
