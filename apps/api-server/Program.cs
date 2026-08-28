@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Platform.Api.Hubs;
+using Platform.Api.Services;
 using Platform.Infrastructure.Persistence;
 using Platform.Security;
 using Serilog;
@@ -28,6 +29,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Add SignalR for real-time updates
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IDeviceEventBroadcaster, DeviceEventBroadcaster>();
+
+// Add content storage service
+builder.Services.AddSingleton<ContentStorageService>();
 
 // Add Security (JWT, Authorization)
 builder.Services.AddPlatformSecurity(builder.Configuration);
