@@ -7,37 +7,38 @@ overview: 'Build the content deployment pipeline: upload content to server stora
 todos:
   - id: p3t1
     content: Create ContentVersion, Deployment, DeploymentResult entities + configurations
-    status: pending
+    status: completed
   - id: p3t2
     content: Create EF migration for deployment tables
-    status: pending
+    status: completed
   - id: p3t3
     content: Create ContentStorageService for file upload/download with SHA-256
-    status: pending
+    status: completed
   - id: p3t4
     content: Create DeploymentsController with CRUD + status tracking
-    status: pending
+    status: completed
   - id: p3t5
     content: Update ContentController for file upload + version listing
-    status: pending
+    status: completed
   - id: p3t6
     content: Create deployment DTOs in Contracts
-    status: pending
+    status: completed
   - id: p3t7
     content: 'Frontend: deployments page with create/list/cancel UI'
-    status: pending
+    status: completed
   - id: p3t8
     content: Integration tests for deployment workflow
-    status: pending
+    status: completed
   - id: p3t9
     content: 'Final verification: build, test, web build + commit'
-    status: pending
+    status: completed
 isProject: false
 created_at: '2026-08-28T10:11:39'
 session_id: sess_60616e1870d76f6b
 tool_use_id: create_plan_67
 model: FW-Kimi-K3
 mode_at_creation: auto
+dismissed: true
 content_hash: 7fce3e310506bdd0
 title: phase-3-content-deployment
 ---
