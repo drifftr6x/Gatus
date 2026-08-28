@@ -6,34 +6,35 @@ overview: Security hardening, dependency scanning, production deployment configu
 todos:
   - id: p8t1
     content: 'Security audit: dependency scanning, vulnerability fixes'
-    status: pending
+    status: completed
   - id: p8t2
     content: 'API hardening: rate limiting, security headers, input validation'
-    status: pending
+    status: completed
   - id: p8t3
     content: Production Docker Compose + nginx reverse proxy config
-    status: pending
+    status: completed
   - id: p8t4
     content: Database backup/restore procedures + runbook
-    status: pending
+    status: completed
   - id: p8t5
     content: 'Release pipeline: GitHub Actions + artifact signing'
-    status: pending
+    status: completed
   - id: p8t6
     content: 'Documentation: deployment guide, operations runbook'
-    status: pending
+    status: completed
   - id: p8t7
     content: 'Documentation: security policy, threat model review'
-    status: pending
+    status: completed
   - id: p8t8
     content: 'Final verification: security scan, build, test, commit'
-    status: pending
+    status: completed
 isProject: false
 created_at: '2026-08-28T16:17:00'
 session_id: sess_60616e1870d76f6b
 tool_use_id: create_plan_173
 model: FW-Kimi-K3
 mode_at_creation: auto
+dismissed: true
 content_hash: 9ddb5d02d0fd0f06
 title: phase-8-production-hardening
 ---
