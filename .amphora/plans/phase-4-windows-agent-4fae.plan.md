@@ -7,40 +7,41 @@ overview: 'Build the Windows agent service that runs on kiosk machines: enrollme
 todos:
   - id: p4t1
     content: Create windows-agent project structure + Program.cs Windows Service host
-    status: pending
+    status: completed
   - id: p4t2
     content: Create EnrollmentService with token exchange + DPAPI credential storage
-    status: pending
+    status: completed
   - id: p4t3
     content: Create HeartbeatService with system metrics collection
-    status: pending
+    status: completed
   - id: p4t4
     content: Create PolicySyncService with local cache + drift detection
-    status: pending
+    status: completed
   - id: p4t5
     content: Create DeploymentService with download/verify/stage/activate/rollback
-    status: pending
+    status: completed
   - id: p4t6
     content: Create CommandExecutor with allowlisted commands
-    status: pending
+    status: completed
   - id: p4t7
     content: Create TelemetryCollector with local queue + batch upload
-    status: pending
+    status: completed
   - id: p4t8
     content: Create LocalStateManager for config/content/log management
-    status: pending
+    status: completed
   - id: p4t9
     content: Create install.ps1 + agent configuration
-    status: pending
+    status: completed
   - id: p4t10
     content: Agent tests + final verification + commit
-    status: pending
+    status: completed
 isProject: false
 created_at: '2026-08-28T10:19:52'
 session_id: sess_60616e1870d76f6b
 tool_use_id: create_plan_86
 model: FW-Kimi-K3
 mode_at_creation: auto
+dismissed: true
 content_hash: 32a7c077a8d30795
 title: phase-4-windows-agent
 ---
