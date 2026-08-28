@@ -28,8 +28,8 @@ public class TokenService : ITokenService
     public string GenerateAccessToken(User user)
     {
         var secret = _configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured");
-        var issuer = _configuration["Jwt:Issuer"] ?? "SentinelKiosk";
-        var audience = _configuration["Jwt:Audience"] ?? "SentinelKiosk";
+        var issuer = _configuration["Jwt:Issuer"] ?? "GatusKiosk";
+        var audience = _configuration["Jwt:Audience"] ?? "GatusKiosk";
         var expiryMinutes = int.Parse(_configuration["Jwt:ExpiryMinutes"] ?? "60");
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
@@ -74,8 +74,8 @@ public class TokenService : ITokenService
             ValidateAudience = true,
             ValidateLifetime = false, // We don't validate lifetime here since we're refreshing
             ValidateIssuerSigningKey = true,
-            ValidIssuer = _configuration["Jwt:Issuer"] ?? "SentinelKiosk",
-            ValidAudience = _configuration["Jwt:Audience"] ?? "SentinelKiosk",
+            ValidIssuer = _configuration["Jwt:Issuer"] ?? "GatusKiosk",
+            ValidAudience = _configuration["Jwt:Audience"] ?? "GatusKiosk",
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret))
         };
 

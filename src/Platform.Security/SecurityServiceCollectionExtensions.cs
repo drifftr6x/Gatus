@@ -12,8 +12,8 @@ public static class SecurityServiceCollectionExtensions
     public static IServiceCollection AddPlatformSecurity(this IServiceCollection services, IConfiguration configuration)
     {
         var jwtSecret = configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured");
-        var jwtIssuer = configuration["Jwt:Issuer"] ?? "SentinelKiosk";
-        var jwtAudience = configuration["Jwt:Audience"] ?? "SentinelKiosk";
+        var jwtIssuer = configuration["Jwt:Issuer"] ?? "GatusKiosk";
+        var jwtAudience = configuration["Jwt:Audience"] ?? "GatusKiosk";
 
         services.AddAuthentication(options =>
         {
