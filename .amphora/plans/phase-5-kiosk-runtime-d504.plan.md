@@ -6,37 +6,38 @@ overview: Build the WebView2 kiosk runtime that displays content in fullscreen, 
 todos:
   - id: p5t1
     content: Create WPF project structure + Program.cs entry point
-    status: pending
+    status: completed
   - id: p5t2
     content: Create MainWindow.xaml with fullscreen WebView2 host
-    status: pending
+    status: completed
   - id: p5t3
     content: Create KioskConfiguration model with policy settings
-    status: pending
+    status: completed
   - id: p5t4
     content: Create NavigationGuard with URL allowlist/denylist
-    status: pending
+    status: completed
   - id: p5t5
     content: Create SessionManager with timeout + inactivity reset
-    status: pending
+    status: completed
   - id: p5t6
     content: Create CrashMonitor with auto-restart + backoff
-    status: pending
+    status: completed
   - id: p5t7
     content: Create PolicyReceiver for agent communication
-    status: pending
+    status: completed
   - id: p5t8
     content: Create app.manifest + install-runtime.ps1
-    status: pending
+    status: completed
   - id: p5t9
     content: Build verification + commit
-    status: pending
+    status: completed
 isProject: false
 created_at: '2026-08-28T10:34:48'
 session_id: sess_60616e1870d76f6b
 tool_use_id: create_plan_102
 model: FW-Kimi-K3
 mode_at_creation: auto
+dismissed: true
 content_hash: e1f126de28e3b214
 title: phase-5-kiosk-runtime
 ---
