@@ -8,6 +8,7 @@ public record DeviceDto(
     string? Location,
     string Status,
     DateTime? LastSeenAt,
+    string? Hostname,
     string? IpAddress,
     string? MacAddress,
     string? FirmwareVersion,

@@ -9,6 +9,7 @@ public class Device
     public string? Location { get; set; }
     public DeviceStatus Status { get; set; } = DeviceStatus.Offline;
     public DateTime? LastSeenAt { get; set; }
+    public string? Hostname { get; set; }
     public string? IpAddress { get; set; }
     public string? MacAddress { get; set; }
     public string? FirmwareVersion { get; set; }

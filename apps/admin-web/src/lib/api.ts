@@ -140,6 +140,7 @@ export interface DeviceDto {
   location?: string
   status: string
   lastSeenAt?: string
+  hostname?: string
   ipAddress?: string
   macAddress?: string
   firmwareVersion?: string

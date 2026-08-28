@@ -149,6 +149,11 @@ namespace Platform.Infrastructure.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("firmware_version");
 
+                    b.Property<string>("Hostname")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("hostname");
+
                     b.Property<string>("IpAddress")
                         .HasMaxLength(45)
                         .HasColumnType("character varying(45)")

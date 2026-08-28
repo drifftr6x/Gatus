@@ -71,6 +71,7 @@ public class DevicesController : ControllerBase
                 d.Location,
                 d.Status.ToString(),
                 d.LastSeenAt,
+                d.Hostname,
                 d.IpAddress,
                 d.MacAddress,
                 d.FirmwareVersion,
@@ -101,6 +102,7 @@ public class DevicesController : ControllerBase
             device.Location,
             device.Status.ToString(),
             device.LastSeenAt,
+            device.Hostname,
             device.IpAddress,
             device.MacAddress,
             device.FirmwareVersion,
@@ -108,9 +110,9 @@ public class DevicesController : ControllerBase
             device.UpdatedAt,
             device.IsActive
         ));
-    }
+        }
 
-    [HttpPost]
+        [HttpPost]
     [Authorize(Policy = "RequireEditor")]
     public async Task<ActionResult<DeviceDto>> CreateDevice(CreateDeviceRequest request)
     {
@@ -129,6 +131,7 @@ public class DevicesController : ControllerBase
             SerialNumber = request.SerialNumber,
             Description = request.Description,
             Location = request.Location,
+            Hostname = request.Hostname,
             IpAddress = request.IpAddress,
             MacAddress = request.MacAddress,
             FirmwareVersion = request.FirmwareVersion,
@@ -150,16 +153,17 @@ public class DevicesController : ControllerBase
             device.Location,
             device.Status.ToString(),
             device.LastSeenAt,
+            device.Hostname,
             device.IpAddress,
             device.MacAddress,
             device.FirmwareVersion,
             device.CreatedAt,
             device.UpdatedAt,
             device.IsActive
-        ));
-    }
+            ));
+            }
 
-    [HttpPut("{id}")]
+            [HttpPut("{id}")]
     [Authorize(Policy = "RequireEditor")]
     public async Task<ActionResult<DeviceDto>> UpdateDevice(Guid id, UpdateDeviceRequest request)
     {
@@ -172,6 +176,7 @@ public class DevicesController : ControllerBase
         device.Name = request.Name;
         device.Description = request.Description;
         device.Location = request.Location;
+        device.Hostname = request.Hostname;
         device.IpAddress = request.IpAddress;
         device.MacAddress = request.MacAddress;
         device.FirmwareVersion = request.FirmwareVersion;
@@ -198,16 +203,17 @@ public class DevicesController : ControllerBase
             device.Location,
             device.Status.ToString(),
             device.LastSeenAt,
+            device.Hostname,
             device.IpAddress,
             device.MacAddress,
             device.FirmwareVersion,
             device.CreatedAt,
             device.UpdatedAt,
             device.IsActive
-        ));
-    }
+            ));
+            }
 
-    [HttpDelete("{id}")]
+            [HttpDelete("{id}")]
     [Authorize(Policy = "RequireAdmin")]
     public async Task<IActionResult> DeleteDevice(Guid id)
     {

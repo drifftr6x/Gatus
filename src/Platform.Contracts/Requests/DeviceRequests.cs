@@ -5,6 +5,7 @@ public record CreateDeviceRequest(
     string SerialNumber,
     string? Description,
     string? Location,
+    string? Hostname,
     string? IpAddress,
     string? MacAddress,
     string? FirmwareVersion
@@ -15,6 +16,7 @@ public record UpdateDeviceRequest(
     string? Description,
     string? Location,
     DeviceStatusRequest? Status,
+    string? Hostname,
     string? IpAddress,
     string? MacAddress,
     string? FirmwareVersion,

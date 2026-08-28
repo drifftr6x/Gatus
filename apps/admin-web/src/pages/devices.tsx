@@ -59,7 +59,7 @@ export function DevicesPage() {
           <table className="min-w-full divide-y divide-surface-800">
             <thead>
               <tr className="bg-surface-850">
-                {['Name', 'Serial Number', 'Status', 'Location', 'Last Seen', ''].map((h) => (
+                {['Name', 'Hostname', 'IP Address', 'Serial Number', 'Status', 'Location', 'Last Seen', ''].map((h) => (
                   <th
                     key={h}
                     className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 last:text-right"
@@ -77,6 +77,12 @@ export function DevicesPage() {
                     {device.description && (
                       <div className="text-xs text-slate-500">{device.description}</div>
                     )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-400">
+                    {device.hostname || '—'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-400">
+                    {device.ipAddress || '—'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-400">
                     {device.serialNumber}
@@ -161,6 +167,9 @@ function DeviceModal({
     serialNumber: device?.serialNumber || '',
     description: device?.description || '',
     location: device?.location || '',
+    hostname: device?.hostname || '',
+    ipAddress: device?.ipAddress || '',
+    macAddress: device?.macAddress || '',
   })
 
   const mutation = useMutation({
@@ -222,6 +231,38 @@ function DeviceModal({
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               className={inputClass}
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300">Hostname (FQDN)</label>
+            <input
+              type="text"
+              value={formData.hostname}
+              onChange={(e) => setFormData({ ...formData, hostname: e.target.value })}
+              className={inputClass}
+              placeholder="kiosk01.example.local"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300">IP Address</label>
+              <input
+                type="text"
+                value={formData.ipAddress}
+                onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
+                className={`${inputClass} font-mono`}
+                placeholder="192.168.1.100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">MAC Address</label>
+              <input
+                type="text"
+                value={formData.macAddress}
+                onChange={(e) => setFormData({ ...formData, macAddress: e.target.value })}
+                className={`${inputClass} font-mono`}
+                placeholder="00:1A:2B:3C:4D:5E"
+              />
+            </div>
           </div>
           <div className="mt-6 flex justify-end gap-3">
             <button
