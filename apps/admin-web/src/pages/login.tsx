@@ -42,7 +42,7 @@ export function LoginPage() {
             <ShieldCheck className="h-7 w-7" />
           </div>
           <h2 className="mt-4 text-2xl font-semibold tracking-tight text-white">
-            Sentinel Kiosk
+            Gatus Kiosk
           </h2>
           <p className="mt-1 text-sm text-slate-400">Sign in to your account</p>
         </div>
@@ -66,7 +66,7 @@ export function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="mt-1.5 block w-full rounded-lg border border-surface-700 bg-surface-850 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none transition-colors focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
-              placeholder="admin@sentinel.local"
+              placeholder="admin@gatus.local"
             />
           </div>
           <div>

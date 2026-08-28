@@ -1,10 +1,10 @@
-# Sentinel Kiosk Platform
+# Gatus Kiosk Platform
 
 Enterprise-grade, modular kiosk management platform built with .NET 10 and React.
 
 ## Overview
 
-Sentinel Kiosk Platform provides centralized management for distributed kiosk fleets, including device provisioning, content scheduling, user access control, and real-time telemetry.
+Gatus Kiosk Platform provides centralized management for distributed kiosk fleets, including device provisioning, content scheduling, user access control, and real-time telemetry.
 
 ## Architecture
 

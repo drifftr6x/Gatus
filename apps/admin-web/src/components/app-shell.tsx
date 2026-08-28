@@ -34,7 +34,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <ShieldCheck className="h-5 w-5" />
             </div>
             <span className="text-lg font-semibold tracking-tight text-white">
-              Sentinel Kiosk
+              Gatus Kiosk
             </span>
             <span className="rounded-md bg-surface-800 px-2 py-0.5 text-xs font-medium text-slate-400">
               Admin

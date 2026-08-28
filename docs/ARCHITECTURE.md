@@ -2,7 +2,7 @@
 
 ## Overview
 
-Sentinel Kiosk Platform follows a **Modular Monolith** architecture with clear module boundaries, enabling future extraction into microservices if needed.
+Gatus Kiosk Platform follows a **Modular Monolith** architecture with clear module boundaries, enabling future extraction into microservices if needed.
 
 ## Module Structure
 
