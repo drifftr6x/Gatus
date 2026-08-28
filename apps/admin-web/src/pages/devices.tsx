@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { devicesApi } from '@/lib/api'
 import type { DeviceDto } from '@/lib/api'
 import { useState } from 'react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 
 export function DevicesPage() {
   const queryClient = useQueryClient()
@@ -26,128 +27,126 @@ export function DevicesPage() {
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-        Error loading devices: {error.message}
-      </div>
-    )
-  }
-
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-slate-900">Devices</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-white">Devices</h1>
+          <p className="mt-1 text-sm text-slate-400">Manage your kiosk fleet</p>
+        </div>
         <button
           onClick={() => {
             setEditingDevice(null)
             setIsModalOpen(true)
           }}
-          className="px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800"
+          className="flex items-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent-500/25 transition-colors hover:bg-accent-400"
         >
+          <Plus className="h-4 w-4" />
           Add Device
         </button>
       </div>
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-slate-200">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Serial Number
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Location
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Last Seen
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-slate-200">
-            {data?.devices.map((device) => (
-              <tr key={device.id}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-slate-900">{device.name}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-slate-500">{device.serialNumber}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span
-                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      device.status === 'Online'
-                        ? 'bg-green-100 text-green-800'
-                        : device.status === 'Offline'
-                          ? 'bg-slate-100 text-slate-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                    }`}
+      {isLoading ? (
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-surface-700 border-t-accent-500" />
+        </div>
+      ) : error ? (
+        <div className="mt-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          Error loading devices: {error.message}
+        </div>
+      ) : (
+        <div className="mt-6 overflow-hidden rounded-xl border border-surface-800 bg-surface-900 shadow-lg">
+          <table className="min-w-full divide-y divide-surface-800">
+            <thead>
+              <tr className="bg-surface-850">
+                {['Name', 'Serial Number', 'Status', 'Location', 'Last Seen', ''].map((h) => (
+                  <th
+                    key={h}
+                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 last:text-right"
                   >
-                    {device.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                  {device.location || '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                  {device.lastSeenAt
-                    ? new Date(device.lastSeenAt).toLocaleString()
-                    : 'Never'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button
-                    onClick={() => {
-                      setEditingDevice(device)
-                      setIsModalOpen(true)
-                    }}
-                    className="text-slate-600 hover:text-slate-900 mr-4"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(device.id)}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    Delete
-                  </button>
-                </td>
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {data?.devices.length === 0 && (
-          <div className="text-center py-8 text-slate-500">
-            No devices found. Add your first device to get started.
-          </div>
-        )}
-      </div>
+            </thead>
+            <tbody className="divide-y divide-surface-800">
+              {data?.devices.map((device) => (
+                <tr key={device.id} className="transition-colors hover:bg-surface-850">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-slate-100">{device.name}</div>
+                    {device.description && (
+                      <div className="text-xs text-slate-500">{device.description}</div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-400">
+                    {device.serialNumber}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <StatusBadge status={device.status} />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                    {device.location || '—'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                    {device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString() : 'Never'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <button
+                      onClick={() => {
+                        setEditingDevice(device)
+                        setIsModalOpen(true)
+                      }}
+                      className="mr-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-slate-400 transition-colors hover:bg-surface-800 hover:text-white"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(device.id)}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {data?.devices.length === 0 && (
+            <div className="py-12 text-center text-sm text-slate-500">
+              No devices found. Add your first device to get started.
+            </div>
+          )}
+        </div>
+      )}
 
       {isModalOpen && (
-        <DeviceModal
-          device={editingDevice}
-          onClose={() => setIsModalOpen(false)}
-        />
+        <DeviceModal device={editingDevice} onClose={() => setIsModalOpen(false)} />
       )}
     </div>
   )
 }
+
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    Online: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/30',
+    Offline: 'bg-slate-500/10 text-slate-400 ring-slate-500/30',
+    Error: 'bg-red-500/10 text-red-400 ring-red-500/30',
+    Maintenance: 'bg-amber-500/10 text-amber-400 ring-amber-500/30',
+  }
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${styles[status] ?? styles.Offline}`}
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {status}
+    </span>
+  )
+}
+
+const inputClass =
+  'mt-1.5 block w-full rounded-lg border border-surface-700 bg-surface-850 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none transition-colors focus:border-accent-500 focus:ring-1 focus:ring-accent-500'
 
 function DeviceModal({
   device,
@@ -166,9 +165,7 @@ function DeviceModal({
 
   const mutation = useMutation({
     mutationFn: (data: typeof formData) =>
-      device
-        ? devicesApi.update(device.id, data)
-        : devicesApi.create(data),
+      device ? devicesApi.update(device.id, data) : devicesApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['devices'] })
       onClose()
@@ -181,65 +178,65 @@ function DeviceModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-md w-full p-6">
-        <h2 className="text-lg font-semibold mb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl border border-surface-700 bg-surface-900 p-6 shadow-2xl">
+        <h2 className="text-lg font-semibold text-white">
           {device ? 'Edit Device' : 'Add Device'}
         </h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700">Name</label>
+            <label className="block text-sm font-medium text-slate-300">Name</label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md"
+              className={inputClass}
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700">Serial Number</label>
+            <label className="block text-sm font-medium text-slate-300">Serial Number</label>
             <input
               type="text"
               value={formData.serialNumber}
               onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
-              className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md"
+              className={`${inputClass} font-mono disabled:opacity-50`}
               required
               disabled={!!device}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700">Description</label>
+            <label className="block text-sm font-medium text-slate-300">Description</label>
             <input
               type="text"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md"
+              className={inputClass}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700">Location</label>
+            <label className="block text-sm font-medium text-slate-300">Location</label>
             <input
               type="text"
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md"
+              className={inputClass}
             />
           </div>
-          <div className="flex justify-end space-x-3 mt-6">
+          <div className="mt-6 flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-surface-700 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-surface-800"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={mutation.isPending}
-              className="px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent-500/25 transition-colors hover:bg-accent-400 disabled:opacity-50"
             >
-              {mutation.isPending ? 'Saving...' : 'Save'}
+              {mutation.isPending ? 'Saving…' : 'Save'}
             </button>
           </div>
         </form>

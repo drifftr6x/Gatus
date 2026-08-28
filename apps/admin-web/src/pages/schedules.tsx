@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { schedulesApi, devicesApi, contentApi } from '@/lib/api'
 import type { ScheduleDto } from '@/lib/api'
 import { useState } from 'react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 
 export function SchedulesPage() {
   const queryClient = useQueryClient()
@@ -26,127 +27,114 @@ export function SchedulesPage() {
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-        Error loading schedules: {error.message}
-      </div>
-    )
-  }
-
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-slate-900">Schedules</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-white">Schedules</h1>
+          <p className="mt-1 text-sm text-slate-400">Assign content playback windows to devices</p>
+        </div>
         <button
           onClick={() => {
             setEditingSchedule(null)
             setIsModalOpen(true)
           }}
-          className="px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800"
+          className="flex items-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent-500/25 transition-colors hover:bg-accent-400"
         >
+          <Plus className="h-4 w-4" />
           Add Schedule
         </button>
       </div>
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-slate-200">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Device
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Content
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Time Range
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Recurrence
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-slate-200">
-            {data?.schedules.map((schedule) => (
-              <tr key={schedule.id}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-slate-900">{schedule.name}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                  {schedule.deviceName}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                  {schedule.contentName}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                  {new Date(schedule.startTime).toLocaleString()} —{' '}
-                  {new Date(schedule.endTime).toLocaleString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                  {schedule.recurrence}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span
-                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      schedule.isActive
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-slate-100 text-slate-800'
-                    }`}
+      {isLoading ? (
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-surface-700 border-t-accent-500" />
+        </div>
+      ) : error ? (
+        <div className="mt-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          Error loading schedules: {error.message}
+        </div>
+      ) : (
+        <div className="mt-6 overflow-hidden rounded-xl border border-surface-800 bg-surface-900 shadow-lg">
+          <table className="min-w-full divide-y divide-surface-800">
+            <thead>
+              <tr className="bg-surface-850">
+                {['Name', 'Device', 'Content', 'Time Range', 'Recurrence', 'Status', ''].map((h) => (
+                  <th
+                    key={h}
+                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 last:text-right"
                   >
-                    {schedule.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button
-                    onClick={() => {
-                      setEditingSchedule(schedule)
-                      setIsModalOpen(true)
-                    }}
-                    className="text-slate-600 hover:text-slate-900 mr-4"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(schedule.id)}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    Delete
-                  </button>
-                </td>
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {data?.schedules.length === 0 && (
-          <div className="text-center py-8 text-slate-500">
-            No schedules found. Create your first schedule to get started.
-          </div>
-        )}
-      </div>
+            </thead>
+            <tbody className="divide-y divide-surface-800">
+              {data?.schedules.map((schedule) => (
+                <tr key={schedule.id} className="transition-colors hover:bg-surface-850">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-100">
+                    {schedule.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                    {schedule.deviceName}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                    {schedule.contentName}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                    {new Date(schedule.startTime).toLocaleString()} —{' '}
+                    {new Date(schedule.endTime).toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="rounded-md bg-surface-800 px-2 py-0.5 text-xs text-slate-300">
+                      {schedule.recurrence}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${
+                        schedule.isActive
+                          ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/30'
+                          : 'bg-slate-500/10 text-slate-400 ring-slate-500/30'
+                      }`}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                      {schedule.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <button
+                      onClick={() => {
+                        setEditingSchedule(schedule)
+                        setIsModalOpen(true)
+                      }}
+                      className="mr-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-slate-400 transition-colors hover:bg-surface-800 hover:text-white"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(schedule.id)}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {data?.schedules.length === 0 && (
+            <div className="py-12 text-center text-sm text-slate-500">
+              No schedules found. Create your first schedule to get started.
+            </div>
+          )}
+        </div>
+      )}
 
       {isModalOpen && (
-        <ScheduleModal
-          schedule={editingSchedule}
-          onClose={() => setIsModalOpen(false)}
-        />
+        <ScheduleModal schedule={editingSchedule} onClose={() => setIsModalOpen(false)} />
       )}
     </div>
   )
@@ -158,6 +146,9 @@ function toLocalInputValue(iso?: string): string {
   const pad = (n: number) => n.toString().padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
+
+const inputClass =
+  'mt-1.5 block w-full rounded-lg border border-surface-700 bg-surface-850 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none transition-colors focus:border-accent-500 focus:ring-1 focus:ring-accent-500'
 
 function ScheduleModal({
   schedule,
@@ -218,33 +209,33 @@ function ScheduleModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg font-semibold mb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-surface-700 bg-surface-900 p-6 shadow-2xl">
+        <h2 className="text-lg font-semibold text-white">
           {schedule ? 'Edit Schedule' : 'Add Schedule'}
         </h2>
         {submitError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
             {submitError}
           </div>
         )}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700">Name</label>
+            <label className="block text-sm font-medium text-slate-300">Name</label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md"
+              className={inputClass}
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700">Device</label>
+            <label className="block text-sm font-medium text-slate-300">Device</label>
             <select
               value={formData.deviceId}
               onChange={(e) => setFormData({ ...formData, deviceId: e.target.value })}
-              className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md"
+              className={`${inputClass} disabled:opacity-50`}
               required
               disabled={!!schedule}
             >
@@ -257,11 +248,11 @@ function ScheduleModal({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700">Content</label>
+            <label className="block text-sm font-medium text-slate-300">Content</label>
             <select
               value={formData.contentId}
               onChange={(e) => setFormData({ ...formData, contentId: e.target.value })}
-              className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md"
+              className={`${inputClass} disabled:opacity-50`}
               required
               disabled={!!schedule}
             >
@@ -275,33 +266,33 @@ function ScheduleModal({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700">Start Time</label>
+              <label className="block text-sm font-medium text-slate-300">Start Time</label>
               <input
                 type="datetime-local"
                 value={formData.startTime}
                 onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md"
+                className={inputClass}
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700">End Time</label>
+              <label className="block text-sm font-medium text-slate-300">End Time</label>
               <input
                 type="datetime-local"
                 value={formData.endTime}
                 onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md"
+                className={inputClass}
                 required
               />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700">Recurrence</label>
+              <label className="block text-sm font-medium text-slate-300">Recurrence</label>
               <select
                 value={formData.recurrence}
                 onChange={(e) => setFormData({ ...formData, recurrence: e.target.value })}
-                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md"
+                className={inputClass}
               >
                 <option value="Once">Once</option>
                 <option value="Daily">Daily</option>
@@ -310,43 +301,43 @@ function ScheduleModal({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700">Priority</label>
+              <label className="block text-sm font-medium text-slate-300">Priority</label>
               <input
                 type="number"
                 value={formData.priority}
                 onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 0 })}
-                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md"
+                className={inputClass}
               />
             </div>
           </div>
           {schedule && (
-            <div className="flex items-center">
+            <div className="flex items-center gap-2">
               <input
                 id="isActive"
                 type="checkbox"
                 checked={formData.isActive}
                 onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="h-4 w-4 text-slate-900 border-slate-300 rounded"
+                className="h-4 w-4 rounded border-surface-700 bg-surface-850 text-accent-500 focus:ring-accent-500"
               />
-              <label htmlFor="isActive" className="ml-2 block text-sm text-slate-700">
+              <label htmlFor="isActive" className="text-sm text-slate-300">
                 Active
               </label>
             </div>
           )}
-          <div className="flex justify-end space-x-3 mt-6">
+          <div className="mt-6 flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-surface-700 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-surface-800"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={mutation.isPending}
-              className="px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent-500/25 transition-colors hover:bg-accent-400 disabled:opacity-50"
             >
-              {mutation.isPending ? 'Saving...' : 'Save'}
+              {mutation.isPending ? 'Saving…' : 'Save'}
             </button>
           </div>
         </form>

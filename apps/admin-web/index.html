@@ -1,10 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-mode="dark" data-accent="indigo">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sentinel Kiosk Admin</title>
+    <script>
+      // Apply saved theme before first paint (no flash)
+      (function () {
+        var mode = localStorage.getItem('theme-mode')
+        var accent = localStorage.getItem('theme-accent')
+        document.documentElement.dataset.mode = mode === 'light' ? 'light' : 'dark'
+        document.documentElement.dataset.accent = accent || 'indigo'
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
