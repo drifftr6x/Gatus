@@ -6,37 +6,38 @@ overview: Enhance content management with versioning UI, rollback capability, de
 todos:
   - id: p7t1
     content: 'API: content version detail + rollback endpoints'
-    status: pending
+    status: completed
   - id: p7t2
     content: 'API: deployment history + bulk deployment endpoints'
-    status: pending
+    status: completed
   - id: p7t3
     content: 'API: content export (CSV) endpoint'
-    status: pending
+    status: completed
   - id: p7t4
     content: 'Frontend: version history page with diff view'
-    status: pending
+    status: completed
   - id: p7t5
     content: 'Frontend: deployment history timeline with filters'
-    status: pending
+    status: completed
   - id: p7t6
     content: 'Frontend: content preview modal (image/PDF/HTML)'
-    status: pending
+    status: completed
   - id: p7t7
     content: 'Frontend: bulk deploy modal with device group selection'
-    status: pending
+    status: completed
   - id: p7t8
     content: Integration tests for versioning + bulk operations
-    status: pending
+    status: completed
   - id: p7t9
     content: 'Final verification: build, test, web build + commit'
-    status: pending
+    status: completed
 isProject: false
 created_at: '2026-08-28T11:04:31'
 session_id: sess_60616e1870d76f6b
 tool_use_id: create_plan_160
 model: FW-Kimi-K3
 mode_at_creation: auto
+dismissed: true
 content_hash: 3066eb58b26f412f
 title: phase-7-content-library
 ---
