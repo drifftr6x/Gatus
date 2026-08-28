@@ -23,7 +23,7 @@ public static class DbSeeder
         var admin = new User
         {
             Id = Guid.NewGuid(),
-            Email = "admin@sentinel.local",
+            Email = "admin@gatus.local",
             FirstName = "Admin",
             LastName = "User",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
@@ -35,7 +35,7 @@ public static class DbSeeder
         var editor = new User
         {
             Id = Guid.NewGuid(),
-            Email = "editor@sentinel.local",
+            Email = "editor@gatus.local",
             FirstName = "Emily",
             LastName = "Editor",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("Editor123!"),
