@@ -207,9 +207,9 @@ export function AnalyticsPage() {
 }
 
 function HealthMetric({ label, value, unit, warn, invert }: {
-  label: string; value?: number; unit: string; warn: number; invert?: boolean
+  label: string; value?: number | null; unit: string; warn: number; invert?: boolean
 }) {
-  if (value === undefined) {
+  if (value == null) {
     return (
       <div className="text-center">
         <p className="text-xs text-slate-500">{label}</p>
