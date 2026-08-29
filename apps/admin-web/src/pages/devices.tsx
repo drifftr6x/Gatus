@@ -2,14 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { devicesApi, enrollmentApi, commandsApi, groupsApi } from '@/lib/api'
 import type { DeviceDto, DeviceListResponse } from '@/lib/api'
-import { useState } from 'react'
-import { Plus, Pencil, Trash2, KeyRound, Copy, Check, Send } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Plus, Pencil, Trash2, KeyRound, Copy, Check, Send, Upload, Download, FileSpreadsheet } from 'lucide-react'
 
 export function DevicesPage() {
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
+  const [isImportOpen, setIsImportOpen] = useState(false)
   const [commandDevice, setCommandDevice] = useState<DeviceDto | null>(null)
   const [editingDevice, setEditingDevice] = useState<DeviceDto | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -69,6 +70,13 @@ export function DevicesPage() {
               <option key={g.id} value={g.id}>{g.name}</option>
             ))}
           </select>
+          <button
+            onClick={() => setIsImportOpen(true)}
+            className="flex items-center gap-2 rounded-lg border border-surface-700 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-surface-800"
+          >
+            <Upload className="h-4 w-4" />
+            Import
+          </button>
           <button
             onClick={() => setIsEnrollOpen(true)}
             className="flex items-center gap-2 rounded-lg border border-surface-700 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-surface-800"
@@ -225,6 +233,9 @@ export function DevicesPage() {
       )}
       {isEnrollOpen && (
         <EnrollTokenModal devices={data} onClose={() => setIsEnrollOpen(false)} />
+      )}
+      {isImportOpen && (
+        <ImportModal onClose={() => setIsImportOpen(false)} />
       )}
       {commandDevice && (
         <CommandModal device={commandDevice} onClose={() => setCommandDevice(null)} />
@@ -798,7 +809,208 @@ function DeviceModal({
         )
         }
 
-        function DeviceMetrics({ device }: { device: any }) {
+        function ImportModal({ onClose }: { onClose: () => void }) {
+          const queryClient = useQueryClient()
+          const fileRef = useRef<HTMLInputElement>(null)
+          const [parsedRows, setParsedRows] = useState<Record<string, string>[]>([])
+          const [parseError, setParseError] = useState('')
+          const [fileName, setFileName] = useState('')
+          const [importResult, setImportResult] = useState<import('@/lib/api').ImportDevicesResponse | null>(null)
+
+          const importMutation = useMutation({
+            mutationFn: (devices: import('@/lib/api').ImportDeviceRow[]) =>
+              devicesApi.import({ devices }),
+            onSuccess: (data) => {
+              setImportResult(data)
+              queryClient.invalidateQueries({ queryKey: ['devices'] })
+            },
+          })
+
+          const COLUMN_MAP: Record<string, string> = {
+            name: 'name', serial: 'serialNumber', 'serial number': 'serialNumber', serialnumber: 'serialNumber',
+            description: 'description', location: 'location', hostname: 'hostname', host: 'hostname', fqdn: 'hostname',
+            ip: 'ipAddress', 'ip address': 'ipAddress', ipaddress: 'ipAddress',
+            mac: 'macAddress', 'mac address': 'macAddress', macaddress: 'macAddress',
+            firmware: 'firmwareVersion', 'firmware version': 'firmwareVersion', firmwareversion: 'firmwareVersion',
+            group: 'group', 'group name': 'group',
+          }
+
+          const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0]
+            if (!file) return
+            setFileName(file.name)
+            setParseError('')
+            setParsedRows([])
+            setImportResult(null)
+
+            try {
+              const XLSX = await import('xlsx')
+              const buffer = await file.arrayBuffer()
+              const wb = XLSX.read(buffer)
+              const ws = wb.Sheets[wb.SheetNames[0]]
+              const raw: Record<string, string>[] = XLSX.utils.sheet_to_json(ws, { defval: '' })
+
+              if (raw.length === 0) { setParseError('No data rows found in the file.'); return }
+              if (raw.length > 500) { setParseError('Maximum 500 rows per import.'); return }
+
+              // Normalize column headers
+              const normalized = raw.map((row) => {
+                const out: Record<string, string> = {}
+                for (const [key, val] of Object.entries(row)) {
+                  const mapped = COLUMN_MAP[key.toLowerCase().trim()]
+                  if (mapped) out[mapped] = String(val).trim()
+                }
+                return out
+              }).filter((r) => r.name) // must have a name
+
+              if (normalized.length === 0) { setParseError('No valid rows found. Ensure a "Name" column exists.'); return }
+              setParsedRows(normalized)
+            } catch (err) {
+              setParseError(`Failed to parse file: ${err instanceof Error ? err.message : 'Unknown error'}`)
+            }
+          }
+
+          const downloadTemplate = () => {
+            const headers = 'Name,Serial Number,Description,Location,Hostname,IP Address,MAC Address,Firmware Version,Group\n'
+            const example = 'Lobby Kiosk 1,SN001,Main lobby display,Building A - Lobby,kiosk01.local,192.168.1.100,00:1A:2B:3C:4D:5E,1.2.3,Store 07\n'
+            const blob = new Blob([headers + example], { type: 'text/csv' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url; a.download = 'device-import-template.csv'; a.click()
+            URL.revokeObjectURL(url)
+          }
+
+          const handleImport = () => {
+            const devices = parsedRows.map((r) => ({
+              name: r.name, serialNumber: r.serialNumber || undefined, description: r.description || undefined,
+              location: r.location || undefined, hostname: r.hostname || undefined, ipAddress: r.ipAddress || undefined,
+              macAddress: r.macAddress || undefined, firmwareVersion: r.firmwareVersion || undefined,
+              group: r.group || undefined,
+            }))
+            importMutation.mutate(devices)
+          }
+
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+              <div className="w-full max-w-2xl rounded-2xl border border-surface-700 bg-surface-900 p-6 shadow-2xl">
+                <h2 className="text-lg font-semibold text-white">Import Devices</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Upload an Excel (.xlsx) or CSV file with device data. Download the template to get started.
+                </p>
+
+                {!importResult ? (
+                  <>
+                    <div className="mt-5 flex items-center gap-3">
+                      <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFile} className="hidden" />
+                      <button
+                        onClick={() => fileRef.current?.click()}
+                        className="flex items-center gap-2 rounded-lg border border-surface-700 px-4 py-2.5 text-sm font-medium text-slate-200 transition-colors hover:bg-surface-800"
+                      >
+                        <FileSpreadsheet className="h-4 w-4" />
+                        {fileName || 'Choose File'}
+                      </button>
+                      <button
+                        onClick={downloadTemplate}
+                        className="flex items-center gap-2 rounded-lg border border-surface-700 px-4 py-2.5 text-sm text-slate-400 transition-colors hover:bg-surface-800"
+                      >
+                        <Download className="h-4 w-4" />
+                        Template
+                      </button>
+                    </div>
+
+                    {parseError && (
+                      <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                        {parseError}
+                      </div>
+                    )}
+
+                    {parsedRows.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-sm text-slate-300">{parsedRows.length} device(s) ready to import:</p>
+                        <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-surface-700">
+                          <table className="min-w-full divide-y divide-surface-800 text-xs">
+                            <thead>
+                              <tr className="bg-surface-850">
+                                <th className="px-3 py-2 text-left text-slate-400">Name</th>
+                                <th className="px-3 py-2 text-left text-slate-400">Hostname</th>
+                                <th className="px-3 py-2 text-left text-slate-400">IP</th>
+                                <th className="px-3 py-2 text-left text-slate-400">Serial</th>
+                                <th className="px-3 py-2 text-left text-slate-400">Group</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-surface-800">
+                              {parsedRows.slice(0, 20).map((r, i) => (
+                                <tr key={i}>
+                                  <td className="px-3 py-1.5 text-white">{r.name}</td>
+                                  <td className="px-3 py-1.5 text-slate-400">{r.hostname || '—'}</td>
+                                  <td className="px-3 py-1.5 text-slate-400">{r.ipAddress || '—'}</td>
+                                  <td className="px-3 py-1.5 text-slate-400">{r.serialNumber || '—'}</td>
+                                  <td className="px-3 py-1.5 text-slate-400">{r.group || '—'}</td>
+                                </tr>
+                              ))}
+                              {parsedRows.length > 20 && (
+                                <tr><td colSpan={5} className="px-3 py-2 text-center text-slate-500">…and {parsedRows.length - 20} more</td></tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mt-6 flex justify-end gap-3">
+                      <button onClick={onClose} className="rounded-lg border border-surface-700 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-surface-800">Cancel</button>
+                      <button
+                        onClick={handleImport}
+                        disabled={parsedRows.length === 0 || importMutation.isPending}
+                        className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent-500/25 transition-colors hover:bg-accent-400 disabled:opacity-50"
+                      >
+                        {importMutation.isPending ? 'Importing…' : `Import ${parsedRows.length} Device(s)`}
+                      </button>
+                    </div>
+                    {importMutation.isError && (
+                      <p className="mt-2 text-sm text-red-400">{(importMutation.error as Error).message}</p>
+                    )}
+                  </>
+                ) : (
+                  <div className="mt-5">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div className="rounded-lg bg-emerald-500/10 p-3">
+                        <p className="text-2xl font-bold text-emerald-400">{importResult.imported}</p>
+                        <p className="text-xs text-slate-400">Imported</p>
+                      </div>
+                      <div className="rounded-lg bg-amber-500/10 p-3">
+                        <p className="text-2xl font-bold text-amber-400">{importResult.skipped}</p>
+                        <p className="text-xs text-slate-400">Skipped</p>
+                      </div>
+                      <div className="rounded-lg bg-red-500/10 p-3">
+                        <p className="text-2xl font-bold text-red-400">{importResult.failed}</p>
+                        <p className="text-xs text-slate-400">Failed</p>
+                      </div>
+                    </div>
+
+                    {importResult.results.filter(r => r.status !== 'created').length > 0 && (
+                      <div className="mt-4 max-h-40 overflow-y-auto rounded-lg border border-surface-700">
+                        {importResult.results.filter(r => r.status !== 'created').map((r) => (
+                          <div key={r.row} className={`flex items-center gap-2 px-3 py-1.5 text-xs ${r.status === 'error' ? 'text-red-400' : 'text-amber-400'}`}>
+                            <span className="font-mono">Row {r.row}:</span>
+                            <span>{r.name}</span>
+                            <span className="text-slate-500">— {r.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-6 flex justify-end">
+                      <button onClick={onClose} className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-400">Done</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        }
+
+                function DeviceMetrics({ device }: { device: any }) {
         const hasAny = device.cpuPercent != null || device.memoryPercent != null ||
         device.diskFreePercent != null || device.diskFreeGb != null || device.uptimeSeconds != null
 

@@ -594,4 +594,127 @@ public class DevicesController : ControllerBase
             results.Count(r => !r.Success),
             results));
         }
+
+        [HttpPost("import")]
+        [Authorize(Policy = "RequireEditor")]
+        public async Task<ActionResult<ImportDevicesResponse>> ImportDevices([FromBody] ImportDevicesRequest request)
+        {
+            if (request.Devices.Length == 0)
+                return BadRequest(new { error = "No devices to import" });
+
+            if (request.Devices.Length > 500)
+                return BadRequest(new { error = "Maximum 500 devices per import" });
+
+            // Pre-fetch existing serials and names for duplicate detection
+            var serials = request.Devices
+                .Where(d => !string.IsNullOrWhiteSpace(d.SerialNumber))
+                .Select(d => d.SerialNumber!)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var names = request.Devices
+                .Select(d => d.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var existingDevices = await _context.Devices
+                .Where(d => (d.SerialNumber != null && serials.Contains(d.SerialNumber)) || names.Contains(d.Name))
+                .Select(d => new { d.SerialNumber, d.Name })
+                .ToListAsync();
+
+            var existingSerials = existingDevices
+                .Where(d => d.SerialNumber != null)
+                .Select(d => d.SerialNumber!)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var existingNames = existingDevices
+                .Select(d => d.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // Resolve group names to IDs
+            var groupNames = request.Devices
+                .Where(d => !string.IsNullOrWhiteSpace(d.Group))
+                .Select(d => d.Group!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var groups = await _context.DeviceGroups
+                .Where(g => groupNames.Contains(g.Name))
+                .ToDictionaryAsync(g => g.Name, g => g.Id, StringComparer.OrdinalIgnoreCase);
+
+            var results = new List<ImportRowResult>();
+            var seenSerials = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            for (var i = 0; i < request.Devices.Length; i++)
+            {
+                var row = request.Devices[i];
+                var rowNum = i + 1;
+
+                // Validate
+                if (string.IsNullOrWhiteSpace(row.Name))
+                {
+                    results.Add(new ImportRowResult(rowNum, row.Name ?? "", "error", "Name is required"));
+                    continue;
+                }
+
+                // Duplicate check: by serial, then by name
+                if (!string.IsNullOrWhiteSpace(row.SerialNumber))
+                {
+                    if (existingSerials.Contains(row.SerialNumber) || !seenSerials.Add(row.SerialNumber))
+                    {
+                        results.Add(new ImportRowResult(rowNum, row.Name, "skipped", $"Duplicate serial: {row.SerialNumber}"));
+                        continue;
+                    }
+                }
+                if (existingNames.Contains(row.Name) || !seenNames.Add(row.Name))
+                {
+                    results.Add(new ImportRowResult(rowNum, row.Name, "skipped", $"Duplicate name: {row.Name}"));
+                    continue;
+                }
+
+                // Resolve group
+                Guid? groupId = null;
+                if (!string.IsNullOrWhiteSpace(row.Group))
+                {
+                    if (groups.TryGetValue(row.Group, out var gid))
+                        groupId = gid;
+                    else
+                        results.Add(new ImportRowResult(rowNum, row.Name, "error", $"Group not found: {row.Group}"));
+                    if (groupId == null) continue;
+                }
+
+                var device = new Device
+                {
+                    Id = Guid.NewGuid(),
+                    Name = row.Name.Trim(),
+                    SerialNumber = string.IsNullOrWhiteSpace(row.SerialNumber) ? null : row.SerialNumber.Trim(),
+                    Description = row.Description,
+                    Location = row.Location,
+                    Hostname = row.Hostname,
+                    IpAddress = row.IpAddress,
+                    MacAddress = row.MacAddress,
+                    FirmwareVersion = row.FirmwareVersion,
+                    GroupId = groupId,
+                    Status = DeviceStatus.Offline,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.Devices.Add(device);
+                results.Add(new ImportRowResult(rowNum, row.Name, "created", null));
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Device import: {Total} rows, {Imported} created, {Skipped} skipped, {Failed} failed",
+                request.Devices.Length,
+                results.Count(r => r.Status == "created"),
+                results.Count(r => r.Status == "skipped"),
+                results.Count(r => r.Status == "error"));
+
+            return Ok(new ImportDevicesResponse(
+                request.Devices.Length,
+                results.Count(r => r.Status == "created"),
+                results.Count(r => r.Status == "skipped"),
+                results.Count(r => r.Status == "error"),
+                results));
+        }
         }

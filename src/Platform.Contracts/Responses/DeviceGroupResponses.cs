@@ -48,3 +48,18 @@ public record BulkOperationResult(
     bool Success,
     string? Error
 );
+
+public record ImportDevicesResponse(
+    int TotalRows,
+    int Imported,
+    int Skipped,
+    int Failed,
+    List<ImportRowResult> Results
+);
+
+public record ImportRowResult(
+    int Row,
+    string Name,
+    string Status,   // "created" | "skipped" | "error"
+    string? Message
+);

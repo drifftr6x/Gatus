@@ -215,7 +215,40 @@ export const devicesApi = {
     api.post<BulkOperationResponse>('/devices/bulk-assign-group', data),
   bulkTag: (data: { deviceIds: string[]; tags: string }) =>
     api.post<BulkOperationResponse>('/devices/bulk-tag', data),
-}
+  import: (data: ImportDevicesRequest) =>
+    api.post<ImportDevicesResponse>('/devices/import', data),
+  }
+
+  export interface ImportDeviceRow {
+  name: string
+  serialNumber?: string
+  description?: string
+  location?: string
+  hostname?: string
+  ipAddress?: string
+  macAddress?: string
+  firmwareVersion?: string
+  group?: string
+  }
+
+  export interface ImportDevicesRequest {
+  devices: ImportDeviceRow[]
+  }
+
+  export interface ImportRowResult {
+  row: number
+  name: string
+  status: 'created' | 'skipped' | 'error'
+  message?: string
+  }
+
+  export interface ImportDevicesResponse {
+  totalRows: number
+  imported: number
+  skipped: number
+  failed: number
+  results: ImportRowResult[]
+  }
 
 export interface BulkOperationResult {
   deviceId: string

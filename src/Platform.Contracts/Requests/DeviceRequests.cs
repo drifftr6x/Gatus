@@ -44,3 +44,19 @@ public record CreateEnrollmentTokenRequest(
     int ExpiresInHours = 24,
     Guid? DeviceId = null
 );
+
+public record ImportDevicesRequest(
+    ImportDeviceRow[] Devices
+);
+
+public record ImportDeviceRow(
+    string Name,
+    string? SerialNumber,
+    string? Description,
+    string? Location,
+    string? Hostname,
+    string? IpAddress,
+    string? MacAddress,
+    string? FirmwareVersion,
+    string? Group
+);
