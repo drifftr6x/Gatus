@@ -20,15 +20,8 @@ $ErrorActionPreference = "Stop"
 Write-Host "=== Sentinel Kiosk Agent Installer ===" -ForegroundColor Cyan
 Write-Host ""
 
-# Check .NET 10 runtime
-Write-Host "Checking .NET 10 runtime..." -ForegroundColor Yellow
-$dotnetVersion = dotnet --list-runtimes 2>$null | Select-String "Microsoft.NETCore.App 10"
-if (-not $dotnetVersion) {
-    Write-Host "ERROR: .NET 10 runtime not found. Please install .NET 10 runtime first." -ForegroundColor Red
-    Write-Host "Download: https://dotnet.microsoft.com/download/dotnet/10.0" -ForegroundColor Yellow
-    exit 1
-}
-Write-Host "  Found: $dotnetVersion" -ForegroundColor Green
+# Self-contained single-file publish — no .NET runtime needed
+Write-Host "Using self-contained agent (no .NET runtime required)" -ForegroundColor Green
 
 # Create install directory
 Write-Host "Creating installation directory..." -ForegroundColor Yellow
