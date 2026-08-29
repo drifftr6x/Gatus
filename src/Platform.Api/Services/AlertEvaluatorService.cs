@@ -18,20 +18,17 @@ public class AlertEvaluatorService : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<AlertEvaluatorService> _logger;
     private readonly NotificationService _notificationService;
-    private readonly IDeviceEventBroadcaster _broadcaster;
     private readonly TimeSpan _interval = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan OfflineThreshold = TimeSpan.FromMinutes(5);
 
     public AlertEvaluatorService(
         IServiceProvider serviceProvider,
         ILogger<AlertEvaluatorService> logger,
-        NotificationService notificationService,
-        IDeviceEventBroadcaster broadcaster)
+        NotificationService notificationService)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
         _notificationService = notificationService;
-        _broadcaster = broadcaster;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -74,11 +71,13 @@ public class AlertEvaluatorService : BackgroundService
         // Latest heartbeat metrics per device from telemetry
         var now = DateTime.UtcNow;
 
+        var broadcaster = scope.ServiceProvider.GetRequiredService<IDeviceEventBroadcaster>();
+
         foreach (var device in devices)
         {
             foreach (var rule in rules)
             {
-                await EvaluateRuleAsync(context, device, rule, now, ct);
+                await EvaluateRuleAsync(context, device, rule, now, broadcaster, ct);
             }
         }
 
@@ -86,7 +85,8 @@ public class AlertEvaluatorService : BackgroundService
     }
 
     private async Task EvaluateRuleAsync(
-        ApplicationDbContext context, Device device, AlertRule rule, DateTime now, CancellationToken ct)
+        ApplicationDbContext context, Device device, AlertRule rule, DateTime now,
+        IDeviceEventBroadcaster broadcaster, CancellationToken ct)
     {
         bool conditionMet;
         string detail;
@@ -143,7 +143,7 @@ public class AlertEvaluatorService : BackgroundService
                 _logger.LogWarning("ALERT raised: {Title} [{Severity}]", alert.Title, alert.Severity);
 
                 // Broadcast to admin UI
-                await _broadcaster.AlertTriggered(alert.Id, device.Id, device.Name, alert.Severity.ToString(), alert.Message);
+                await broadcaster.AlertTriggered(alert.Id, device.Id, device.Name, alert.Severity.ToString(), alert.Message);
 
                 // Fire-and-forget notification (don't block evaluation)
                 _ = Task.Run(() => _notificationService.NotifyAlertAsync(alert, device.Name));
