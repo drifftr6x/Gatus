@@ -8,6 +8,7 @@ import { GroupsPage } from '@/pages/groups'
 import { SchedulesPage } from '@/pages/schedules'
 import { ContentPage } from '@/pages/content'
 import { AlertsPage } from '@/pages/alerts'
+import { AnalyticsPage } from '@/pages/analytics'
 import { SettingsPage } from '@/pages/settings'
 import { LoginPage } from '@/pages/login'
 
@@ -29,6 +30,7 @@ export default function App() {
                   <Route path="/schedules" element={<SchedulesPage />} />
                   <Route path="/content" element={<ContentPage />} />
                   <Route path="/alerts" element={<AlertsPage />} />
+                  <Route path="/analytics" element={<AnalyticsPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                 </Routes>
               </AppShell>

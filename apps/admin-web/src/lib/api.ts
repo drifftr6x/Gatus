@@ -478,3 +478,89 @@ export const telemetryApi = {
     return api.get<TelemetrySeriesDto[]>(`/telemetry/device/${deviceId}${query ? `?${query}` : ''}`)
   },
 }
+
+// Analytics types
+export interface DeviceUptimeSummary {
+  deviceId: string
+  deviceName: string
+  groupName?: string
+  status: string
+  uptimePercent: number
+  totalMinutesOnline: number
+  totalMinutesOffline: number
+  lastSeenAt?: string
+}
+
+export interface UptimeReportResponse {
+  devices: DeviceUptimeSummary[]
+  totalDevices: number
+  overallUptimePercent: number
+  generatedAt: string
+}
+
+export interface AlertTrendPoint {
+  date: string
+  raised: number
+  resolved: number
+  critical: number
+  warning: number
+  info: number
+}
+
+export interface AlertTrendResponse {
+  points: AlertTrendPoint[]
+  totalAlerts: number
+  activeAlerts: number
+  resolvedAlerts: number
+}
+
+export interface TelemetryMetricAggregate {
+  metricName: string
+  unit: string
+  min: number
+  max: number
+  avg: number
+  latest: number
+  sampleCount: number
+}
+
+export interface TelemetryAggregationResponse {
+  metrics: TelemetryMetricAggregate[]
+  deviceCount: number
+  from: string
+  to: string
+}
+
+export interface DeviceHealthSummary {
+  deviceId: string
+  deviceName: string
+  status: string
+  cpuAvg?: number
+  memoryAvg?: number
+  diskFreeAvg?: number
+  uptimeSeconds?: number
+  lastHeartbeat?: string
+}
+
+export const analyticsApi = {
+  uptime: (days?: number) => {
+    const sp = new URLSearchParams()
+    if (days) sp.set('days', days.toString())
+    const q = sp.toString()
+    return api.get<UptimeReportResponse>(`/analytics/uptime${q ? `?${q}` : ''}`)
+  },
+  alertTrends: (days?: number) => {
+    const sp = new URLSearchParams()
+    if (days) sp.set('days', days.toString())
+    const q = sp.toString()
+    return api.get<AlertTrendResponse>(`/analytics/alert-trends${q ? `?${q}` : ''}`)
+  },
+  telemetry: (hours?: number, deviceId?: string) => {
+    const sp = new URLSearchParams()
+    if (hours) sp.set('hours', hours.toString())
+    if (deviceId) sp.set('deviceId', deviceId)
+    const q = sp.toString()
+    return api.get<TelemetryAggregationResponse>(`/analytics/telemetry${q ? `?${q}` : ''}`)
+  },
+  deviceHealth: () => api.get<DeviceHealthSummary[]>('/analytics/device-health'),
+}
