@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Platform.Api.Hubs;
 using Platform.Domain.Entities;
 using Platform.Infrastructure.Persistence;
 
@@ -17,17 +18,20 @@ public class AlertEvaluatorService : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<AlertEvaluatorService> _logger;
     private readonly NotificationService _notificationService;
+    private readonly IDeviceEventBroadcaster _broadcaster;
     private readonly TimeSpan _interval = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan OfflineThreshold = TimeSpan.FromMinutes(5);
 
     public AlertEvaluatorService(
         IServiceProvider serviceProvider,
         ILogger<AlertEvaluatorService> logger,
-        NotificationService notificationService)
+        NotificationService notificationService,
+        IDeviceEventBroadcaster broadcaster)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
         _notificationService = notificationService;
+        _broadcaster = broadcaster;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -137,6 +141,9 @@ public class AlertEvaluatorService : BackgroundService
                 };
                 context.Alerts.Add(alert);
                 _logger.LogWarning("ALERT raised: {Title} [{Severity}]", alert.Title, alert.Severity);
+
+                // Broadcast to admin UI
+                await _broadcaster.AlertTriggered(alert.Id, device.Id, device.Name, alert.Severity.ToString(), alert.Message);
 
                 // Fire-and-forget notification (don't block evaluation)
                 _ = Task.Run(() => _notificationService.NotifyAlertAsync(alert, device.Name));

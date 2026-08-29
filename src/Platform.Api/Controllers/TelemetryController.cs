@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Platform.Api.Hubs;
 using Platform.Contracts.Requests;
 using Platform.Contracts.Responses;
 using Platform.Domain.Entities;
@@ -16,10 +17,13 @@ public class TelemetryController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly ILogger<TelemetryController> _logger;
 
-    public TelemetryController(ApplicationDbContext context, ILogger<TelemetryController> logger)
+    private readonly IDeviceEventBroadcaster _broadcaster;
+
+    public TelemetryController(ApplicationDbContext context, ILogger<TelemetryController> logger, IDeviceEventBroadcaster broadcaster)
     {
         _context = context;
         _logger = logger;
+        _broadcaster = broadcaster;
     }
 
     /// <summary>
@@ -50,6 +54,8 @@ public class TelemetryController : ControllerBase
 
         _logger.LogDebug("Ingested {Count} telemetry points for device {DeviceId}",
             points.Count, request.DeviceId);
+
+        await _broadcaster.TelemetryReceived(request.DeviceId);
 
         return Accepted(new { ingested = points.Count });
     }

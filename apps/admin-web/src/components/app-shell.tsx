@@ -14,6 +14,7 @@ import {
   } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuth } from '@/hooks/useAuth'
+import { useSignalR } from '@/hooks/useSignalR'
 import { ThemePicker } from '@/components/theme-picker'
 
 const navItems = [
@@ -31,6 +32,7 @@ const navItems = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const { user, logout } = useAuth()
+  const { isConnected } = useSignalR()
 
   return (
     <div className="min-h-screen bg-surface-950">
@@ -49,6 +51,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
           <div className="flex items-center gap-4">
+            <div
+              className={clsx(
+                'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
+                isConnected
+                  ? 'bg-emerald-500/10 text-emerald-400'
+                  : 'bg-red-500/10 text-red-400',
+              )}
+              title={isConnected ? 'Real-time connected' : 'Real-time disconnected'}
+            >
+              <span className={clsx(
+                'h-1.5 w-1.5 rounded-full',
+                isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400',
+              )} />
+              {isConnected ? 'Live' : 'Offline'}
+            </div>
             <ThemePicker />
             <span className="text-sm text-slate-400">{user?.displayName}</span>
             <button

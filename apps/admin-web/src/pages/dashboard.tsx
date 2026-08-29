@@ -1,16 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { telemetryApi, devicesApi, alertsApi } from '@/lib/api'
-import { useSignalR } from '@/hooks/useSignalR'
-import { Monitor, CalendarClock, FolderOpen, AlertTriangle, BellRing, Wifi, WifiOff } from 'lucide-react'
+import { Monitor, CalendarClock, FolderOpen, AlertTriangle, BellRing } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export function DashboardPage() {
-  const { isConnected } = useSignalR()
 
   const { data: summary, isLoading } = useQuery({
     queryKey: ['telemetry-summary'],
     queryFn: telemetryApi.summary,
-    refetchInterval: 30_000,
   })
 
   const { data: devicesData } = useQuery({
@@ -75,18 +72,8 @@ export function DashboardPage() {
         <div>
           <h1 className="text-xl font-semibold text-white">Dashboard</h1>
           <p className="mt-1 text-sm text-slate-400">Fleet overview and live status</p>
-        </div>
-        <div
-          className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${
-            isConnected
-              ? 'bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30'
-              : 'bg-slate-500/10 text-slate-400 ring-1 ring-slate-500/30'
-          }`}
-        >
-          {isConnected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-          {isConnected ? 'Live' : 'Connecting…'}
-        </div>
-      </div>
+          </div>
+          </div>
 
       {/* Stat cards */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -60,6 +60,8 @@ public interface IDeviceEventBroadcaster
     Task DeviceStatusChanged(Guid deviceId, string status, DateTime timestamp);
     Task ContentUpdated(Guid contentId, string name);
     Task ScheduleChanged(Guid scheduleId, Guid deviceId, string changeType);
+    Task AlertTriggered(Guid alertId, Guid deviceId, string deviceName, string severity, string message);
+    Task TelemetryReceived(Guid deviceId);
 }
 
 public class DeviceEventBroadcaster : IDeviceEventBroadcaster
@@ -90,4 +92,18 @@ public class DeviceEventBroadcaster : IDeviceEventBroadcaster
         await _hubContext.Clients.Group("admins")
             .SendAsync("ScheduleChanged", new { scheduleId, deviceId, changeType });
     }
-}
+
+    public async Task AlertTriggered(Guid alertId, Guid deviceId, string deviceName, string severity, string message)
+    {
+        await _hubContext.Clients.Group("admins")
+            .SendAsync("AlertTriggered", new { alertId, deviceId, deviceName, severity, message });
+    }
+
+    public async Task TelemetryReceived(Guid deviceId)
+    {
+        await _hubContext.Clients.Group("admins")
+            .SendAsync("TelemetryReceived", new { deviceId });
+        await _hubContext.Clients.Group($"device-{deviceId}")
+            .SendAsync("TelemetryReceived", new { deviceId });
+    }
+    }
