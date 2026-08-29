@@ -86,7 +86,13 @@ export function DeviceMap({ devices, groups }: { devices: DeviceDto[]; groups?: 
   const storeGroups = groups ?? []
 
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return
+    if (!mapRef.current) return
+
+    // Clean up any existing map on this container (StrictMode double-mount)
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove()
+      mapInstanceRef.current = null
+    }
 
     const map = L.map(mapRef.current, {
       center: [39.8, -98.5],
@@ -106,6 +112,7 @@ export function DeviceMap({ devices, groups }: { devices: DeviceDto[]; groups?: 
     return () => {
       map.remove()
       mapInstanceRef.current = null
+      markersRef.current = null
     }
   }, [])
 
