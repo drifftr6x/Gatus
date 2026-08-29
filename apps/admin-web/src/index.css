@@ -123,3 +123,41 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-6);
 }
+
+/* Leaflet overrides — Tailwind v4 preflight breaks tile sizing */
+.leaflet-container img,
+.leaflet-container .leaflet-tile,
+.leaflet-container .leaflet-marker-icon,
+.leaflet-container .leaflet-marker-shadow,
+.leaflet-container .leaflet-tile-container img,
+.leaflet-container .leaflet-overlay-pane svg,
+.leaflet-container .leaflet-shadow-pane img,
+.leaflet-container .leaflet-tile-pane img {
+  max-width: none !important;
+  max-height: none !important;
+  height: auto;
+}
+
+/* Dark popup styling */
+.dark-popup .leaflet-popup-content-wrapper {
+  background: var(--bg-elev, #15151f);
+  color: #e2e8f0;
+  border: 1px solid var(--border, #262636);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+.dark-popup .leaflet-popup-tip {
+  background: var(--bg-elev, #15151f);
+  border: 1px solid var(--border, #262636);
+}
+
+/* Dark zoom controls */
+.leaflet-bar a {
+  background-color: var(--bg-elev, #15151f) !important;
+  color: #94a3b8 !important;
+  border-color: var(--border, #262636) !important;
+}
+.leaflet-bar a:hover {
+  background-color: var(--bg-input, #1c1c28) !important;
+  color: #e2e8f0 !important;
+}
