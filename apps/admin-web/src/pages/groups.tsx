@@ -1,22 +1,33 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { groupsApi } from '@/lib/api'
+import { groupsApi, devicesApi } from '@/lib/api'
 import { useState } from 'react'
-import { Plus, Pencil, Trash2, FolderTree } from 'lucide-react'
+import { Plus, Pencil, Trash2, FolderTree, ChevronDown, ChevronRight, Monitor } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 export function GroupsPage() {
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingGroup, setEditingGroup] = useState<{ id: string; name: string; description?: string } | null>(null)
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null)
 
   const { data: groups, isLoading, error } = useQuery({
     queryKey: ['deviceGroups'],
     queryFn: groupsApi.list,
   })
 
+  const { data: allDevices } = useQuery({
+    queryKey: ['devices', 'all'],
+    queryFn: () => devicesApi.list({ pageSize: 500 }),
+  })
+
   const deleteMutation = useMutation({
     mutationFn: groupsApi.delete,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['deviceGroups'] }),
   })
+
+  const toggleExpand = (groupId: string) => {
+    setExpandedGroupId(expandedGroupId === groupId ? null : groupId)
+  }
 
   return (
     <div>
@@ -48,41 +59,102 @@ export function GroupsPage() {
           <p className="mt-2 text-sm text-slate-500">No groups yet. Create one to organize your devices.</p>
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {groups?.map((group) => (
-            <div key={group.id} className="rounded-xl border border-surface-800 bg-surface-900 p-5 shadow-lg">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-base font-semibold text-white">{group.name}</h3>
-                  {group.description && (
-                    <p className="mt-1 text-sm text-slate-500">{group.description}</p>
-                  )}
-                </div>
-                <span className="rounded-full bg-surface-800 px-2.5 py-0.5 text-xs font-medium text-slate-300">
-                  {group.deviceCount} devices
-                </span>
-              </div>
-              <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-6 space-y-3">
+          {groups?.map((group) => {
+            const isExpanded = expandedGroupId === group.id
+            const groupDevices = allDevices?.devices.filter(d => d.groupId === group.id) ?? []
+
+            return (
+              <div key={group.id} className="rounded-xl border border-surface-800 bg-surface-900 shadow-lg">
+                {/* Group header — clickable to expand */}
                 <button
-                  onClick={() => { setEditingGroup(group); setIsModalOpen(true) }}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-slate-400 transition-colors hover:bg-surface-800 hover:text-white"
+                  onClick={() => toggleExpand(group.id)}
+                  className="flex w-full items-center justify-between p-5 text-left transition-colors hover:bg-surface-850"
                 >
-                  <Pencil className="h-3.5 w-3.5" />
-                  Edit
+                  <div className="flex items-center gap-3">
+                    {isExpanded
+                      ? <ChevronDown className="h-4 w-4 text-slate-400" />
+                      : <ChevronRight className="h-4 w-4 text-slate-400" />
+                    }
+                    <div>
+                      <h3 className="text-base font-semibold text-white">{group.name}</h3>
+                      {group.description && (
+                        <p className="mt-0.5 text-sm text-slate-500">{group.description}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="rounded-full bg-surface-800 px-2.5 py-0.5 text-xs font-medium text-slate-300">
+                      {group.deviceCount} device{group.deviceCount !== 1 ? 's' : ''}
+                    </span>
+                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => { setEditingGroup(group); setIsModalOpen(true) }}
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-slate-400 transition-colors hover:bg-surface-800 hover:text-white"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete group "${group.name}"? Devices will be unassigned.`))
+                            deleteMutation.mutate(group.id)
+                        }}
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
                 </button>
-                <button
-                  onClick={() => {
-                    if (confirm(`Delete group "${group.name}"? Devices will be unassigned.`))
-                      deleteMutation.mutate(group.id)
-                  }}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Delete
-                </button>
+
+                {/* Expanded device list */}
+                {isExpanded && (
+                  <div className="border-t border-surface-800">
+                    {groupDevices.length === 0 ? (
+                      <p className="px-5 py-4 text-sm text-slate-500">No devices in this group.</p>
+                    ) : (
+                      <table className="min-w-full divide-y divide-surface-800">
+                        <thead>
+                          <tr className="bg-surface-850">
+                            <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Device</th>
+                            <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Hostname</th>
+                            <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">IP</th>
+                            <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
+                            <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Last Seen</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-surface-800">
+                          {groupDevices.map((device) => (
+                            <tr key={device.id} className="transition-colors hover:bg-surface-850">
+                              <td className="px-5 py-2.5">
+                                <Link
+                                  to={`/devices/${device.id}`}
+                                  className="flex items-center gap-2 text-sm font-medium text-white hover:text-accent-400"
+                                >
+                                  <Monitor className="h-3.5 w-3.5 text-slate-500" />
+                                  {device.name}
+                                </Link>
+                              </td>
+                              <td className="px-5 py-2.5 text-sm text-slate-400">{device.hostname || '—'}</td>
+                              <td className="px-5 py-2.5 font-mono text-sm text-slate-400">{device.ipAddress || '—'}</td>
+                              <td className="px-5 py-2.5">
+                                <GroupDeviceStatus status={device.status} />
+                              </td>
+                              <td className="px-5 py-2.5 text-sm text-slate-500">
+                                {device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString() : 'Never'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -90,6 +162,21 @@ export function GroupsPage() {
         <GroupModal group={editingGroup} onClose={() => setIsModalOpen(false)} />
       )}
     </div>
+  )
+}
+
+function GroupDeviceStatus({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    Online: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/30',
+    Offline: 'bg-slate-500/10 text-slate-400 ring-slate-500/30',
+    Error: 'bg-red-500/10 text-red-400 ring-red-500/30',
+    Maintenance: 'bg-amber-500/10 text-amber-400 ring-amber-500/30',
+  }
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${styles[status] ?? styles.Offline}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {status}
+    </span>
   )
 }
 
