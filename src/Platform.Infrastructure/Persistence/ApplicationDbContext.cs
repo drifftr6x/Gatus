@@ -20,6 +20,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<Command> Commands => Set<Command>();
     public DbSet<Alert> Alerts => Set<Alert>();
     public DbSet<AlertRule> AlertRules => Set<AlertRule>();
+    public DbSet<DeviceGroup> DeviceGroups => Set<DeviceGroup>();
+    public DbSet<DeviceConfigTemplate> DeviceConfigTemplates => Set<DeviceConfigTemplate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,17 +32,19 @@ public class ApplicationDbContext : DbContext
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         var entries = ChangeTracker.Entries()
-            .Where(e => e.Entity is Device or Content or User or Schedule
+            .Where(e => e.Entity is Device or Content or User or Schedule or DeviceGroup or DeviceConfigTemplate
                 && (e.State == EntityState.Added || e.State == EntityState.Modified));
 
-        foreach (var entry in entries)
-        {
+            foreach (var entry in entries)
+            {
             if (entry.State == EntityState.Added)
             {
                 if (entry.Entity is Device device) device.CreatedAt = DateTime.UtcNow;
                 else if (entry.Entity is Content content) content.CreatedAt = DateTime.UtcNow;
                 else if (entry.Entity is User user) user.CreatedAt = DateTime.UtcNow;
                 else if (entry.Entity is Schedule schedule) schedule.CreatedAt = DateTime.UtcNow;
+                else if (entry.Entity is DeviceGroup group) group.CreatedAt = DateTime.UtcNow;
+                else if (entry.Entity is DeviceConfigTemplate template) template.CreatedAt = DateTime.UtcNow;
             }
             else
             {
@@ -48,8 +52,10 @@ public class ApplicationDbContext : DbContext
                 else if (entry.Entity is Content content) content.UpdatedAt = DateTime.UtcNow;
                 else if (entry.Entity is User user) user.UpdatedAt = DateTime.UtcNow;
                 else if (entry.Entity is Schedule schedule) schedule.UpdatedAt = DateTime.UtcNow;
+                else if (entry.Entity is DeviceGroup group) group.UpdatedAt = DateTime.UtcNow;
+                else if (entry.Entity is DeviceConfigTemplate template) template.UpdatedAt = DateTime.UtcNow;
             }
-        }
+            }
 
         return base.SaveChangesAsync(cancellationToken);
     }

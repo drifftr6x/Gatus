@@ -32,13 +32,14 @@ todos:
     status: completed
   - id: p10t9
     content: Build/test verification + commit
-    status: in_progress
+    status: completed
 isProject: false
 created_at: '2026-08-28T22:22:18'
 session_id: sess_60616e1870d76f6b
 tool_use_id: create_plan_401
 model: FW-Kimi-K3
 mode_at_creation: auto
+dismissed: true
 content_hash: 0dffcf45b7b4d755
 title: phase-10-monitoring-alerts
 ---

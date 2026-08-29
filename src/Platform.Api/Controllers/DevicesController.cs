@@ -176,13 +176,16 @@ public class DevicesController : ControllerBase
                 d.IpAddress,
                 d.MacAddress,
                 d.FirmwareVersion,
+                d.GroupId,
+                d.Group != null ? d.Group.Name : null,
+                d.Tags,
                 d.CreatedAt,
                 d.UpdatedAt,
                 d.IsActive
             ))
             .ToListAsync();
 
-        return Ok(new DeviceListResponse(devices, totalCount, page, pageSize));
+            return Ok(new DeviceListResponse(devices, totalCount, page, pageSize));
     }
 
     [HttpGet("{id}")]
@@ -207,13 +210,16 @@ public class DevicesController : ControllerBase
             device.IpAddress,
             device.MacAddress,
             device.FirmwareVersion,
+            device.GroupId,
+            device.Group?.Name,
+            device.Tags,
             device.CreatedAt,
             device.UpdatedAt,
             device.IsActive
-        ));
-        }
+            ));
+            }
 
-        [HttpPost]
+            [HttpPost]
     [Authorize(Policy = "RequireEditor")]
     public async Task<ActionResult<DeviceDto>> CreateDevice(CreateDeviceRequest request)
     {
@@ -258,6 +264,9 @@ public class DevicesController : ControllerBase
             device.IpAddress,
             device.MacAddress,
             device.FirmwareVersion,
+            device.GroupId,
+            device.Group?.Name,
+            device.Tags,
             device.CreatedAt,
             device.UpdatedAt,
             device.IsActive
@@ -308,6 +317,9 @@ public class DevicesController : ControllerBase
             device.IpAddress,
             device.MacAddress,
             device.FirmwareVersion,
+            device.GroupId,
+            device.Group?.Name,
+            device.Tags,
             device.CreatedAt,
             device.UpdatedAt,
             device.IsActive
@@ -379,5 +391,128 @@ public class DevicesController : ControllerBase
         }
 
         return Ok(new { message = "Heartbeat received", timestamp = device.LastSeenAt });
-    }
-}
+        }
+
+        [HttpPost("bulk-command")]
+        [Authorize(Policy = "RequireEditor")]
+        public async Task<ActionResult<BulkOperationResponse>> BulkCommand([FromBody] BulkCommandRequest request)
+        {
+        var devices = await _context.Devices
+            .Where(d => request.DeviceIds.Contains(d.Id))
+            .ToListAsync();
+
+        var results = new List<BulkOperationResult>();
+        foreach (var device in devices)
+        {
+            try
+            {
+                var command = new Command
+                {
+                    Id = Guid.NewGuid(),
+                    DeviceId = device.Id,
+                    Type = request.CommandType,
+                    Payload = request.Payload,
+                    Status = CommandStatus.Queued,
+                    CreatedById = Guid.Empty,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Commands.Add(command);
+                results.Add(new BulkOperationResult(device.Id, device.Name, true, null));
+            }
+            catch (Exception ex)
+            {
+                results.Add(new BulkOperationResult(device.Id, device.Name, false, ex.Message));
+            }
+        }
+
+        var missing = request.DeviceIds.Except(devices.Select(d => d.Id)).ToList();
+        foreach (var id in missing)
+        {
+            results.Add(new BulkOperationResult(id, "Unknown", false, "Device not found"));
+        }
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Bulk command '{CommandType}' issued to {Count} devices",
+            request.CommandType, results.Count(r => r.Success));
+
+        return Ok(new BulkOperationResponse(
+            request.DeviceIds.Count,
+            results.Count(r => r.Success),
+            results.Count(r => !r.Success),
+            results));
+        }
+
+        [HttpPost("bulk-assign-group")]
+        [Authorize(Policy = "RequireEditor")]
+        public async Task<ActionResult<BulkOperationResponse>> BulkAssignGroup([FromBody] BulkAssignGroupRequest request)
+        {
+        if (request.GroupId.HasValue)
+        {
+            var groupExists = await _context.DeviceGroups.AnyAsync(g => g.Id == request.GroupId.Value);
+            if (!groupExists)
+                return BadRequest(new { error = "Group not found" });
+        }
+
+        var devices = await _context.Devices
+            .Where(d => request.DeviceIds.Contains(d.Id))
+            .ToListAsync();
+
+        var results = new List<BulkOperationResult>();
+        foreach (var device in devices)
+        {
+            device.GroupId = request.GroupId;
+            results.Add(new BulkOperationResult(device.Id, device.Name, true, null));
+        }
+
+        var missing = request.DeviceIds.Except(devices.Select(d => d.Id)).ToList();
+        foreach (var id in missing)
+        {
+            results.Add(new BulkOperationResult(id, "Unknown", false, "Device not found"));
+        }
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Bulk group assignment: {Count} devices → group {GroupId}",
+            results.Count(r => r.Success), request.GroupId);
+
+        return Ok(new BulkOperationResponse(
+            request.DeviceIds.Count,
+            results.Count(r => r.Success),
+            results.Count(r => !r.Success),
+            results));
+        }
+
+        [HttpPost("bulk-tag")]
+        [Authorize(Policy = "RequireEditor")]
+        public async Task<ActionResult<BulkOperationResponse>> BulkTag([FromBody] BulkTagRequest request)
+        {
+        var devices = await _context.Devices
+            .Where(d => request.DeviceIds.Contains(d.Id))
+            .ToListAsync();
+
+        var results = new List<BulkOperationResult>();
+        foreach (var device in devices)
+        {
+            device.Tags = request.Tags;
+            results.Add(new BulkOperationResult(device.Id, device.Name, true, null));
+        }
+
+        var missing = request.DeviceIds.Except(devices.Select(d => d.Id)).ToList();
+        foreach (var id in missing)
+        {
+            results.Add(new BulkOperationResult(id, "Unknown", false, "Device not found"));
+        }
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Bulk tag applied: {Count} devices tagged '{Tags}'",
+            results.Count(r => r.Success), request.Tags);
+
+        return Ok(new BulkOperationResponse(
+            request.DeviceIds.Count,
+            results.Count(r => r.Success),
+            results.Count(r => !r.Success),
+            results));
+        }
+        }

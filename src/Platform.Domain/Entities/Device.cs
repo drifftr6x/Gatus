@@ -13,14 +13,17 @@ public class Device
     public string? IpAddress { get; set; }
     public string? MacAddress { get; set; }
     public string? FirmwareVersion { get; set; }
+    public Guid? GroupId { get; set; }
+    public string? Tags { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public bool IsActive { get; set; } = true;
 
     // Navigation properties
+    public DeviceGroup? Group { get; set; }
     public ICollection<Schedule> Schedules { get; set; } = [];
     public ICollection<DeviceTelemetry> Telemetry { get; set; } = [];
-}
+    }
 
 public enum DeviceStatus
 {

@@ -12,6 +12,9 @@ public record DeviceDto(
     string? IpAddress,
     string? MacAddress,
     string? FirmwareVersion,
+    Guid? GroupId,
+    string? GroupName,
+    string? Tags,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     bool IsActive

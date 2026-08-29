@@ -4,6 +4,7 @@ import { AuthProvider } from '@/hooks/useAuth'
 import { ProtectedRoute } from '@/components/protected-route'
 import { DashboardPage } from '@/pages/dashboard'
 import { DevicesPage } from '@/pages/devices'
+import { GroupsPage } from '@/pages/groups'
 import { SchedulesPage } from '@/pages/schedules'
 import { ContentPage } from '@/pages/content'
 import { AlertsPage } from '@/pages/alerts'
@@ -24,6 +25,7 @@ export default function App() {
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/devices" element={<DevicesPage />} />
+                  <Route path="/groups" element={<GroupsPage />} />
                   <Route path="/schedules" element={<SchedulesPage />} />
                   <Route path="/content" element={<ContentPage />} />
                   <Route path="/alerts" element={<AlertsPage />} />

@@ -144,10 +144,13 @@ export interface DeviceDto {
   ipAddress?: string
   macAddress?: string
   firmwareVersion?: string
+  groupId?: string
+  groupName?: string
+  tags?: string
   createdAt: string
   updatedAt?: string
   isActive: boolean
-}
+  }
 
 export interface DeviceListResponse {
   devices: DeviceDto[]
@@ -200,6 +203,64 @@ export const devicesApi = {
   create: (data: Partial<DeviceDto>) => api.post<DeviceDto>('/devices', data),
   update: (id: string, data: Partial<DeviceDto>) => api.put<DeviceDto>(`/devices/${id}`, data),
   delete: (id: string) => api.delete(`/devices/${id}`),
+  bulkCommand: (data: { deviceIds: string[]; commandType: string; payload?: string }) =>
+    api.post<BulkOperationResponse>('/devices/bulk-command', data),
+  bulkAssignGroup: (data: { deviceIds: string[]; groupId: string | null }) =>
+    api.post<BulkOperationResponse>('/devices/bulk-assign-group', data),
+  bulkTag: (data: { deviceIds: string[]; tags: string }) =>
+    api.post<BulkOperationResponse>('/devices/bulk-tag', data),
+}
+
+export interface BulkOperationResult {
+  deviceId: string
+  deviceName: string
+  success: boolean
+  error?: string
+}
+
+export interface BulkOperationResponse {
+  totalRequested: number
+  succeeded: number
+  failed: number
+  results: BulkOperationResult[]
+}
+
+export interface DeviceGroupDto {
+  id: string
+  name: string
+  description?: string
+  deviceCount: number
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface DeviceConfigTemplateDto {
+  id: string
+  name: string
+  description?: string
+  configJson: string
+  createdAt: string
+  updatedAt?: string
+}
+
+export const groupsApi = {
+  list: () => api.get<DeviceGroupDto[]>('/deviceGroups'),
+  get: (id: string) => api.get<DeviceGroupDto>(`/deviceGroups/${id}`),
+  create: (data: { name: string; description?: string }) =>
+    api.post<DeviceGroupDto>('/deviceGroups', data),
+  update: (id: string, data: { name: string; description?: string }) =>
+    api.put<DeviceGroupDto>(`/deviceGroups/${id}`, data),
+  delete: (id: string) => api.delete(`/deviceGroups/${id}`),
+}
+
+export const templatesApi = {
+  list: () => api.get<DeviceConfigTemplateDto[]>('/device-config-templates'),
+  get: (id: string) => api.get<DeviceConfigTemplateDto>(`/device-config-templates/${id}`),
+  create: (data: { name: string; description?: string; configJson: string }) =>
+    api.post<DeviceConfigTemplateDto>('/device-config-templates', data),
+  update: (id: string, data: { name: string; description?: string; configJson: string }) =>
+    api.put<DeviceConfigTemplateDto>(`/device-config-templates/${id}`, data),
+  delete: (id: string) => api.delete(`/device-config-templates/${id}`),
 }
 
 export const contentApi = {

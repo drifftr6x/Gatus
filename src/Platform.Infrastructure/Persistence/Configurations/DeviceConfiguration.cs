@@ -24,6 +24,13 @@ public class DeviceConfiguration : IEntityTypeConfiguration<Device>
         builder.Property(d => d.CreatedAt).HasColumnName("created_at");
         builder.Property(d => d.UpdatedAt).HasColumnName("updated_at");
         builder.Property(d => d.IsActive).HasColumnName("is_active");
+        builder.Property(d => d.GroupId).HasColumnName("group_id");
+        builder.Property(d => d.Tags).HasColumnName("tags").HasMaxLength(500);
+
+        builder.HasOne(d => d.Group)
+            .WithMany(g => g.Devices)
+            .HasForeignKey(d => d.GroupId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasIndex(d => d.SerialNumber).IsUnique();
         builder.HasIndex(d => d.Status);

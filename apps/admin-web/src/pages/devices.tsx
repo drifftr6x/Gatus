@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { devicesApi, enrollmentApi, commandsApi } from '@/lib/api'
+import { devicesApi, enrollmentApi, commandsApi, groupsApi } from '@/lib/api'
 import type { DeviceDto } from '@/lib/api'
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, KeyRound, Copy, Check, Send } from 'lucide-react'
@@ -8,13 +8,25 @@ export function DevicesPage() {
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
   const [commandDevice, setCommandDevice] = useState<DeviceDto | null>(null)
   const [editingDevice, setEditingDevice] = useState<DeviceDto | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [groupFilter, setGroupFilter] = useState('')
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['devices'],
     queryFn: () => devicesApi.list(),
   })
+
+  const { data: groups } = useQuery({
+    queryKey: ['deviceGroups'],
+    queryFn: groupsApi.list,
+  })
+
+  const filteredDevices = data?.devices.filter(d =>
+    !groupFilter || d.groupId === groupFilter
+  ) ?? []
 
   const deleteMutation = useMutation({
     mutationFn: devicesApi.delete,
@@ -37,6 +49,25 @@ export function DevicesPage() {
           <p className="mt-1 text-sm text-slate-400">Manage your kiosk fleet</p>
         </div>
         <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={() => setIsBulkModalOpen(true)}
+              className="flex items-center gap-2 rounded-lg border border-accent-500/50 bg-accent-500/10 px-4 py-2 text-sm font-medium text-accent-400 transition-colors hover:bg-accent-500/20"
+            >
+              <Send className="h-4 w-4" />
+              Bulk ({selectedIds.size})
+            </button>
+          )}
+          <select
+            value={groupFilter}
+            onChange={(e) => setGroupFilter(e.target.value)}
+            className="rounded-lg border border-surface-700 bg-surface-850 px-3 py-2 text-sm text-white outline-none focus:border-accent-500"
+          >
+            <option value="">All groups</option>
+            {groups?.map((g) => (
+              <option key={g.id} value={g.id}>{g.name}</option>
+            ))}
+          </select>
           <button
             onClick={() => setIsEnrollOpen(true)}
             className="flex items-center gap-2 rounded-lg border border-surface-700 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-surface-800"
@@ -70,7 +101,21 @@ export function DevicesPage() {
           <table className="min-w-full divide-y divide-surface-800">
             <thead>
               <tr className="bg-surface-850">
-                {['Name', 'Hostname', 'IP Address', 'Serial Number', 'Status', 'Location', 'Last Seen', ''].map((h) => (
+                <th className="px-4 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={filteredDevices.length > 0 && filteredDevices.every(d => selectedIds.has(d.id))}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds(new Set(filteredDevices.map(d => d.id)))
+                      } else {
+                        setSelectedIds(new Set())
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-surface-600 bg-surface-800 text-accent-500 focus:ring-accent-500"
+                  />
+                </th>
+                {['Name', 'Group', 'Hostname', 'IP Address', 'Serial Number', 'Status', 'Location', 'Tags', 'Last Seen', ''].map((h) => (
                   <th
                     key={h}
                     className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 last:text-right"
@@ -81,13 +126,29 @@ export function DevicesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-800">
-              {data?.devices.map((device) => (
+              {filteredDevices.map((device) => (
                 <tr key={device.id} className="transition-colors hover:bg-surface-850">
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(device.id)}
+                      onChange={(e) => {
+                        const next = new Set(selectedIds)
+                        if (e.target.checked) next.add(device.id)
+                        else next.delete(device.id)
+                        setSelectedIds(next)
+                      }}
+                      className="h-4 w-4 rounded border-surface-600 bg-surface-800 text-accent-500 focus:ring-accent-500"
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-slate-100">{device.name}</div>
                     {device.description && (
                       <div className="text-xs text-slate-500">{device.description}</div>
                     )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                    {device.groupName || '—'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-400">
                     {device.hostname || '—'}
@@ -103,6 +164,17 @@ export function DevicesPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
                     {device.location || '—'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {device.tags ? (
+                      <div className="flex flex-wrap gap-1">
+                        {device.tags.split(',').filter(Boolean).map((tag) => (
+                          <span key={tag.trim()} className="inline-flex rounded-full bg-surface-800 px-2 py-0.5 text-xs text-slate-400">
+                            {tag.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    ) : '—'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
                     {device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString() : 'Never'}
@@ -153,6 +225,13 @@ export function DevicesPage() {
       )}
       {commandDevice && (
         <CommandModal device={commandDevice} onClose={() => setCommandDevice(null)} />
+      )}
+      {isBulkModalOpen && (
+        <BulkModal
+          deviceIds={[...selectedIds]}
+          groups={groups ?? []}
+          onClose={() => { setIsBulkModalOpen(false); setSelectedIds(new Set()) }}
+        />
       )}
       </div>
       )
@@ -417,6 +496,131 @@ export function DevicesPage() {
       </div>
       )
       }
+
+function BulkModal({
+  deviceIds,
+  groups,
+  onClose,
+}: {
+  deviceIds: string[]
+  groups: { id: string; name: string }[]
+  onClose: () => void
+}) {
+  const queryClient = useQueryClient()
+  const [mode, setMode] = useState<'command' | 'group' | 'tag'>('command')
+  const [commandType, setCommandType] = useState(COMMAND_TYPES[0])
+  const [payload, setPayload] = useState('')
+  const [groupId, setGroupId] = useState('')
+  const [tags, setTags] = useState('')
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      if (mode === 'command') return devicesApi.bulkCommand({ deviceIds, commandType, payload: payload || undefined })
+      if (mode === 'group') return devicesApi.bulkAssignGroup({ deviceIds, groupId: groupId || null })
+      return devicesApi.bulkTag({ deviceIds, tags })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['devices'] })
+      onClose()
+    },
+  })
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-xl border border-surface-700 bg-surface-900 p-6 shadow-2xl">
+        <h2 className="text-lg font-semibold text-white">
+          Bulk Operations ({deviceIds.length} devices)
+        </h2>
+        <div className="mt-4 flex gap-2">
+          {(['command', 'group', 'tag'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
+                mode === m
+                  ? 'bg-accent-500/20 text-accent-400'
+                  : 'text-slate-400 hover:bg-surface-800'
+              }`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+
+        {mode === 'command' && (
+          <div className="mt-4 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Command</label>
+              <select
+                value={commandType}
+                onChange={(e) => setCommandType(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-surface-700 bg-surface-850 px-3 py-2 text-sm text-white outline-none focus:border-accent-500"
+              >
+                {COMMAND_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Payload (JSON, optional)</label>
+              <textarea
+                value={payload}
+                onChange={(e) => setPayload(e.target.value)}
+                rows={3}
+                className="mt-1 w-full rounded-lg border border-surface-700 bg-surface-850 px-3 py-2 font-mono text-sm text-white outline-none focus:border-accent-500"
+                placeholder='{"key": "value"}'
+              />
+            </div>
+          </div>
+        )}
+
+        {mode === 'group' && (
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-slate-300">Assign to Group</label>
+            <select
+              value={groupId}
+              onChange={(e) => setGroupId(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-surface-700 bg-surface-850 px-3 py-2 text-sm text-white outline-none focus:border-accent-500"
+            >
+              <option value="">— Remove from group —</option>
+              {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          </div>
+        )}
+
+        {mode === 'tag' && (
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-slate-300">Tags (comma-separated)</label>
+            <input
+              type="text"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-surface-700 bg-surface-850 px-3 py-2 text-sm text-white outline-none focus:border-accent-500"
+              placeholder="lobby, floor-2, touch-enabled"
+            />
+          </div>
+        )}
+
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-surface-700 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-surface-800"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+            className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent-500/25 transition-colors hover:bg-accent-400 disabled:opacity-50"
+          >
+            {mutation.isPending ? 'Applying…' : 'Apply'}
+          </button>
+        </div>
+        {mutation.isError && (
+          <p className="mt-2 text-sm text-red-400">{mutation.error.message}</p>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {

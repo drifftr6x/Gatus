@@ -4,6 +4,7 @@ import {
   Monitor,
   CalendarClock,
   FolderOpen,
+  FolderTree,
   BellRing,
   Settings,
   LogOut,
@@ -16,6 +17,7 @@ import { ThemePicker } from '@/components/theme-picker'
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/devices', label: 'Devices', icon: Monitor },
+  { href: '/groups', label: 'Groups', icon: FolderTree },
   { href: '/schedules', label: 'Schedules', icon: CalendarClock },
   { href: '/content', label: 'Content', icon: FolderOpen },
   { href: '/alerts', label: 'Alerts', icon: BellRing },
