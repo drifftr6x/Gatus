@@ -17,6 +17,7 @@ public class EnrollmentTokenConfiguration : IEntityTypeConfiguration<EnrollmentT
         builder.Property(t => t.IsUsed).HasColumnName("is_used");
         builder.Property(t => t.UsedAt).HasColumnName("used_at");
         builder.Property(t => t.UsedByDeviceId).HasColumnName("used_by_device_id");
+        builder.Property(t => t.DeviceId).HasColumnName("device_id");
         builder.Property(t => t.CreatedById).HasColumnName("created_by_id");
         builder.Property(t => t.CreatedAt).HasColumnName("created_at");
         builder.Property(t => t.IsRevoked).HasColumnName("is_revoked");

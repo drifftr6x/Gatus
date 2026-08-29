@@ -66,6 +66,16 @@ public class EnrollmentTokensController : ControllerBase
                     System.Text.Encoding.UTF8.GetBytes(plaintext)))
             .ToLowerInvariant();
 
+        // Validate device exists if linking to an existing device
+        if (request.DeviceId.HasValue)
+        {
+            var deviceExists = await _context.Devices.AnyAsync(d => d.Id == request.DeviceId.Value);
+            if (!deviceExists)
+            {
+                return BadRequest(new { error = "Device not found" });
+            }
+        }
+
         var entity = new EnrollmentToken
         {
             Id = Guid.NewGuid(),
@@ -75,7 +85,8 @@ public class EnrollmentTokensController : ControllerBase
             IsUsed = false,
             IsRevoked = false,
             CreatedById = userId,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            DeviceId = request.DeviceId
         };
 
         _context.EnrollmentTokens.Add(entity);

@@ -12,6 +12,8 @@ public class EnrollmentToken
     public DateTime? UsedAt { get; set; }
     /// <summary>Device that consumed this token, if any.</summary>
     public Guid? UsedByDeviceId { get; set; }
+    /// <summary>Pre-assigned device to link on enrollment (null = create new).</summary>
+    public Guid? DeviceId { get; set; }
     public Guid CreatedById { get; set; }
     public DateTime CreatedAt { get; set; }
     public bool IsRevoked { get; set; }

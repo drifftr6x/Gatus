@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { devicesApi, enrollmentApi, commandsApi, groupsApi } from '@/lib/api'
-import type { DeviceDto } from '@/lib/api'
+import type { DeviceDto, DeviceListResponse } from '@/lib/api'
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, KeyRound, Copy, Check, Send } from 'lucide-react'
 
@@ -224,7 +224,7 @@ export function DevicesPage() {
         <DeviceModal device={editingDevice} onClose={() => setIsModalOpen(false)} />
       )}
       {isEnrollOpen && (
-        <EnrollTokenModal onClose={() => setIsEnrollOpen(false)} />
+        <EnrollTokenModal devices={data} onClose={() => setIsEnrollOpen(false)} />
       )}
       {commandDevice && (
         <CommandModal device={commandDevice} onClose={() => setCommandDevice(null)} />
@@ -362,10 +362,11 @@ export function DevicesPage() {
       )
       }
 
-      function EnrollTokenModal({ onClose }: { onClose: () => void }) {
+      function EnrollTokenModal({ devices: deviceList, onClose }: { devices?: DeviceListResponse; onClose: () => void }) {
       const queryClient = useQueryClient()
       const [label, setLabel] = useState('')
       const [expiresInHours, setExpiresInHours] = useState(24)
+      const [selectedDeviceId, setSelectedDeviceId] = useState<string>('')
       const [copied, setCopied] = useState(false)
 
       const { data: tokens } = useQuery({
@@ -374,7 +375,11 @@ export function DevicesPage() {
       })
 
       const createMutation = useMutation({
-      mutationFn: () => enrollmentApi.create({ label: label || undefined, expiresInHours }),
+      mutationFn: () => enrollmentApi.create({
+        label: label || undefined,
+        expiresInHours,
+        deviceId: selectedDeviceId || undefined,
+      }),
       onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['enrollment-tokens'] })
       },
@@ -409,6 +414,22 @@ export function DevicesPage() {
                 className={inputClass}
                 placeholder="e.g. Lobby kiosk batch 1"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Link to existing device (optional)</label>
+              <select
+                value={selectedDeviceId}
+                onChange={(e) => setSelectedDeviceId(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">— Create new device —</option>
+                {deviceList?.devices.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-500">
+                When set, the agent will link to this device instead of creating a new one.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300">Expires in (hours)</label>

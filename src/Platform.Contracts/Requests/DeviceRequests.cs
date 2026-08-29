@@ -41,5 +41,6 @@ public record EnrollDeviceRequest(
 
 public record CreateEnrollmentTokenRequest(
     string? Label,
-    int ExpiresInHours = 24
+    int ExpiresInHours = 24,
+    Guid? DeviceId = null
 );

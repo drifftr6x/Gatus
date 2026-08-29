@@ -384,7 +384,7 @@ export const commandsApi = {
 
 export const enrollmentApi = {
   list: () => api.get<EnrollmentTokenDto[]>('/enrollmenttokens'),
-  create: (data: { label?: string; expiresInHours?: number }) =>
+  create: (data: { label?: string; expiresInHours?: number; deviceId?: string }) =>
     api.post<CreatedEnrollmentTokenDto>('/enrollmenttokens', data),
   revoke: (id: string) => api.post(`/enrollmenttokens/${id}/revoke`),
   delete: (id: string) => api.delete(`/enrollmenttokens/${id}`),

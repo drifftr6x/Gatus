@@ -73,35 +73,56 @@ public class DevicesController : ControllerBase
             return Unauthorized(new { error = "Enrollment token has expired" });
         }
 
-        // Create or match device by hardware ID
-        var hardwareId = request.HardwareId ?? request.Hostname ?? Guid.NewGuid().ToString("N")[..16];
-        var device = await _context.Devices
-            .FirstOrDefaultAsync(d => d.SerialNumber == hardwareId);
+        // Link to pre-assigned device, match by hardware ID, or create new
+        Device? device = null;
 
-        if (device == null)
+        if (token.DeviceId.HasValue)
         {
-            device = new Device
+            // Token is pre-assigned to an existing device
+            device = await _context.Devices.FindAsync(token.DeviceId.Value);
+            if (device == null)
             {
-                Id = Guid.NewGuid(),
-                Name = request.Hostname ?? "Unnamed Device",
-                SerialNumber = hardwareId,
-                Hostname = request.Hostname,
-                Description = $"Enrolled via token on {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC",
-                Status = DeviceStatus.Online,
-                LastSeenAt = DateTime.UtcNow,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
-            _context.Devices.Add(device);
-        }
-        else
-        {
-            // Re-enrollment: update info and bring online
+                return BadRequest(new { error = "Pre-assigned device no longer exists" });
+            }
+            // Update device info from agent
             device.Hostname = request.Hostname ?? device.Hostname;
+            device.SerialNumber = request.HardwareId ?? device.SerialNumber;
             device.Status = DeviceStatus.Online;
             device.LastSeenAt = DateTime.UtcNow;
             device.UpdatedAt = DateTime.UtcNow;
             device.IsActive = true;
+        }
+        else
+        {
+            var hardwareId = request.HardwareId ?? request.Hostname ?? Guid.NewGuid().ToString("N")[..16];
+            device = await _context.Devices
+                .FirstOrDefaultAsync(d => d.SerialNumber == hardwareId);
+
+            if (device == null)
+            {
+                device = new Device
+                {
+                    Id = Guid.NewGuid(),
+                    Name = request.Hostname ?? "Unnamed Device",
+                    SerialNumber = hardwareId,
+                    Hostname = request.Hostname,
+                    Description = $"Enrolled via token on {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC",
+                    Status = DeviceStatus.Online,
+                    LastSeenAt = DateTime.UtcNow,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Devices.Add(device);
+            }
+            else
+            {
+                // Re-enrollment: update info and bring online
+                device.Hostname = request.Hostname ?? device.Hostname;
+                device.Status = DeviceStatus.Online;
+                device.LastSeenAt = DateTime.UtcNow;
+                device.UpdatedAt = DateTime.UtcNow;
+                device.IsActive = true;
+            }
         }
 
         // Issue a device secret (random, shown once to the agent)
