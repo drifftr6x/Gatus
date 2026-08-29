@@ -88,13 +88,19 @@ export function DeviceMap({ devices, groups }: { devices: DeviceDto[]; groups?: 
   useEffect(() => {
     if (!mapRef.current) return
 
-    // Clean up any existing map on this container (StrictMode double-mount)
+    const el = mapRef.current
+
+    // StrictMode double-mount: if Leaflet already attached to this DOM node, clean it up
+    if ((el as any)._leaflet_id) {
+      delete (el as any)._leaflet_id
+      el.innerHTML = ''
+    }
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove()
       mapInstanceRef.current = null
     }
 
-    const map = L.map(mapRef.current, {
+    const map = L.map(el, {
       center: [39.8, -98.5],
       zoom: 4,
       zoomControl: true,
