@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Net.Http.Json;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using SentinelKiosk.Agent.Models;
 
@@ -12,6 +14,8 @@ public class TelemetryCollector : BackgroundService
     private readonly ILogger<TelemetryCollector> _logger;
     private readonly AgentConfig _config;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly PerformanceCounter? _cpuCounter;
+    private readonly PerformanceCounter? _ramCounter;
 
     public TelemetryCollector(
         IHttpClientFactory httpClientFactory,
@@ -26,6 +30,20 @@ public class TelemetryCollector : BackgroundService
         _logger = logger;
         _config = configuration.GetSection("Agent").Get<AgentConfig>() ?? new AgentConfig();
         _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+        // Initialize performance counters (Windows-only)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            try
+            {
+                _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+                _ramCounter = new PerformanceCounter("Memory", "Available MBytes");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to initialize performance counters");
+            }
+        }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -67,25 +85,82 @@ public class TelemetryCollector : BackgroundService
             new() { Timestamp = DateTime.UtcNow, MetricName = "agent_version", MetricValue = "1.0.0", Unit = null },
         };
 
-        // Add disk space
+        // CPU usage (PerformanceCounter)
+        if (_cpuCounter != null)
+        {
+            try
+            {
+                var cpuValue = _cpuCounter.NextValue();
+                metrics.Add(new PendingTelemetry
+                {
+                    Timestamp = DateTime.UtcNow,
+                    MetricName = "cpu_usage",
+                    MetricValue = cpuValue.ToString("F1"),
+                    Unit = "%"
+                });
+            }
+            catch { }
+        }
+
+        // Memory usage (PerformanceCounter + WMI total)
+        if (_ramCounter != null)
+        {
+            try
+            {
+                var availableMB = _ramCounter.NextValue();
+                var totalMB = GetTotalPhysicalMemoryMB();
+                if (totalMB > 0)
+                {
+                    var usedPercent = 100 - (availableMB / totalMB * 100);
+                    metrics.Add(new PendingTelemetry
+                    {
+                        Timestamp = DateTime.UtcNow,
+                        MetricName = "memory_usage",
+                        MetricValue = usedPercent.ToString("F1"),
+                        Unit = "%"
+                    });
+                }
+                metrics.Add(new PendingTelemetry
+                {
+                    Timestamp = DateTime.UtcNow,
+                    MetricName = "memory_available_mb",
+                    MetricValue = availableMB.ToString("F0"),
+                    Unit = "MB"
+                });
+            }
+            catch { }
+        }
+
+        // Disk space
         var systemDrive = Path.GetPathRoot(Environment.SystemDirectory);
         if (!string.IsNullOrEmpty(systemDrive))
         {
             var drive = new DriveInfo(systemDrive);
             if (drive.IsReady)
             {
+                var freeMb = drive.AvailableFreeSpace / (1024.0 * 1024.0);
+                var totalMb = drive.TotalSize / (1024.0 * 1024.0);
+                var freePct = totalMb > 0 ? (freeMb / totalMb * 100) : 0;
+
+                metrics.Add(new PendingTelemetry
+                {
+                    Timestamp = DateTime.UtcNow,
+                    MetricName = "disk_free_percent",
+                    MetricValue = freePct.ToString("F1"),
+                    Unit = "%"
+                });
                 metrics.Add(new PendingTelemetry
                 {
                     Timestamp = DateTime.UtcNow,
                     MetricName = "disk_free_mb",
-                    MetricValue = (drive.AvailableFreeSpace / (1024 * 1024)).ToString(),
+                    MetricValue = freeMb.ToString("F0"),
                     Unit = "MB"
                 });
                 metrics.Add(new PendingTelemetry
                 {
                     Timestamp = DateTime.UtcNow,
                     MetricName = "disk_total_mb",
-                    MetricValue = (drive.TotalSize / (1024 * 1024)).ToString(),
+                    MetricValue = totalMb.ToString("F0"),
                     Unit = "MB"
                 });
             }
@@ -153,6 +228,23 @@ public class TelemetryCollector : BackgroundService
 
     private long GetUptimeSeconds()
     {
-        return (long)(DateTime.UtcNow - System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalSeconds;
+        return (long)(DateTime.UtcNow - Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalSeconds;
     }
-}
+
+    private long GetTotalPhysicalMemoryMB()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            try
+            {
+                using var searcher = new System.Management.ManagementObjectSearcher("SELECT TotalPhysicalMemory FROM Win32_ComputerSystem");
+                foreach (var obj in searcher.Get())
+                {
+                    return Convert.ToInt64(obj["TotalPhysicalMemory"]) / (1024 * 1024);
+                }
+            }
+            catch { }
+        }
+        return 0;
+    }
+    }

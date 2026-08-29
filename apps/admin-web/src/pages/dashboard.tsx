@@ -158,52 +158,45 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* Device status table */}
+      {/* Device health cards */}
       <div className="mt-8">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-white">Device Status</h2>
+          <h2 className="text-base font-semibold text-white">Device Health</h2>
           <Link to="/devices" className="text-sm text-accent-400 hover:text-accent-300">
             View all →
           </Link>
         </div>
-        <div className="overflow-hidden rounded-xl border border-surface-800 bg-surface-900 shadow-lg">
-          <table className="min-w-full divide-y divide-surface-800">
-            <thead>
-              <tr className="bg-surface-850">
-                {['Device', 'Status', 'Location', 'Last Seen'].map((h) => (
-                  <th
-                    key={h}
-                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-800">
-              {devicesData?.devices.map((device) => (
-                <tr key={device.id} className="transition-colors hover:bg-surface-850">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-slate-100">{device.name}</div>
-                    <div className="text-xs text-slate-500">{device.serialNumber}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <StatusBadge status={device.status} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
-                    {device.location || '—'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
-                    {device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString() : 'Never'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {devicesData?.devices.length === 0 && (
-            <div className="py-12 text-center text-sm text-slate-500">No devices registered yet.</div>
-          )}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {devicesData?.devices.map((device: any) => (
+            <Link
+              key={device.id}
+              to={`/devices/${device.id}`}
+              className="rounded-xl border border-surface-800 bg-surface-900 p-4 shadow-lg transition-colors hover:border-surface-700 hover:bg-surface-850"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-100">{device.name}</p>
+                  <p className="text-xs text-slate-500">{device.hostname || device.ipAddress || '—'}</p>
+                </div>
+                <StatusBadge status={device.status} />
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                <HealthChip label="CPU" value={device.cpuPercent} unit="%" warn={80} />
+                <HealthChip label="Mem" value={device.memoryPercent} unit="%" warn={85} />
+                <HealthChip label="Disk" value={device.diskFreeGb} unit=" GB" invert warn={10} />
+                <HealthChip label="Up" value={device.uptimeSeconds} format="uptime" />
+              </div>
+              {device.lastSeenAt && (
+                <p className="mt-2 text-xs text-slate-600">
+                  Last seen {new Date(device.lastSeenAt).toLocaleTimeString()}
+                </p>
+              )}
+            </Link>
+          ))}
         </div>
+        {devicesData?.devices.length === 0 && (
+          <div className="py-12 text-center text-sm text-slate-500">No devices registered yet.</div>
+        )}
       </div>
 
       {/* Telemetry sparklines */}
@@ -220,6 +213,37 @@ export function DashboardPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function HealthChip({ label, value, unit = '', warn, invert, format }: {
+  label: string; value?: number | null; unit?: string; warn?: number; invert?: boolean; format?: string
+}) {
+  if (value == null) {
+    return (
+      <div className="rounded-lg bg-surface-800 px-2 py-1.5 text-center">
+        <p className="text-xs text-slate-600">{label}</p>
+        <p className="text-xs font-mono text-slate-600">—</p>
+      </div>
+    )
+  }
+
+  let display: string
+  if (format === 'uptime') {
+    const h = Math.floor(value / 3600)
+    const m = Math.floor((value % 3600) / 60)
+    display = h > 24 ? `${Math.floor(h / 24)}d` : h > 0 ? `${h}h` : `${m}m`
+  } else {
+    display = `${value % 1 !== 0 ? value.toFixed(1) : value}${unit}`
+  }
+
+  const isBad = invert ? value < (warn ?? 0) : value > (warn ?? Infinity)
+
+  return (
+    <div className={`rounded-lg px-2 py-1.5 text-center ${isBad ? 'bg-red-500/10' : 'bg-surface-800'}`}>
+      <p className={`text-xs ${isBad ? 'text-red-400' : 'text-slate-500'}`}>{label}</p>
+      <p className={`text-xs font-mono font-medium ${isBad ? 'text-red-400' : 'text-slate-200'}`}>{display}</p>
     </div>
   )
 }
@@ -244,11 +268,11 @@ function StatusBadge({ status }: { status: string }) {
 function TelemetrySparkline({ deviceId, deviceName }: { deviceId: string; deviceName: string }) {
   const { data: series } = useQuery({
     queryKey: ['telemetry', deviceId],
-    queryFn: () => telemetryApi.deviceSeries(deviceId, 'cpu_percent'),
+    queryFn: () => telemetryApi.deviceSeries(deviceId),
     refetchInterval: 60_000,
   })
 
-  const cpuSeries = series?.find((s) => s.metricName === 'cpu_percent')
+  const cpuSeries = series?.find((s) => s.metricName === 'cpu_percent' || s.metricName === 'cpu_usage')
   const points = cpuSeries?.points ?? []
   const values = points.map((p) => parseFloat(p.value)).filter((v) => !isNaN(v))
 

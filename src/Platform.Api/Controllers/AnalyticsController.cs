@@ -204,13 +204,14 @@ public class AnalyticsController : ControllerBase
             var cpu = GetMetric("cpu_percent", "cpu_usage");
             // Memory: try percentage, then absolute
             var memory = GetMetric("memory_percent", "memory_usage");
-            // Disk: try percentage free, then GB free (convert to rough % assuming 256GB drive)
+            // Disk: try percentage free, then derive from MB
             var diskPct = GetMetric("disk_free_percent");
             if (!diskPct.HasValue)
             {
-                var diskGb = GetMetric("disk_free_gb");
-                if (diskGb.HasValue)
-                    diskPct = Math.Round(diskGb.Value / 256.0 * 100, 1); // rough estimate
+                var freeMb = GetMetric("disk_free_mb");
+                var totalMb = GetMetric("disk_total_mb");
+                if (freeMb.HasValue && totalMb.HasValue && totalMb.Value > 0)
+                    diskPct = Math.Round(freeMb.Value / totalMb.Value * 100, 1);
             }
             // Uptime
             var uptime = GetMetric("uptime_seconds", "uptime");

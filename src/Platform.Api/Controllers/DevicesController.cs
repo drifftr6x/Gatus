@@ -195,9 +195,15 @@ public class DevicesController : ControllerBase
                     .Select(t => t.Value)
                     .FirstOrDefault();
 
-            var diskGb = GetNum("disk_free_gb");
+            // Disk: try percent first, then derive from GB or MB
+            var diskMb = GetNum("disk_free_mb");
+            var diskGb = GetNum("disk_free_gb")
+                ?? (diskMb.HasValue ? Math.Round(diskMb.Value / 1024.0, 1) : (double?)null);
+            var diskTotalMb = GetNum("disk_total_mb");
             var diskPct = GetNum("disk_free_percent")
-                ?? (diskGb.HasValue ? Math.Round(diskGb.Value / 256.0 * 100, 1) : (double?)null);
+                ?? (diskMb.HasValue && diskTotalMb.HasValue && diskTotalMb.Value > 0
+                    ? Math.Round(diskMb.Value / diskTotalMb.Value * 100, 1)
+                    : (double?)null);
 
             return new DeviceDto(
                 d.Id, d.Name, d.SerialNumber, d.Description, d.Location,
@@ -244,9 +250,14 @@ public class DevicesController : ControllerBase
         string? GetStr(string name) =>
             latestTelemetry.Where(t => t.MetricName == name).Select(t => t.Value).FirstOrDefault();
 
-        var diskGb = GetNum("disk_free_gb");
+        var diskMb = GetNum("disk_free_mb");
+        var diskGb = GetNum("disk_free_gb")
+            ?? (diskMb.HasValue ? Math.Round(diskMb.Value / 1024.0, 1) : (double?)null);
+        var diskTotalMb = GetNum("disk_total_mb");
         var diskPct = GetNum("disk_free_percent")
-            ?? (diskGb.HasValue ? Math.Round(diskGb.Value / 256.0 * 100, 1) : (double?)null);
+            ?? (diskMb.HasValue && diskTotalMb.HasValue && diskTotalMb.Value > 0
+                ? Math.Round(diskMb.Value / diskTotalMb.Value * 100, 1)
+                : (double?)null);
 
         return Ok(new DeviceDto(
             device.Id, device.Name, device.SerialNumber, device.Description, device.Location,

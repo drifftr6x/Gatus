@@ -135,7 +135,7 @@ export interface UserDto {
 export interface DeviceDto {
   id: string
   name: string
-  serialNumber: string
+  serialNumber?: string
   description?: string
   location?: string
   status: string
@@ -150,6 +150,12 @@ export interface DeviceDto {
   createdAt: string
   updatedAt?: string
   isActive: boolean
+  cpuPercent?: number
+  memoryPercent?: number
+  diskFreePercent?: number
+  diskFreeGb?: number
+  uptimeSeconds?: number
+  osVersion?: string
   }
 
 export interface DeviceListResponse {

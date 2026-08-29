@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { devicesApi, enrollmentApi, commandsApi, groupsApi } from '@/lib/api'
 import type { DeviceDto } from '@/lib/api'
 import { useState } from 'react'
@@ -142,12 +143,14 @@ export function DevicesPage() {
                     />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-slate-100">{device.name}</div>
+                    <Link to={`/devices/${device.id}`} className="text-sm font-medium text-slate-100 hover:text-accent-300 transition-colors">
+                      {device.name}
+                    </Link>
                     {device.description && (
                       <div className="text-xs text-slate-500">{device.description}</div>
                     )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
                     {device.groupName || '—'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-400">
