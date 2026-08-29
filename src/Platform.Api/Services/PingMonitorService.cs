@@ -20,6 +20,7 @@ public class PingMonitorService : BackgroundService
     private readonly ILogger<PingMonitorService> _logger;
     private readonly TimeSpan _interval = TimeSpan.FromSeconds(60);
     private readonly int _pingTimeoutMs = 3000;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, int> _consecutiveFailures = new();
 
     public PingMonitorService(IServiceScopeFactory scopeFactory, ILogger<PingMonitorService> logger)
     {
@@ -52,9 +53,11 @@ public class PingMonitorService : BackgroundService
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var broadcaster = scope.ServiceProvider.GetRequiredService<IDeviceEventBroadcaster>();
 
-        // Get all active devices that have an IP address
+        // Get all active devices that have an IP or hostname
         var devices = await context.Devices
-            .Where(d => d.IsActive && d.IpAddress != null && d.IpAddress != "")
+            .Where(d => d.IsActive &&
+                ((d.IpAddress != null && d.IpAddress != "") ||
+                 (d.Hostname != null && d.Hostname != "")))
             .ToListAsync(ct);
 
         if (devices.Count == 0) return;
@@ -76,6 +79,27 @@ public class PingMonitorService : BackgroundService
                 continue;
             }
 
+            // Require 2 consecutive ping failures before marking offline
+            if (!isReachable && device.Status != DeviceStatus.Offline)
+            {
+                if (_consecutiveFailures.TryGetValue(device.Id, out var fails) && fails >= 1)
+                {
+                    _consecutiveFailures.TryRemove(device.Id, out _);
+                    // fall through to set offline
+                }
+                else
+                {
+                    _consecutiveFailures[device.Id] = fails + 1;
+                    _logger.LogDebug("Ping failed (attempt {Count}) for {DeviceName}, will retry before marking offline",
+                        fails + 1, device.Name);
+                    continue;
+                }
+            }
+            else if (isReachable)
+            {
+                _consecutiveFailures.TryRemove(device.Id, out _);
+            }
+
             var newStatus = isReachable ? DeviceStatus.Online : DeviceStatus.Offline;
             var previousStatus = device.Status;
 
@@ -90,8 +114,10 @@ public class PingMonitorService : BackgroundService
                 changed = true;
 
                 _logger.LogInformation(
-                    "Ping status changed: {DeviceName} ({IpAddress}) {OldStatus} -> {NewStatus}",
-                    device.Name, device.IpAddress, previousStatus, newStatus);
+                    "Ping status changed: {DeviceName} ({Target}) {OldStatus} -> {NewStatus}",
+                    device.Name,
+                    !string.IsNullOrWhiteSpace(device.IpAddress) ? device.IpAddress : device.Hostname,
+                    previousStatus, newStatus);
 
                 // Broadcast status change via SignalR
                 await broadcaster.DeviceStatusChanged(device.Id, newStatus.ToString(), DateTime.UtcNow);
@@ -112,11 +138,16 @@ public class PingMonitorService : BackgroundService
 
     private async Task<bool> PingDeviceAsync(Device device, CancellationToken ct)
     {
+        // Prefer IP address; fall back to hostname
+        var target = !string.IsNullOrWhiteSpace(device.IpAddress)
+            ? device.IpAddress!
+            : device.Hostname!;
+
         try
         {
             using var ping = new Ping();
             var reply = await ping.SendPingAsync(
-                device.IpAddress!,
+                target,
                 _pingTimeoutMs,
                 buffer: new byte[32],
                 options: new PingOptions { Ttl = 128, DontFragment = true });
@@ -125,7 +156,7 @@ public class PingMonitorService : BackgroundService
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Ping failed for {DeviceName} ({IpAddress})", device.Name, device.IpAddress);
+            _logger.LogDebug(ex, "Ping failed for {DeviceName} ({Target})", device.Name, target);
             return false;
         }
     }
