@@ -234,6 +234,39 @@ export interface CreatedEnrollmentTokenDto {
   expiresAt: string
 }
 
+export interface CommandDto {
+  id: string
+  deviceId: string
+  deviceName: string
+  type: string
+  status: string
+  createdByName: string
+  createdAt: string
+  expiresAt?: string
+  acknowledgedAt?: string
+  completedAt?: string
+  resultMessage?: string
+}
+
+export interface CommandListResponse {
+  commands: CommandDto[]
+  totalCount: number
+}
+
+export const commandsApi = {
+  history: (params?: { deviceId?: string; status?: string; limit?: number }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.deviceId) searchParams.set('deviceId', params.deviceId)
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    const query = searchParams.toString()
+    return api.get<CommandListResponse>(`/commands/history${query ? `?${query}` : ''}`)
+  },
+  issue: (deviceId: string, data: { type: string; payload?: string; timeoutSeconds?: number; expiresInMinutes?: number }) =>
+    api.post<CommandDto>(`/devices/${deviceId}/commands`, data),
+  cancel: (id: string) => api.post(`/commands/${id}/cancel`),
+}
+
 export const enrollmentApi = {
   list: () => api.get<EnrollmentTokenDto[]>('/enrollmenttokens'),
   create: (data: { label?: string; expiresInHours?: number }) =>

@@ -1,13 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { devicesApi, enrollmentApi } from '@/lib/api'
+import { devicesApi, enrollmentApi, commandsApi } from '@/lib/api'
 import type { DeviceDto } from '@/lib/api'
 import { useState } from 'react'
-import { Plus, Pencil, Trash2, KeyRound, Copy, Check } from 'lucide-react'
+import { Plus, Pencil, Trash2, KeyRound, Copy, Check, Send } from 'lucide-react'
 
 export function DevicesPage() {
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEnrollOpen, setIsEnrollOpen] = useState(false)
+  const [commandDevice, setCommandDevice] = useState<DeviceDto | null>(null)
   const [editingDevice, setEditingDevice] = useState<DeviceDto | null>(null)
 
   const { data, isLoading, error } = useQuery({
@@ -108,6 +109,13 @@ export function DevicesPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <button
+                      onClick={() => setCommandDevice(device)}
+                      className="mr-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-slate-400 transition-colors hover:bg-surface-800 hover:text-white"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      Command
+                    </button>
+                    <button
                       onClick={() => {
                         setEditingDevice(device)
                         setIsModalOpen(true)
@@ -143,6 +151,131 @@ export function DevicesPage() {
       {isEnrollOpen && (
         <EnrollTokenModal onClose={() => setIsEnrollOpen(false)} />
       )}
+      {commandDevice && (
+        <CommandModal device={commandDevice} onClose={() => setCommandDevice(null)} />
+      )}
+      </div>
+      )
+      }
+
+      const COMMAND_TYPES = [
+      'RefreshKiosk', 'RestartKioskRuntime', 'ClearBrowserSession', 'ReloadPolicy',
+      'SynchronizeContent', 'RebootWindows', 'ShutdownWindows', 'LogOffKioskSession',
+      'EnterMaintenanceMode', 'CollectDiagnostics', 'UploadLogs',
+      ]
+
+      function CommandStatusBadge({ status }: { status: string }) {
+      const styles: Record<string, string> = {
+      Queued: 'bg-slate-500/10 text-slate-400 ring-slate-500/30',
+      Delivered: 'bg-blue-500/10 text-blue-400 ring-blue-500/30',
+      Acknowledged: 'bg-blue-500/10 text-blue-400 ring-blue-500/30',
+      Running: 'bg-amber-500/10 text-amber-400 ring-amber-500/30',
+      Succeeded: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/30',
+      Failed: 'bg-red-500/10 text-red-400 ring-red-500/30',
+      Rejected: 'bg-red-500/10 text-red-400 ring-red-500/30',
+      Expired: 'bg-slate-500/10 text-slate-400 ring-slate-500/30',
+      TimedOut: 'bg-red-500/10 text-red-400 ring-red-500/30',
+      Cancelled: 'bg-slate-500/10 text-slate-400 ring-slate-500/30',
+      }
+      return (
+      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${styles[status] ?? styles.Queued}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {status}
+      </span>
+      )
+      }
+
+      function CommandModal({ device, onClose }: { device: DeviceDto; onClose: () => void }) {
+      const queryClient = useQueryClient()
+      const [commandType, setCommandType] = useState(COMMAND_TYPES[0])
+
+      const { data: history, refetch } = useQuery({
+      queryKey: ['commands', device.id],
+      queryFn: () => commandsApi.history({ deviceId: device.id, limit: 10 }),
+      refetchInterval: 5000,
+      })
+
+      const issueMutation = useMutation({
+      mutationFn: () => commandsApi.issue(device.id, { type: commandType }),
+      onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['commands', device.id] })
+      refetch()
+      },
+      })
+
+      return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-2xl rounded-2xl border border-surface-700 bg-surface-900 p-6 shadow-2xl">
+        <h2 className="text-lg font-semibold text-white">Send Command — {device.name}</h2>
+        <p className="mt-1 text-sm text-slate-400">
+          Issue an allowlisted remote command. The agent picks it up within ~15 seconds.
+        </p>
+
+        <div className="mt-5 flex items-end gap-3">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-slate-300">Command</label>
+            <select
+              value={commandType}
+              onChange={(e) => setCommandType(e.target.value)}
+              className={inputClass}
+            >
+              {COMMAND_TYPES.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={() => issueMutation.mutate()}
+            disabled={issueMutation.isPending}
+            className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent-500/25 transition-colors hover:bg-accent-400 disabled:opacity-50"
+          >
+            {issueMutation.isPending ? 'Sending…' : 'Send'}
+          </button>
+        </div>
+
+        {(commandType === 'RebootWindows' || commandType === 'ShutdownWindows') && (
+          <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+            ⚠ This will {commandType === 'RebootWindows' ? 'reboot' : 'shut down'} the device. Confirm you intend to disrupt the kiosk session.
+          </p>
+        )}
+
+        <div className="mt-6">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Recent commands</h3>
+          <div className="mt-2 overflow-hidden rounded-lg border border-surface-800">
+            <table className="min-w-full divide-y divide-surface-800">
+              <thead>
+                <tr className="bg-surface-850">
+                  {['Type', 'Status', 'Sent', 'Result'].map((h) => (
+                    <th key={h} className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-800">
+                {history?.commands.map((c) => (
+                  <tr key={c.id}>
+                    <td className="px-4 py-2 text-sm text-slate-200">{c.type}</td>
+                    <td className="px-4 py-2"><CommandStatusBadge status={c.status} /></td>
+                    <td className="px-4 py-2 text-xs text-slate-400">{new Date(c.createdAt).toLocaleTimeString()}</td>
+                    <td className="max-w-[200px] truncate px-4 py-2 text-xs text-slate-500">{c.resultMessage || '—'}</td>
+                  </tr>
+                ))}
+                {history?.commands.length === 0 && (
+                  <tr><td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-500">No commands sent yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-surface-700 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-surface-800"
+          >
+            Close
+          </button>
+        </div>
+      </div>
       </div>
       )
       }
