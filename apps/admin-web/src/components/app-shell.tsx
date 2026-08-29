@@ -7,6 +7,7 @@ import {
   FolderTree,
   BellRing,
   BarChart3,
+  Bell,
   Settings,
   LogOut,
   ShieldCheck,
@@ -23,6 +24,7 @@ const navItems = [
   { href: '/content', label: 'Content', icon: FolderOpen },
   { href: '/alerts', label: 'Alerts', icon: BellRing },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/notifications', label: 'Notifications', icon: Bell },
   { href: '/settings', label: 'Settings', icon: Settings },
   ]
 

@@ -563,4 +563,29 @@ export const analyticsApi = {
     return api.get<TelemetryAggregationResponse>(`/analytics/telemetry${q ? `?${q}` : ''}`)
   },
   deviceHealth: () => api.get<DeviceHealthSummary[]>('/analytics/device-health'),
-}
+  }
+
+  export interface NotificationChannelDto {
+  id: string
+  name: string
+  type: string
+  configJson: string
+  isEnabled: boolean
+  createdAt: string
+  updatedAt?: string
+  }
+
+  export interface NotificationTestResult {
+  success: boolean
+  message?: string
+  }
+
+  export const notificationChannelsApi = {
+  list: () => api.get<NotificationChannelDto[]>('/notification-channels'),
+  create: (data: { name: string; type: string; configJson: string }) =>
+    api.post<NotificationChannelDto>('/notification-channels', data),
+  update: (id: string, data: { name: string; configJson: string; isEnabled: boolean }) =>
+    api.put<NotificationChannelDto>(`/notification-channels/${id}`, data),
+  delete: (id: string) => api.delete(`/notification-channels/${id}`),
+  test: (id: string) => api.post<NotificationTestResult>(`/notification-channels/${id}/test`),
+  }

@@ -31,6 +31,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IDeviceEventBroadcaster, DeviceEventBroadcaster>();
 
+// Notification service for alert dispatch
+builder.Services.AddSingleton<NotificationService>();
+
 // Add alert evaluator background service
 builder.Services.AddHostedService<AlertEvaluatorService>();
 

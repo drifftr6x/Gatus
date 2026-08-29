@@ -22,6 +22,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<AlertRule> AlertRules => Set<AlertRule>();
     public DbSet<DeviceGroup> DeviceGroups => Set<DeviceGroup>();
     public DbSet<DeviceConfigTemplate> DeviceConfigTemplates => Set<DeviceConfigTemplate>();
+    public DbSet<NotificationChannel> NotificationChannels => Set<NotificationChannel>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,7 +33,7 @@ public class ApplicationDbContext : DbContext
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         var entries = ChangeTracker.Entries()
-            .Where(e => e.Entity is Device or Content or User or Schedule or DeviceGroup or DeviceConfigTemplate
+            .Where(e => e.Entity is Device or Content or User or Schedule or DeviceGroup or DeviceConfigTemplate or NotificationChannel
                 && (e.State == EntityState.Added || e.State == EntityState.Modified));
 
             foreach (var entry in entries)
@@ -45,6 +46,7 @@ public class ApplicationDbContext : DbContext
                 else if (entry.Entity is Schedule schedule) schedule.CreatedAt = DateTime.UtcNow;
                 else if (entry.Entity is DeviceGroup group) group.CreatedAt = DateTime.UtcNow;
                 else if (entry.Entity is DeviceConfigTemplate template) template.CreatedAt = DateTime.UtcNow;
+                else if (entry.Entity is NotificationChannel channel) channel.CreatedAt = DateTime.UtcNow;
             }
             else
             {
@@ -54,6 +56,7 @@ public class ApplicationDbContext : DbContext
                 else if (entry.Entity is Schedule schedule) schedule.UpdatedAt = DateTime.UtcNow;
                 else if (entry.Entity is DeviceGroup group) group.UpdatedAt = DateTime.UtcNow;
                 else if (entry.Entity is DeviceConfigTemplate template) template.UpdatedAt = DateTime.UtcNow;
+                else if (entry.Entity is NotificationChannel channel) channel.UpdatedAt = DateTime.UtcNow;
             }
             }
 

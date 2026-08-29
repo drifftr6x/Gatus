@@ -16,13 +16,18 @@ public class AlertEvaluatorService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<AlertEvaluatorService> _logger;
+    private readonly NotificationService _notificationService;
     private readonly TimeSpan _interval = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan OfflineThreshold = TimeSpan.FromMinutes(5);
 
-    public AlertEvaluatorService(IServiceProvider serviceProvider, ILogger<AlertEvaluatorService> logger)
+    public AlertEvaluatorService(
+        IServiceProvider serviceProvider,
+        ILogger<AlertEvaluatorService> logger,
+        NotificationService notificationService)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
+        _notificationService = notificationService;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -132,6 +137,9 @@ public class AlertEvaluatorService : BackgroundService
                 };
                 context.Alerts.Add(alert);
                 _logger.LogWarning("ALERT raised: {Title} [{Severity}]", alert.Title, alert.Severity);
+
+                // Fire-and-forget notification (don't block evaluation)
+                _ = Task.Run(() => _notificationService.NotifyAlertAsync(alert, device.Name));
             }
             // else: already active/acknowledged — keep it, no duplicate
         }
