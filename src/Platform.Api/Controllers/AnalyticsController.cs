@@ -192,18 +192,32 @@ public class AnalyticsController : ControllerBase
 
         var summaries = devices.Select(d =>
         {
-            double? GetMetric(string name) =>
-                latestTelemetry
-                    .Where(t => t.DeviceId == d.Id && t.MetricName == name)
-                    .Select(t => double.TryParse(t.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : (double?)null)
-                    .FirstOrDefault();
+            double? GetMetric(params string[] names) =>
+                names
+                    .Select(name => latestTelemetry
+                        .Where(t => t.DeviceId == d.Id && t.MetricName == name)
+                        .Select(t => double.TryParse(t.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : (double?)null)
+                        .FirstOrDefault())
+                    .FirstOrDefault(v => v.HasValue);
+
+            // CPU: try percentage metrics first, fall back to count
+            var cpu = GetMetric("cpu_percent", "cpu_usage");
+            // Memory: try percentage, then absolute
+            var memory = GetMetric("memory_percent", "memory_usage");
+            // Disk: try percentage free, then GB free (convert to rough % assuming 256GB drive)
+            var diskPct = GetMetric("disk_free_percent");
+            if (!diskPct.HasValue)
+            {
+                var diskGb = GetMetric("disk_free_gb");
+                if (diskGb.HasValue)
+                    diskPct = Math.Round(diskGb.Value / 256.0 * 100, 1); // rough estimate
+            }
+            // Uptime
+            var uptime = GetMetric("uptime_seconds", "uptime");
 
             return new DeviceHealthSummary(
                 d.Id, d.Name, d.Status.ToString(),
-                GetMetric("cpu_percent") ?? GetMetric("cpu_usage"),
-                GetMetric("memory_percent") ?? GetMetric("memory_usage"),
-                GetMetric("disk_free_percent"),
-                GetMetric("uptime_seconds") ?? GetMetric("uptime"),
+                cpu, memory, diskPct, uptime,
                 d.LastSeenAt);
         }).ToList();
 

@@ -115,7 +115,7 @@ export function DevicesPage() {
                     className="h-4 w-4 rounded border-surface-600 bg-surface-800 text-accent-500 focus:ring-accent-500"
                   />
                 </th>
-                {['Name', 'Group', 'Hostname', 'IP Address', 'Serial Number', 'Status', 'Location', 'Tags', 'Last Seen', ''].map((h) => (
+                {['Name', 'Group', 'Hostname', 'IP Address', 'Metrics', 'Status', 'Location', 'Tags', 'Last Seen', ''].map((h) => (
                   <th
                     key={h}
                     className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 last:text-right"
@@ -156,8 +156,8 @@ export function DevicesPage() {
                   <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-400">
                     {device.ipAddress || '—'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-400">
-                    {device.serialNumber}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <DeviceMetrics device={device} />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <StatusBadge status={device.status} />
@@ -769,7 +769,54 @@ function DeviceModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
-  )
-}
+        </div>
+        </div>
+        )
+        }
+
+        function DeviceMetrics({ device }: { device: any }) {
+        const hasAny = device.cpuPercent != null || device.memoryPercent != null ||
+        device.diskFreePercent != null || device.diskFreeGb != null || device.uptimeSeconds != null
+
+        if (!hasAny) {
+        return <span className="text-xs text-slate-600">—</span>
+        }
+
+        const formatUptime = (seconds: number) => {
+        const h = Math.floor(seconds / 3600)
+        const m = Math.floor((seconds % 3600) / 60)
+        if (h > 24) return `${Math.floor(h / 24)}d ${h % 24}h`
+        if (h > 0) return `${h}h ${m}m`
+        return `${m}m`
+        }
+
+        const metric = (label: string, value: number | null | undefined, unit: string, warn?: number, invert?: boolean) => {
+        if (value == null) return null
+        const isBad = invert ? value < (warn ?? 0) : value > (warn ?? Infinity)
+        return (
+        <span key={label} className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-mono ${
+        isBad ? 'bg-red-500/10 text-red-400' : 'bg-surface-800 text-slate-300'
+        }`} title={label}>
+        {label === 'Disk' ? `${value.toFixed(1)}${unit}` : `${value.toFixed(0)}${unit}`}
+        </span>
+        )
+        }
+
+        return (
+        <div className="flex flex-wrap gap-1">
+        {metric('CPU', device.cpuPercent, '%', 80)}
+        {metric('Mem', device.memoryPercent, '%', 85)}
+        {metric('Disk', device.diskFreeGb ?? device.diskFreePercent, device.diskFreeGb != null ? ' GB' : '%', 10, true)}
+        {device.uptimeSeconds != null && (
+        <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-mono bg-surface-800 text-slate-300" title="Uptime">
+        ↑{formatUptime(device.uptimeSeconds)}
+        </span>
+        )}
+        {device.osVersion && (
+        <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-surface-800 text-slate-400" title="OS">
+        Win {device.osVersion}
+        </span>
+        )}
+        </div>
+        )
+        }

@@ -164,60 +164,101 @@ public class DevicesController : ControllerBase
             .OrderByDescending(d => d.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(d => new DeviceDto(
-                d.Id,
-                d.Name,
-                d.SerialNumber,
-                d.Description,
-                d.Location,
-                d.Status.ToString(),
-                d.LastSeenAt,
-                d.Hostname,
-                d.IpAddress,
-                d.MacAddress,
-                d.FirmwareVersion,
-                d.GroupId,
-                d.Group != null ? d.Group.Name : null,
-                d.Tags,
-                d.CreatedAt,
-                d.UpdatedAt,
-                d.IsActive
-            ))
+            .Include(d => d.Group)
             .ToListAsync();
 
-            return Ok(new DeviceListResponse(devices, totalCount, page, pageSize));
+        // Fetch latest telemetry for all returned devices
+        var deviceIds = devices.Select(d => d.Id).ToList();
+        var latestTelemetry = await _context.DeviceTelemetry
+            .Where(t => deviceIds.Contains(t.DeviceId))
+            .GroupBy(t => new { t.DeviceId, t.MetricName })
+            .Select(g => new
+            {
+                g.Key.DeviceId,
+                g.Key.MetricName,
+                Value = g.OrderByDescending(t => t.Timestamp).First().MetricValue
+            })
+            .ToListAsync();
+
+        var dtos = devices.Select(d =>
+        {
+            double? GetNum(params string[] names) =>
+                names.Select(n => latestTelemetry
+                    .Where(t => t.DeviceId == d.Id && t.MetricName == n)
+                    .Select(t => double.TryParse(t.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : (double?)null)
+                    .FirstOrDefault())
+                    .FirstOrDefault(v => v.HasValue);
+
+            string? GetStr(string name) =>
+                latestTelemetry
+                    .Where(t => t.DeviceId == d.Id && t.MetricName == name)
+                    .Select(t => t.Value)
+                    .FirstOrDefault();
+
+            var diskGb = GetNum("disk_free_gb");
+            var diskPct = GetNum("disk_free_percent")
+                ?? (diskGb.HasValue ? Math.Round(diskGb.Value / 256.0 * 100, 1) : (double?)null);
+
+            return new DeviceDto(
+                d.Id, d.Name, d.SerialNumber, d.Description, d.Location,
+                d.Status.ToString(), d.LastSeenAt, d.Hostname, d.IpAddress,
+                d.MacAddress, d.FirmwareVersion, d.GroupId,
+                d.Group?.Name, d.Tags, d.CreatedAt, d.UpdatedAt, d.IsActive,
+                GetNum("cpu_percent", "cpu_usage"),
+                GetNum("memory_percent", "memory_usage"),
+                diskPct, diskGb,
+                GetNum("uptime_seconds", "uptime"),
+                GetStr("os_version"));
+        }).ToList();
+
+        return Ok(new DeviceListResponse(dtos, totalCount, page, pageSize));
     }
 
     [HttpGet("{id}")]
     [Authorize(Policy = "RequireViewer")]
     public async Task<ActionResult<DeviceDto>> GetDevice(Guid id)
     {
-        var device = await _context.Devices.FindAsync(id);
+        var device = await _context.Devices.Include(d => d.Group).FirstOrDefaultAsync(d => d.Id == id);
         if (device == null)
         {
             return NotFound();
         }
 
+        var latestTelemetry = await _context.DeviceTelemetry
+            .Where(t => t.DeviceId == id)
+            .GroupBy(t => t.MetricName)
+            .Select(g => new
+            {
+                MetricName = g.Key,
+                Value = g.OrderByDescending(t => t.Timestamp).First().MetricValue
+            })
+            .ToListAsync();
+
+        double? GetNum(params string[] names) =>
+            names.Select(n => latestTelemetry
+                .Where(t => t.MetricName == n)
+                .Select(t => double.TryParse(t.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : (double?)null)
+                .FirstOrDefault())
+                .FirstOrDefault(v => v.HasValue);
+
+        string? GetStr(string name) =>
+            latestTelemetry.Where(t => t.MetricName == name).Select(t => t.Value).FirstOrDefault();
+
+        var diskGb = GetNum("disk_free_gb");
+        var diskPct = GetNum("disk_free_percent")
+            ?? (diskGb.HasValue ? Math.Round(diskGb.Value / 256.0 * 100, 1) : (double?)null);
+
         return Ok(new DeviceDto(
-            device.Id,
-            device.Name,
-            device.SerialNumber,
-            device.Description,
-            device.Location,
-            device.Status.ToString(),
-            device.LastSeenAt,
-            device.Hostname,
-            device.IpAddress,
-            device.MacAddress,
-            device.FirmwareVersion,
-            device.GroupId,
-            device.Group?.Name,
-            device.Tags,
-            device.CreatedAt,
-            device.UpdatedAt,
-            device.IsActive
-            ));
-            }
+            device.Id, device.Name, device.SerialNumber, device.Description, device.Location,
+            device.Status.ToString(), device.LastSeenAt, device.Hostname, device.IpAddress,
+            device.MacAddress, device.FirmwareVersion, device.GroupId,
+            device.Group?.Name, device.Tags, device.CreatedAt, device.UpdatedAt, device.IsActive,
+            GetNum("cpu_percent", "cpu_usage"),
+            GetNum("memory_percent", "memory_usage"),
+            diskPct, diskGb,
+            GetNum("uptime_seconds", "uptime"),
+            GetStr("os_version")));
+    }
 
             [HttpPost]
     [Authorize(Policy = "RequireEditor")]
@@ -273,9 +314,10 @@ public class DevicesController : ControllerBase
             device.Tags,
             device.CreatedAt,
             device.UpdatedAt,
-            device.IsActive
-            ));
-            }
+            device.IsActive,
+            null, null, null, null, null, null
+        ));
+        }
 
             [HttpPut("{id}")]
     [Authorize(Policy = "RequireEditor")]
@@ -326,11 +368,12 @@ public class DevicesController : ControllerBase
             device.Tags,
             device.CreatedAt,
             device.UpdatedAt,
-            device.IsActive
-            ));
-            }
+            device.IsActive,
+            null, null, null, null, null, null
+        ));
+        }
 
-            [HttpDelete("{id}")]
+        [HttpDelete("{id}")]
     [Authorize(Policy = "RequireAdmin")]
     public async Task<IActionResult> DeleteDevice(Guid id)
     {

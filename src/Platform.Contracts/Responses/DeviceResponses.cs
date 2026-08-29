@@ -17,7 +17,14 @@ public record DeviceDto(
     string? Tags,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
-    bool IsActive
+    bool IsActive,
+    // Latest telemetry metrics (null if no agent)
+    double? CpuPercent,
+    double? MemoryPercent,
+    double? DiskFreePercent,
+    double? DiskFreeGb,
+    double? UptimeSeconds,
+    string? OsVersion
 );
 
 public record DeviceListResponse(
