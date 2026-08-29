@@ -37,6 +37,9 @@ builder.Services.AddSingleton<NotificationService>();
 // Add alert evaluator background service
 builder.Services.AddHostedService<AlertEvaluatorService>();
 
+// Add ping monitor for unmanaged devices
+builder.Services.AddHostedService<PingMonitorService>();
+
 
 
 // Add Security (JWT, Authorization)
