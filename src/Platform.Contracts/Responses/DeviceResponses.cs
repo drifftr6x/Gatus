@@ -3,7 +3,7 @@ namespace Platform.Contracts.Responses;
 public record DeviceDto(
     Guid Id,
     string Name,
-    string SerialNumber,
+    string? SerialNumber,
     string? Description,
     string? Location,
     string Status,

@@ -2,7 +2,7 @@ namespace Platform.Contracts.Requests;
 
 public record CreateDeviceRequest(
     string Name,
-    string SerialNumber,
+    string? SerialNumber,
     string? Description,
     string? Location,
     string? Hostname,

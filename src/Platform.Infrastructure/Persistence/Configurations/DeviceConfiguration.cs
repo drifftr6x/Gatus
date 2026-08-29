@@ -12,7 +12,7 @@ public class DeviceConfiguration : IEntityTypeConfiguration<Device>
         builder.HasKey(d => d.Id);
         builder.Property(d => d.Id).HasColumnName("id");
         builder.Property(d => d.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
-        builder.Property(d => d.SerialNumber).HasColumnName("serial_number").HasMaxLength(100).IsRequired();
+        builder.Property(d => d.SerialNumber).HasColumnName("serial_number").HasMaxLength(100);
         builder.Property(d => d.Description).HasColumnName("description").HasMaxLength(1000);
         builder.Property(d => d.Location).HasColumnName("location").HasMaxLength(500);
         builder.Property(d => d.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
@@ -32,7 +32,7 @@ public class DeviceConfiguration : IEntityTypeConfiguration<Device>
             .HasForeignKey(d => d.GroupId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        builder.HasIndex(d => d.SerialNumber).IsUnique();
+        builder.HasIndex(d => d.SerialNumber);
         builder.HasIndex(d => d.Status);
         builder.HasIndex(d => d.IsActive);
     }

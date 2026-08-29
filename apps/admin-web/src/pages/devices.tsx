@@ -692,14 +692,12 @@ function DeviceModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300">Serial Number</label>
+            <label className="block text-sm font-medium text-slate-300">Serial Number <span className="text-slate-500">(optional)</span></label>
             <input
               type="text"
               value={formData.serialNumber}
               onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
-              className={`${inputClass} font-mono disabled:opacity-50`}
-              required
-              disabled={!!device}
+              className={`${inputClass} font-mono`}
             />
           </div>
           <div>
@@ -721,24 +719,26 @@ function DeviceModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300">Hostname (FQDN)</label>
+            <label className="block text-sm font-medium text-slate-300">Hostname (FQDN) <span className="text-red-400">*</span></label>
             <input
               type="text"
               value={formData.hostname}
               onChange={(e) => setFormData({ ...formData, hostname: e.target.value })}
               className={inputClass}
               placeholder="kiosk01.example.local"
+              required
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300">IP Address</label>
+              <label className="block text-sm font-medium text-slate-300">IP Address <span className="text-red-400">*</span></label>
               <input
                 type="text"
                 value={formData.ipAddress}
                 onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
                 className={`${inputClass} font-mono`}
                 placeholder="192.168.1.100"
+                required
               />
             </div>
             <div>

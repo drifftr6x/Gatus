@@ -150,7 +150,7 @@ public class DevicesController : ControllerBase
         {
             query = query.Where(d =>
                 d.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                d.SerialNumber.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                (d.SerialNumber != null && d.SerialNumber.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
                 (d.Location != null && d.Location.Contains(search, StringComparison.OrdinalIgnoreCase)));
         }
 
@@ -223,12 +223,16 @@ public class DevicesController : ControllerBase
     [Authorize(Policy = "RequireEditor")]
     public async Task<ActionResult<DeviceDto>> CreateDevice(CreateDeviceRequest request)
     {
-        var existingDevice = await _context.Devices
-            .FirstOrDefaultAsync(d => d.SerialNumber == request.SerialNumber);
-
-        if (existingDevice != null)
+        // Only check for duplicate serial if one was provided
+        if (!string.IsNullOrWhiteSpace(request.SerialNumber))
         {
-            return Conflict(new { error = "Device with this serial number already exists" });
+            var existingDevice = await _context.Devices
+                .FirstOrDefaultAsync(d => d.SerialNumber == request.SerialNumber);
+
+            if (existingDevice != null)
+            {
+                return Conflict(new { error = "Device with this serial number already exists" });
+            }
         }
 
         var device = new Device
