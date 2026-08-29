@@ -1,4 +1,11 @@
 <Solution>
+  <Folder Name="/agents/" />
+  <Folder Name="/agents/windows-agent/">
+    <Project Path="agents/windows-agent/SentinelKiosk.Agent.csproj" />
+  </Folder>
+  <Folder Name="/agents/windows-kiosk-runtime/">
+    <Project Path="agents/windows-kiosk-runtime/SentinelKiosk.Runtime.csproj" />
+  </Folder>
   <Folder Name="/apps/" />
   <Folder Name="/apps/api-server/">
     <Project Path="apps/api-server/Platform.ApiServer.csproj" />

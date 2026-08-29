@@ -16,6 +16,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ContentTag> ContentTags => Set<ContentTag>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Schedule> Schedules => Set<Schedule>();
+    public DbSet<EnrollmentToken> EnrollmentTokens => Set<EnrollmentToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

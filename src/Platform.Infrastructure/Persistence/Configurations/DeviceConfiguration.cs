@@ -17,6 +17,7 @@ public class DeviceConfiguration : IEntityTypeConfiguration<Device>
         builder.Property(d => d.Location).HasColumnName("location").HasMaxLength(500);
         builder.Property(d => d.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
         builder.Property(d => d.LastSeenAt).HasColumnName("last_seen_at");
+        builder.Property(d => d.Hostname).HasColumnName("hostname").HasMaxLength(255);
         builder.Property(d => d.IpAddress).HasColumnName("ip_address").HasMaxLength(45);
         builder.Property(d => d.MacAddress).HasColumnName("mac_address").HasMaxLength(17);
         builder.Property(d => d.FirmwareVersion).HasColumnName("firmware_version").HasMaxLength(50);

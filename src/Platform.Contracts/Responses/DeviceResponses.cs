@@ -23,3 +23,27 @@ public record DeviceListResponse(
     int Page,
     int PageSize
 );
+
+public record EnrollmentResponse(
+    string DeviceId,
+    string DeviceSecret,
+    string? ServerUrl,
+    string? PolicyAssignment
+);
+
+public record EnrollmentTokenDto(
+    Guid Id,
+    string? Label,
+    DateTime ExpiresAt,
+    bool IsUsed,
+    DateTime? UsedAt,
+    bool IsRevoked,
+    DateTime CreatedAt
+);
+
+/// <summary>Returned once at creation; includes the plaintext token.</summary>
+public record CreatedEnrollmentTokenDto(
+    Guid Id,
+    string Token,
+    DateTime ExpiresAt
+);

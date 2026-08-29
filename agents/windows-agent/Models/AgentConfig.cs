@@ -2,7 +2,7 @@ namespace SentinelKiosk.Agent.Models;
 
 public class AgentConfig
 {
-    public string ServerUrl { get; set; } = "https://localhost:7001";
+    public string ServerUrl { get; set; } = "http://localhost:5163";
     public int HeartbeatIntervalSeconds { get; set; } = 30;
     public int PolicySyncIntervalSeconds { get; set; } = 300;
     public int DeploymentCheckIntervalSeconds { get; set; } = 60;

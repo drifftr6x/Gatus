@@ -51,6 +51,28 @@ var host = builder.Build();
 try
 {
     Log.Information("Starting Sentinel Kiosk Agent...");
+
+    // Handle enrollment command: --enroll <token>
+    var enrollIndex = Array.IndexOf(args, "--enroll");
+    if (enrollIndex >= 0 && enrollIndex + 1 < args.Length)
+    {
+        var token = args[enrollIndex + 1];
+        Log.Information("Enrollment requested via CLI");
+
+        var enrollmentService = host.Services.GetRequiredService<EnrollmentService>();
+        var success = await enrollmentService.EnrollAsync(token);
+
+        if (success)
+        {
+            Log.Information("Enrollment successful. Agent will now start normally.");
+        }
+        else
+        {
+            Log.Error("Enrollment failed. Check the token and server connectivity.");
+            return;
+        }
+    }
+
     await host.RunAsync();
 }
 catch (Exception ex)

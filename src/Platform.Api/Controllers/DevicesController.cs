@@ -29,6 +29,107 @@ public class DevicesController : ControllerBase
         _broadcaster = broadcaster;
     }
 
+    /// <summary>
+    /// Enroll a new device using a one-time enrollment token.
+    /// Validates the token, creates (or matches) the device, and issues device credentials.
+    /// </summary>
+    [HttpPost("enroll")]
+    [AllowAnonymous]
+    public async Task<ActionResult<EnrollmentResponse>> EnrollDevice([FromBody] EnrollDeviceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.EnrollmentToken))
+        {
+            return BadRequest(new { error = "Enrollment token is required" });
+        }
+
+        // Hash the presented token to look it up
+        var tokenHash = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(request.EnrollmentToken)))
+            .ToLowerInvariant();
+
+        var token = await _context.EnrollmentTokens
+            .FirstOrDefaultAsync(t => t.TokenHash == tokenHash);
+
+        if (token == null)
+        {
+            _logger.LogWarning("Enrollment attempt with unknown token from {Hostname}", request.Hostname);
+            return Unauthorized(new { error = "Invalid enrollment token" });
+        }
+
+        if (token.IsRevoked)
+        {
+            return Unauthorized(new { error = "Enrollment token has been revoked" });
+        }
+
+        if (token.IsUsed)
+        {
+            _logger.LogWarning("Enrollment token reuse attempt. TokenId={TokenId}, Host={Hostname}", token.Id, request.Hostname);
+            return Conflict(new { error = "Enrollment token has already been used" });
+        }
+
+        if (token.ExpiresAt < DateTime.UtcNow)
+        {
+            return Unauthorized(new { error = "Enrollment token has expired" });
+        }
+
+        // Create or match device by hardware ID
+        var hardwareId = request.HardwareId ?? request.Hostname ?? Guid.NewGuid().ToString("N")[..16];
+        var device = await _context.Devices
+            .FirstOrDefaultAsync(d => d.SerialNumber == hardwareId);
+
+        if (device == null)
+        {
+            device = new Device
+            {
+                Id = Guid.NewGuid(),
+                Name = request.Hostname ?? "Unnamed Device",
+                SerialNumber = hardwareId,
+                Hostname = request.Hostname,
+                Description = $"Enrolled via token on {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC",
+                Status = DeviceStatus.Online,
+                LastSeenAt = DateTime.UtcNow,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.Devices.Add(device);
+        }
+        else
+        {
+            // Re-enrollment: update info and bring online
+            device.Hostname = request.Hostname ?? device.Hostname;
+            device.Status = DeviceStatus.Online;
+            device.LastSeenAt = DateTime.UtcNow;
+            device.UpdatedAt = DateTime.UtcNow;
+            device.IsActive = true;
+        }
+
+        // Issue a device secret (random, shown once to the agent)
+        var deviceSecret = Convert.ToBase64String(
+            System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+
+        // Consume the token
+        token.IsUsed = true;
+        token.UsedAt = DateTime.UtcNow;
+        token.UsedByDeviceId = device.Id;
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Device enrolled: {DeviceName} ({DeviceId}) via token {TokenId}",
+            device.Name, device.Id, token.Id);
+
+        await _broadcaster.DeviceStatusChanged(
+            device.Id, "Online", device.LastSeenAt ?? DateTime.UtcNow);
+
+        return Ok(new EnrollmentResponse(
+            DeviceId: device.Id.ToString(),
+            DeviceSecret: deviceSecret,
+            ServerUrl: null,
+            PolicyAssignment: null
+        ));
+    }
+
     [HttpGet]
     [Authorize(Policy = "RequireViewer")]
     public async Task<ActionResult<DeviceListResponse>> GetDevices(

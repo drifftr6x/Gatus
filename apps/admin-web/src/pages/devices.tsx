@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { devicesApi } from '@/lib/api'
+import { devicesApi, enrollmentApi } from '@/lib/api'
 import type { DeviceDto } from '@/lib/api'
 import { useState } from 'react'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, KeyRound, Copy, Check } from 'lucide-react'
 
 export function DevicesPage() {
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isEnrollOpen, setIsEnrollOpen] = useState(false)
   const [editingDevice, setEditingDevice] = useState<DeviceDto | null>(null)
 
   const { data, isLoading, error } = useQuery({
@@ -34,17 +35,26 @@ export function DevicesPage() {
           <h1 className="text-xl font-semibold text-white">Devices</h1>
           <p className="mt-1 text-sm text-slate-400">Manage your kiosk fleet</p>
         </div>
-        <button
-          onClick={() => {
-            setEditingDevice(null)
-            setIsModalOpen(true)
-          }}
-          className="flex items-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent-500/25 transition-colors hover:bg-accent-400"
-        >
-          <Plus className="h-4 w-4" />
-          Add Device
-        </button>
-      </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsEnrollOpen(true)}
+            className="flex items-center gap-2 rounded-lg border border-surface-700 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-surface-800"
+          >
+            <KeyRound className="h-4 w-4" />
+            Enroll Device
+          </button>
+          <button
+            onClick={() => {
+              setEditingDevice(null)
+              setIsModalOpen(true)
+            }}
+            className="flex items-center gap-2 rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent-500/25 transition-colors hover:bg-accent-400"
+          >
+            <Plus className="h-4 w-4" />
+            Add Device
+          </button>
+        </div>
+        </div>
 
       {isLoading ? (
         <div className="flex h-64 items-center justify-center">
@@ -130,9 +140,150 @@ export function DevicesPage() {
       {isModalOpen && (
         <DeviceModal device={editingDevice} onClose={() => setIsModalOpen(false)} />
       )}
-    </div>
-  )
-}
+      {isEnrollOpen && (
+        <EnrollTokenModal onClose={() => setIsEnrollOpen(false)} />
+      )}
+      </div>
+      )
+      }
+
+      function EnrollTokenModal({ onClose }: { onClose: () => void }) {
+      const queryClient = useQueryClient()
+      const [label, setLabel] = useState('')
+      const [expiresInHours, setExpiresInHours] = useState(24)
+      const [copied, setCopied] = useState(false)
+
+      const { data: tokens } = useQuery({
+      queryKey: ['enrollment-tokens'],
+      queryFn: () => enrollmentApi.list(),
+      })
+
+      const createMutation = useMutation({
+      mutationFn: () => enrollmentApi.create({ label: label || undefined, expiresInHours }),
+      onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollment-tokens'] })
+      },
+      })
+
+      const newToken = createMutation.data
+
+      const copyToken = async () => {
+      if (newToken) {
+      await navigator.clipboard.writeText(newToken.token)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+      }
+      }
+
+      return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-2xl border border-surface-700 bg-surface-900 p-6 shadow-2xl">
+        <h2 className="text-lg font-semibold text-white">Enroll a Device</h2>
+        <p className="mt-1 text-sm text-slate-400">
+          Generate a one-time enrollment token, then start the agent with it on the target machine.
+        </p>
+
+        {!newToken ? (
+          <div className="mt-5 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Label (optional)</label>
+              <input
+                type="text"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                className={inputClass}
+                placeholder="e.g. Lobby kiosk batch 1"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Expires in (hours)</label>
+              <input
+                type="number"
+                min={1}
+                max={720}
+                value={expiresInHours}
+                onChange={(e) => setExpiresInHours(Number(e.target.value))}
+                className={inputClass}
+              />
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-surface-700 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-surface-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => createMutation.mutate()}
+                disabled={createMutation.isPending}
+                className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent-500/25 transition-colors hover:bg-accent-400 disabled:opacity-50"
+              >
+                {createMutation.isPending ? 'Generating…' : 'Generate Token'}
+              </button>
+            </div>
+
+            {tokens && tokens.length > 0 && (
+              <div className="mt-6 border-t border-surface-800 pt-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Recent tokens</h3>
+                <ul className="mt-2 space-y-1 text-xs text-slate-400">
+                  {tokens.slice(0, 5).map((t) => (
+                    <li key={t.id} className="flex justify-between">
+                      <span>{t.label || t.id.slice(0, 8)}</span>
+                      <span className={t.isUsed ? 'text-emerald-400' : t.isRevoked ? 'text-red-400' : 'text-slate-400'}>
+                        {t.isUsed ? 'Used' : t.isRevoked ? 'Revoked' : `Expires ${new Date(t.expiresAt).toLocaleDateString()}`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="mt-5">
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4">
+              <p className="text-xs font-medium uppercase tracking-wider text-emerald-300">Token (shown once)</p>
+              <div className="mt-2 flex items-center gap-2">
+                <code className="flex-1 break-all rounded bg-black/40 px-3 py-2 font-mono text-xs text-emerald-200">
+                  {newToken.token}
+                </code>
+                <button
+                  onClick={copyToken}
+                  className="shrink-0 rounded-lg border border-surface-700 p-2 text-slate-300 transition-colors hover:bg-surface-800"
+                  title="Copy token"
+                >
+                  {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-emerald-300/80">
+                Expires {new Date(newToken.expiresAt).toLocaleString()}
+              </p>
+            </div>
+
+            <div className="mt-4 rounded-lg border border-surface-700 bg-surface-850 p-4 text-xs text-slate-300">
+              <p className="font-medium text-slate-200">Run the agent with:</p>
+              <code className="mt-2 block break-all rounded bg-black/40 px-3 py-2 font-mono">
+                SentinelKiosk.Agent.exe --enroll {newToken.token.slice(0, 12)}…
+              </code>
+              <p className="mt-2 text-slate-500">
+                Or place the token in the agent's config and start the service.
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={onClose}
+                className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-400"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      </div>
+      )
+      }
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {

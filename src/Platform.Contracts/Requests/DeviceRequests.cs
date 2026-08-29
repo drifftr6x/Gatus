@@ -30,3 +30,16 @@ public enum DeviceStatusRequest
     Maintenance,
     Error
 }
+
+public record EnrollDeviceRequest(
+    string EnrollmentToken,
+    string? Hostname,
+    string? HardwareId,
+    object? OsInfo,
+    string? PublicKey
+);
+
+public record CreateEnrollmentTokenRequest(
+    string? Label,
+    int ExpiresInHours = 24
+);

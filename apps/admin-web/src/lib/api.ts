@@ -218,6 +218,30 @@ export const contentApi = {
   delete: (id: string) => api.delete(`/content/${id}`),
 }
 
+export interface EnrollmentTokenDto {
+  id: string
+  label?: string
+  expiresAt: string
+  isUsed: boolean
+  usedAt?: string
+  isRevoked: boolean
+  createdAt: string
+}
+
+export interface CreatedEnrollmentTokenDto {
+  id: string
+  token: string
+  expiresAt: string
+}
+
+export const enrollmentApi = {
+  list: () => api.get<EnrollmentTokenDto[]>('/enrollmenttokens'),
+  create: (data: { label?: string; expiresInHours?: number }) =>
+    api.post<CreatedEnrollmentTokenDto>('/enrollmenttokens', data),
+  revoke: (id: string) => api.post(`/enrollmenttokens/${id}/revoke`),
+  delete: (id: string) => api.delete(`/enrollmenttokens/${id}`),
+}
+
 export const usersApi = {
   list: () => api.get<UserDto[]>('/users'),
   get: (id: string) => api.get<UserDto>(`/users/${id}`),
