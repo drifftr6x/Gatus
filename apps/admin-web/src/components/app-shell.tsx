@@ -4,10 +4,11 @@ import {
   Monitor,
   CalendarClock,
   FolderOpen,
+  BellRing,
   Settings,
   LogOut,
   ShieldCheck,
-} from 'lucide-react'
+  } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuth } from '@/hooks/useAuth'
 import { ThemePicker } from '@/components/theme-picker'
@@ -17,8 +18,9 @@ const navItems = [
   { href: '/devices', label: 'Devices', icon: Monitor },
   { href: '/schedules', label: 'Schedules', icon: CalendarClock },
   { href: '/content', label: 'Content', icon: FolderOpen },
+  { href: '/alerts', label: 'Alerts', icon: BellRing },
   { href: '/settings', label: 'Settings', icon: Settings },
-]
+  ]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation()

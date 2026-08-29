@@ -6,6 +6,7 @@ import { DashboardPage } from '@/pages/dashboard'
 import { DevicesPage } from '@/pages/devices'
 import { SchedulesPage } from '@/pages/schedules'
 import { ContentPage } from '@/pages/content'
+import { AlertsPage } from '@/pages/alerts'
 import { SettingsPage } from '@/pages/settings'
 import { LoginPage } from '@/pages/login'
 
@@ -25,6 +26,7 @@ export default function App() {
                   <Route path="/devices" element={<DevicesPage />} />
                   <Route path="/schedules" element={<SchedulesPage />} />
                   <Route path="/content" element={<ContentPage />} />
+                  <Route path="/alerts" element={<AlertsPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                 </Routes>
               </AppShell>

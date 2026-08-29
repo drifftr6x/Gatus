@@ -253,6 +253,54 @@ export interface CommandListResponse {
   totalCount: number
 }
 
+export interface AlertDto {
+  id: string
+  deviceId: string
+  deviceName: string
+  severity: string
+  title: string
+  message?: string
+  status: string
+  raisedAt: string
+  acknowledgedAt?: string
+  acknowledgedByName?: string
+  resolvedAt?: string
+  autoResolved: boolean
+}
+
+export interface AlertListResponse {
+  alerts: AlertDto[]
+  totalCount: number
+  activeCount: number
+}
+
+export interface AlertRuleDto {
+  id: string
+  name: string
+  metric: string
+  operator: string
+  threshold: number
+  severity: string
+  isEnabled: boolean
+  createdAt: string
+}
+
+export const alertsApi = {
+  list: (params?: { severity?: string; status?: string; deviceId?: string; limit?: number }) => {
+    const sp = new URLSearchParams()
+    if (params?.severity) sp.set('severity', params.severity)
+    if (params?.status) sp.set('status', params.status)
+    if (params?.deviceId) sp.set('deviceId', params.deviceId)
+    if (params?.limit) sp.set('limit', params.limit.toString())
+    const q = sp.toString()
+    return api.get<AlertListResponse>(`/alerts${q ? `?${q}` : ''}`)
+  },
+  count: () => api.get<{ active: number; critical: number }>('/alerts/count'),
+  acknowledge: (id: string) => api.post(`/alerts/${id}/acknowledge`),
+  resolve: (id: string) => api.post(`/alerts/${id}/resolve`),
+  rules: () => api.get<AlertRuleDto[]>('/alerts/rules'),
+}
+
 export const commandsApi = {
   history: (params?: { deviceId?: string; status?: string; limit?: number }) => {
     const searchParams = new URLSearchParams()

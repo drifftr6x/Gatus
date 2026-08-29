@@ -334,7 +334,7 @@ public class DevicesController : ControllerBase
 
     [HttpPost("{id}/heartbeat")]
     [AllowAnonymous] // Devices may not have full auth
-    public async Task<IActionResult> Heartbeat(Guid id)
+    public async Task<IActionResult> Heartbeat(Guid id, [FromBody] System.Text.Json.JsonElement? payload)
     {
         var device = await _context.Devices.FindAsync(id);
         if (device == null)
@@ -343,8 +343,34 @@ public class DevicesController : ControllerBase
         }
 
         var previousStatus = device.Status;
-        device.LastSeenAt = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        device.LastSeenAt = now;
         device.Status = DeviceStatus.Online;
+
+        // Persist heartbeat metrics as telemetry so alerting has data
+        if (payload.HasValue)
+        {
+            var p = payload.Value;
+            void AddMetric(string name, string? value, string? unit)
+            {
+                if (value == null) return;
+                _context.DeviceTelemetry.Add(new DeviceTelemetry
+                {
+                    Id = Guid.NewGuid(),
+                    DeviceId = id,
+                    Timestamp = now,
+                    MetricName = name,
+                    MetricValue = value,
+                    Unit = unit
+                });
+            }
+
+            if (p.TryGetProperty("cpuUsage", out var cpu)) AddMetric("cpu_usage", cpu.ToString(), "%");
+            if (p.TryGetProperty("memoryUsage", out var mem)) AddMetric("memory_usage", mem.ToString(), "%");
+            if (p.TryGetProperty("diskFreePercent", out var disk)) AddMetric("disk_free_percent", disk.ToString(), "%");
+            if (p.TryGetProperty("uptimeSeconds", out var up)) AddMetric("uptime_seconds", up.ToString(), "s");
+        }
+
         await _context.SaveChangesAsync();
 
         if (previousStatus != DeviceStatus.Online)

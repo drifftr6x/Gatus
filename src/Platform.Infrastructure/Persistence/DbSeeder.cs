@@ -220,6 +220,36 @@ public static class DbSeeder
         }
         context.DeviceTelemetry.AddRange(telemetry);
 
+        // Default alert rules
+        var alertRules = new[]
+        {
+            new AlertRule
+            {
+                Id = Guid.NewGuid(), Name = "Disk space low", Metric = "disk",
+                Operator = "lt", Threshold = 10, Severity = AlertSeverity.Critical,
+                IsEnabled = true, CreatedAt = now
+            },
+            new AlertRule
+            {
+                Id = Guid.NewGuid(), Name = "Memory usage high", Metric = "memory",
+                Operator = "gt", Threshold = 90, Severity = AlertSeverity.Warning,
+                IsEnabled = true, CreatedAt = now
+            },
+            new AlertRule
+            {
+                Id = Guid.NewGuid(), Name = "CPU usage high", Metric = "cpu",
+                Operator = "gt", Threshold = 95, Severity = AlertSeverity.Warning,
+                IsEnabled = true, CreatedAt = now
+            },
+            new AlertRule
+            {
+                Id = Guid.NewGuid(), Name = "Device offline", Metric = "offline",
+                Operator = "gt", Threshold = 5, Severity = AlertSeverity.Critical,
+                IsEnabled = true, CreatedAt = now
+            }
+        };
+        context.AlertRules.AddRange(alertRules);
+
         await context.SaveChangesAsync();
         logger.LogInformation(
             "Seeded: {Users} users, {Devices} devices, {Content} content items, {Schedules} schedules, {Telemetry} telemetry points",

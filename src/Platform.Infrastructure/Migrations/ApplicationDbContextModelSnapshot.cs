@@ -128,6 +128,131 @@ namespace Platform.Infrastructure.Migrations
                     b.ToTable("content_tags", (string)null);
                 });
 
+            modelBuilder.Entity("Platform.Domain.Entities.Alert", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("AcknowledgedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("acknowledged_at");
+
+                    b.Property<Guid?>("AcknowledgedById")
+                        .HasColumnType("uuid")
+                        .HasColumnName("acknowledged_by_id");
+
+                    b.Property<bool>("AutoResolved")
+                        .HasColumnType("boolean")
+                        .HasColumnName("auto_resolved");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("message");
+
+                    b.Property<DateTime>("RaisedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("raised_at");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<Guid?>("RuleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("rule_id");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("severity");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AcknowledgedById");
+
+                    b.HasIndex("DeviceId");
+
+                    b.HasIndex("RaisedAt");
+
+                    b.HasIndex("RuleId");
+
+                    b.HasIndex("Severity");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("DeviceId", "RuleId", "Status");
+
+                    b.ToTable("alerts", (string)null);
+                });
+
+            modelBuilder.Entity("Platform.Domain.Entities.AlertRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_enabled");
+
+                    b.Property<string>("Metric")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("metric");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Operator")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("operator");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("severity");
+
+                    b.Property<double>("Threshold")
+                        .HasColumnType("double precision")
+                        .HasColumnName("threshold");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("alert_rules", (string)null);
+                });
+
             modelBuilder.Entity("Platform.Domain.Entities.Command", b =>
                 {
                     b.Property<Guid>("Id")
@@ -567,6 +692,31 @@ namespace Platform.Infrastructure.Migrations
                     b.Navigation("Device");
                 });
 
+            modelBuilder.Entity("Platform.Domain.Entities.Alert", b =>
+                {
+                    b.HasOne("Platform.Domain.Entities.User", "AcknowledgedBy")
+                        .WithMany()
+                        .HasForeignKey("AcknowledgedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Platform.Domain.Entities.Device", "Device")
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Platform.Domain.Entities.AlertRule", "Rule")
+                        .WithMany("Alerts")
+                        .HasForeignKey("RuleId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AcknowledgedBy");
+
+                    b.Navigation("Device");
+
+                    b.Navigation("Rule");
+                });
+
             modelBuilder.Entity("Platform.Domain.Entities.Command", b =>
                 {
                     b.HasOne("Platform.Domain.Entities.User", "CreatedBy")
@@ -637,13 +787,18 @@ namespace Platform.Infrastructure.Migrations
                     b.Navigation("Telemetry");
                 });
 
+            modelBuilder.Entity("Platform.Domain.Entities.AlertRule", b =>
+                {
+                    b.Navigation("Alerts");
+                });
+
             modelBuilder.Entity("Platform.Domain.Entities.User", b =>
                 {
                     b.Navigation("CreatedContent");
 
                     b.Navigation("CreatedSchedules");
                 });
-#pragma warning restore 612, 618
+            #pragma warning restore 612, 618
         }
     }
 }

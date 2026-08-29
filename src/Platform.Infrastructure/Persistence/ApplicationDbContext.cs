@@ -18,6 +18,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<Schedule> Schedules => Set<Schedule>();
     public DbSet<EnrollmentToken> EnrollmentTokens => Set<EnrollmentToken>();
     public DbSet<Command> Commands => Set<Command>();
+    public DbSet<Alert> Alerts => Set<Alert>();
+    public DbSet<AlertRule> AlertRules => Set<AlertRule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

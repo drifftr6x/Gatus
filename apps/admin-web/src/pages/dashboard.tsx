@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { telemetryApi, devicesApi } from '@/lib/api'
+import { telemetryApi, devicesApi, alertsApi } from '@/lib/api'
 import { useSignalR } from '@/hooks/useSignalR'
-import { Monitor, CalendarClock, FolderOpen, AlertTriangle, Wifi, WifiOff } from 'lucide-react'
+import { Monitor, CalendarClock, FolderOpen, AlertTriangle, BellRing, Wifi, WifiOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export function DashboardPage() {
@@ -16,6 +16,18 @@ export function DashboardPage() {
   const { data: devicesData } = useQuery({
     queryKey: ['devices'],
     queryFn: () => devicesApi.list({ pageSize: 10 }),
+  })
+
+  const { data: alertCount } = useQuery({
+    queryKey: ['alerts', 'count'],
+    queryFn: alertsApi.count,
+    refetchInterval: 15_000,
+  })
+
+  const { data: recentAlerts } = useQuery({
+    queryKey: ['alerts', 'recent'],
+    queryFn: () => alertsApi.list({ status: 'Active', limit: 5 }),
+    refetchInterval: 15_000,
   })
 
   const stats = [
@@ -33,6 +45,13 @@ export function DashboardPage() {
       icon: AlertTriangle,
       accent: 'text-red-400',
       ring: 'from-red-500/20',
+    },
+    {
+      label: 'Active Alerts',
+      value: alertCount?.active,
+      icon: BellRing,
+      accent: (alertCount?.critical ?? 0) > 0 ? 'text-red-400' : 'text-amber-400',
+      ring: (alertCount?.critical ?? 0) > 0 ? 'from-red-500/20' : 'from-amber-500/20',
     },
     {
       label: 'Active Schedules',
@@ -91,6 +110,53 @@ export function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Recent alerts */}
+      {(recentAlerts?.alerts?.length ?? 0) > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-white">Recent Alerts</h2>
+            <Link to="/alerts" className="text-sm text-accent-400 hover:text-accent-300">
+              View all →
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {recentAlerts?.alerts.map((alert) => (
+              <div
+                key={alert.id}
+                className="flex items-center gap-3 rounded-xl border border-surface-800 bg-surface-900 px-4 py-3 shadow-lg"
+              >
+                <span
+                  className={`h-2 w-2 shrink-0 rounded-full ${
+                    alert.severity === 'Critical'
+                      ? 'bg-red-400'
+                      : alert.severity === 'Warning'
+                        ? 'bg-amber-400'
+                        : 'bg-blue-400'
+                  }`}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-slate-100">{alert.title}</p>
+                  <p className="truncate text-xs text-slate-500">
+                    {alert.deviceName} · {new Date(alert.raisedAt).toLocaleTimeString()}
+                  </p>
+                </div>
+                <span
+                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${
+                    alert.severity === 'Critical'
+                      ? 'bg-red-500/10 text-red-400 ring-red-500/30'
+                      : alert.severity === 'Warning'
+                        ? 'bg-amber-500/10 text-amber-400 ring-amber-500/30'
+                        : 'bg-blue-500/10 text-blue-400 ring-blue-500/30'
+                  }`}
+                >
+                  {alert.severity}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Device status table */}
       <div className="mt-8">

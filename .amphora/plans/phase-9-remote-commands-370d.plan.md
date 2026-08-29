@@ -1,50 +1,24 @@
 ---
 schema_version: 1
 name: phase-9-remote-commands
-overview: 'Build the server-side command queue the agent''s CommandExecutor already polls: Command
-  entity, CommandsController (agent poll + result-report endpoints + admin create/history),
-  and a Commands UI in the admin console.'
+overview: '''Build the server-side command queue the agent''''s CommandExecutor already polls:
+  Command'
 todos:
-  - id: p9t1
-    content: Command entity + EF configuration + migration (status state machine)
-    status: pending
-  - id: p9t2
-    content: Command DTOs in Contracts (CommandInfoDto, IssueCommandRequest, CommandResultReport,
-  CommandDto)
-    status: pending
-  - id: p9t3
-    content: 'CommandsController: agent poll (GET ?deviceId&status=Queued) + result report (POST
-  {id}/result) AllowAnonymous'
-    status: pending
-  - id: p9t4
-    content: 'CommandsController: admin issue (POST /api/devices/{id}/commands) + history + cancel
-  with RBAC'
-    status: pending
-  - id: p9t5
-    content: 'Frontend: commands API client + types'
-    status: pending
-  - id: p9t6
-    content: 'Frontend: Send Command UI + per-device command history with status badges'
-    status: pending
-  - id: p9t7
-    content: 'Live E2E: issue command from UI, agent picks up and reports, status transitions visible'
-    status: pending
-  - id: p9t8
-    content: Build/test verification + commit
-    status: pending
-isProject: false
+  []
+isProject: true
 created_at: '2026-08-28T22:09:06'
 session_id: sess_60616e1870d76f6b
 tool_use_id: create_plan_351
 model: FW-Kimi-K3
 mode_at_creation: auto
-content_hash: e3fecb5816c6b80f
+dismissed: true
+content_hash: 78a8b8c97ff4e85d
 title: phase-9-remote-commands
 ---
 
 # phase-9-remote-commands
 
-_Build the server-side command queue the agent's CommandExecutor already polls: Command entity, CommandsController (agent poll + result-report endpoints + admin create/history), and a Commands UI in the admin console._
+_'Build the server-side command queue the agent''s CommandExecutor already polls: Command_
 
 ## Phase 9: Remote Commands
 
