@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { groupsApi, devicesApi } from '@/lib/api'
 import { useState } from 'react'
-import { Plus, Pencil, Trash2, FolderTree, ChevronDown, ChevronRight, Monitor } from 'lucide-react'
+import { Plus, Pencil, Trash2, FolderTree, ChevronDown, ChevronRight, Monitor, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export function GroupsPage() {
@@ -190,19 +190,87 @@ function GroupModal({
   const queryClient = useQueryClient()
   const [name, setName] = useState(group?.name ?? '')
   const [description, setDescription] = useState(group?.description ?? '')
+  const [deviceSearch, setDeviceSearch] = useState('')
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set())
+  const [originalDeviceIds, setOriginalDeviceIds] = useState<Set<string>>(new Set())
+
+  const { data: allDevices } = useQuery({
+    queryKey: ['devices', 'all'],
+    queryFn: () => devicesApi.list({ pageSize: 500 }),
+  })
+
+  // Initialize selected devices from group's current devices
+  useState(() => {
+    if (group && allDevices?.devices) {
+      const groupDevices = allDevices.devices.filter(d => d.groupId === group.id).map(d => d.id)
+      setSelectedDeviceIds(new Set(groupDevices))
+      setOriginalDeviceIds(new Set(groupDevices))
+    }
+  })
+
+  // Also update when allDevices loads (async)
+  if (group && allDevices?.devices && originalDeviceIds.size === 0) {
+    const groupDevices = allDevices.devices.filter(d => d.groupId === group.id).map(d => d.id)
+    if (groupDevices.length > 0) {
+      setSelectedDeviceIds(new Set(groupDevices))
+      setOriginalDeviceIds(new Set(groupDevices))
+    }
+  }
 
   const mutation = useMutation({
-    mutationFn: (data: { name: string; description?: string }) =>
-      group ? groupsApi.update(group.id, data) : groupsApi.create(data),
+    mutationFn: async (data: { name: string; description?: string }) => {
+      // Save group info
+      const result = group
+        ? await groupsApi.update(group.id, data)
+        : await groupsApi.create(data)
+
+      const groupId = group?.id ?? result.id
+
+      // Sync device assignments
+      const toAdd = [...selectedDeviceIds].filter(id => !originalDeviceIds.has(id))
+      const toRemove = [...originalDeviceIds].filter(id => !selectedDeviceIds.has(id))
+
+      if (toAdd.length > 0) {
+        await devicesApi.bulkAssignGroup({ deviceIds: toAdd, groupId })
+      }
+      if (toRemove.length > 0) {
+        await devicesApi.bulkAssignGroup({ deviceIds: toRemove, groupId: null })
+      }
+
+      return result
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deviceGroups'] })
+      queryClient.invalidateQueries({ queryKey: ['devices'] })
       onClose()
     },
   })
 
+  const filteredDevices = (allDevices?.devices ?? []).filter(d =>
+    !deviceSearch ||
+    d.name.toLowerCase().includes(deviceSearch.toLowerCase()) ||
+    d.hostname?.toLowerCase().includes(deviceSearch.toLowerCase()) ||
+    d.ipAddress?.includes(deviceSearch)
+  )
+
+  const toggleDevice = (deviceId: string) => {
+    const next = new Set(selectedDeviceIds)
+    if (next.has(deviceId)) next.delete(deviceId)
+    else next.add(deviceId)
+    setSelectedDeviceIds(next)
+  }
+
+  const toggleAll = () => {
+    if (selectedDeviceIds.size === filteredDevices.length) {
+      setSelectedDeviceIds(new Set())
+    } else {
+      setSelectedDeviceIds(new Set(filteredDevices.map(d => d.id)))
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-xl border border-surface-700 bg-surface-900 p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-xl border border-surface-700 bg-surface-900 p-6 shadow-2xl">
         <h2 className="text-lg font-semibold text-white">
           {group ? 'Edit Group' : 'Create Group'}
         </h2>
@@ -231,6 +299,80 @@ function GroupModal({
               placeholder="Optional description"
             />
           </div>
+
+          {/* Device picker */}
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-slate-300">
+                Devices
+                {selectedDeviceIds.size > 0 && (
+                  <span className="ml-2 rounded-full bg-accent-500/20 px-2 py-0.5 text-xs text-accent-300">
+                    {selectedDeviceIds.size} selected
+                  </span>
+                )}
+              </label>
+              <button
+                type="button"
+                onClick={toggleAll}
+                className="text-xs text-accent-400 hover:text-accent-300"
+              >
+                {selectedDeviceIds.size === filteredDevices.length && filteredDevices.length > 0 ? 'Deselect all' : 'Select all'}
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="relative mt-2">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-500" />
+              <input
+                type="text"
+                value={deviceSearch}
+                onChange={(e) => setDeviceSearch(e.target.value)}
+                className="w-full rounded-lg border border-surface-700 bg-surface-850 py-2 pl-8 pr-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-accent-500"
+                placeholder="Search devices…"
+              />
+            </div>
+
+            {/* Device list */}
+            <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-surface-700">
+              {filteredDevices.length === 0 ? (
+                <p className="px-3 py-4 text-center text-xs text-slate-500">No devices found</p>
+              ) : (
+                filteredDevices.map((d) => {
+                  const isSelected = selectedDeviceIds.has(d.id)
+                  return (
+                    <label
+                      key={d.id}
+                      className={`flex cursor-pointer items-center gap-3 border-b border-surface-800 px-3 py-2 transition-colors last:border-0 ${
+                        isSelected ? 'bg-accent-500/10' : 'hover:bg-surface-850'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleDevice(d.id)}
+                        className="h-4 w-4 rounded border-surface-600 bg-surface-800 text-accent-500 focus:ring-accent-500"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-white">{d.name}</p>
+                        <p className="truncate text-xs text-slate-500">
+                          {d.hostname || d.ipAddress || '—'}
+                          {d.groupName && d.groupId !== group?.id && (
+                            <span className="ml-1 text-amber-400">· in {d.groupName}</span>
+                          )}
+                        </p>
+                      </div>
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${
+                        d.status === 'Online' ? 'bg-emerald-400' :
+                        d.status === 'Error' ? 'bg-red-400' :
+                        d.status === 'Maintenance' ? 'bg-amber-400' : 'bg-slate-500'
+                      }`} />
+                    </label>
+                  )
+                })
+              )}
+            </div>
+          </div>
+
           <div className="flex justify-end gap-3">
             <button
               type="button"
@@ -241,7 +383,7 @@ function GroupModal({
             </button>
             <button
               type="submit"
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || !name.trim()}
               className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent-500/25 transition-colors hover:bg-accent-400 disabled:opacity-50"
             >
               {mutation.isPending ? 'Saving…' : 'Save'}
