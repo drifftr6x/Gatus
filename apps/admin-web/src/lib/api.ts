@@ -156,6 +156,8 @@ export interface DeviceDto {
   diskFreeGb?: number
   uptimeSeconds?: number
   osVersion?: string
+  latitude?: number
+  longitude?: number
   }
 
 export interface DeviceListResponse {

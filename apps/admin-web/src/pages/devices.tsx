@@ -693,11 +693,13 @@ function DeviceModal({
     hostname: device?.hostname || '',
     ipAddress: device?.ipAddress || '',
     macAddress: device?.macAddress || '',
+    latitude: device?.latitude?.toString() || '',
+    longitude: device?.longitude?.toString() || '',
   })
 
   const mutation = useMutation({
-    mutationFn: (data: typeof formData) =>
-      device ? devicesApi.update(device.id, data) : devicesApi.create(data),
+    mutationFn: (data: Partial<DeviceDto>) =>
+      device ? devicesApi.update(device.id, data) : devicesApi.create(data as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['devices'] })
       onClose()
@@ -706,7 +708,12 @@ function DeviceModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    mutation.mutate(formData)
+    const payload = {
+      ...formData,
+      latitude: formData.latitude ? parseFloat(formData.latitude) : undefined,
+      longitude: formData.longitude ? parseFloat(formData.longitude) : undefined,
+    }
+    mutation.mutate(payload)
   }
 
   return (
@@ -787,6 +794,30 @@ function DeviceModal({
               />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Latitude <span className="text-slate-500">(optional)</span></label>
+              <input
+                type="number"
+                step="any"
+                value={formData.latitude}
+                onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                className={`${inputClass} font-mono`}
+                placeholder="33.7490"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Longitude <span className="text-slate-500">(optional)</span></label>
+              <input
+                type="number"
+                step="any"
+                value={formData.longitude}
+                onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                className={`${inputClass} font-mono`}
+                placeholder="-117.1897"
+              />
+            </div>
+          </div>
           <div className="mt-6 flex justify-end gap-3">
             <button
               type="button"
@@ -833,7 +864,9 @@ function DeviceModal({
             mac: 'macAddress', 'mac address': 'macAddress', macaddress: 'macAddress',
             firmware: 'firmwareVersion', 'firmware version': 'firmwareVersion', firmwareversion: 'firmwareVersion',
             group: 'group', 'group name': 'group',
-          }
+            latitude: 'latitude', lat: 'latitude',
+            longitude: 'longitude', lng: 'longitude', lon: 'longitude',
+            }
 
           const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
             const file = e.target.files?.[0]
@@ -891,6 +924,8 @@ function DeviceModal({
               location: r.location || undefined, hostname: r.hostname || undefined, ipAddress: r.ipAddress || undefined,
               macAddress: r.macAddress || undefined, firmwareVersion: r.firmwareVersion || undefined,
               group: r.group || undefined,
+              latitude: r.latitude ? parseFloat(r.latitude) : undefined,
+              longitude: r.longitude ? parseFloat(r.longitude) : undefined,
             }))
             importMutation.mutate(devices)
           }

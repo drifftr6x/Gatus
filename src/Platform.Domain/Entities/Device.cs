@@ -15,6 +15,8 @@ public class Device
     public string? FirmwareVersion { get; set; }
     public Guid? GroupId { get; set; }
     public string? Tags { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public bool IsActive { get; set; } = true;

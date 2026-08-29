@@ -235,8 +235,10 @@ public class DevicesController : ControllerBase
                 GetNum("memory_percent", "memory_usage"),
                 diskPct, diskGb,
                 GetNum("uptime_seconds", "uptime"),
-                GetStr("os_version"));
-        }).ToList();
+                GetStr("os_version"),
+                d.Latitude,
+                d.Longitude);
+                }).ToList();
 
         return Ok(new DeviceListResponse(dtos, totalCount, page, pageSize));
     }
@@ -289,8 +291,10 @@ public class DevicesController : ControllerBase
             GetNum("memory_percent", "memory_usage"),
             diskPct, diskGb,
             GetNum("uptime_seconds", "uptime"),
-            GetStr("os_version")));
-    }
+            GetStr("os_version"),
+            device.Latitude,
+            device.Longitude));
+            }
 
             [HttpPost]
     [Authorize(Policy = "RequireEditor")]
@@ -319,6 +323,8 @@ public class DevicesController : ControllerBase
             IpAddress = request.IpAddress,
             MacAddress = request.MacAddress,
             FirmwareVersion = request.FirmwareVersion,
+            Latitude = request.Latitude,
+            Longitude = request.Longitude,
             Status = DeviceStatus.Offline,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
@@ -347,9 +353,10 @@ public class DevicesController : ControllerBase
             device.CreatedAt,
             device.UpdatedAt,
             device.IsActive,
-            null, null, null, null, null, null
-        ));
-        }
+            null, null, null, null, null, null,
+            device.Latitude, device.Longitude
+            ));
+            }
 
             [HttpPut("{id}")]
     [Authorize(Policy = "RequireEditor")]
@@ -368,6 +375,8 @@ public class DevicesController : ControllerBase
         device.IpAddress = request.IpAddress;
         device.MacAddress = request.MacAddress;
         device.FirmwareVersion = request.FirmwareVersion;
+        device.Latitude = request.Latitude;
+        device.Longitude = request.Longitude;
 
         if (request.Status.HasValue)
         {
@@ -401,11 +410,12 @@ public class DevicesController : ControllerBase
             device.CreatedAt,
             device.UpdatedAt,
             device.IsActive,
-            null, null, null, null, null, null
-        ));
-        }
+            null, null, null, null, null, null,
+            device.Latitude, device.Longitude
+            ));
+            }
 
-        [HttpDelete("{id}")]
+            [HttpDelete("{id}")]
     [Authorize(Policy = "RequireAdmin")]
     public async Task<IActionResult> DeleteDevice(Guid id)
     {
@@ -708,12 +718,14 @@ public class DevicesController : ControllerBase
                     MacAddress = row.MacAddress,
                     FirmwareVersion = row.FirmwareVersion,
                     GroupId = groupId,
+                    Latitude = row.Latitude,
+                    Longitude = row.Longitude,
                     Status = DeviceStatus.Offline,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow
-                };
+                    };
 
-                _context.Devices.Add(device);
+                    _context.Devices.Add(device);
                 results.Add(new ImportRowResult(rowNum, row.Name, "created", null));
             }
 

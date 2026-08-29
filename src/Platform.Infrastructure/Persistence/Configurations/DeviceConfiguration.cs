@@ -26,6 +26,8 @@ public class DeviceConfiguration : IEntityTypeConfiguration<Device>
         builder.Property(d => d.IsActive).HasColumnName("is_active");
         builder.Property(d => d.GroupId).HasColumnName("group_id");
         builder.Property(d => d.Tags).HasColumnName("tags").HasMaxLength(500);
+        builder.Property(d => d.Latitude).HasColumnName("latitude");
+        builder.Property(d => d.Longitude).HasColumnName("longitude");
 
         builder.HasOne(d => d.Group)
             .WithMany(g => g.Devices)

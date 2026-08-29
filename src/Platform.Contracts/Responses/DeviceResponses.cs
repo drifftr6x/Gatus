@@ -24,8 +24,11 @@ public record DeviceDto(
     double? DiskFreePercent,
     double? DiskFreeGb,
     double? UptimeSeconds,
-    string? OsVersion
-);
+    string? OsVersion,
+    // Geo coordinates for map display
+    double? Latitude,
+    double? Longitude
+    );
 
 public record DeviceListResponse(
     IEnumerable<DeviceDto> Devices,

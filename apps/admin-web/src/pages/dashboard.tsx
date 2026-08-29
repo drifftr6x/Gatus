@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { telemetryApi, devicesApi, alertsApi } from '@/lib/api'
 import { Monitor, CalendarClock, FolderOpen, AlertTriangle, BellRing } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { DeviceMap } from '@/components/device-map'
 
 export function DashboardPage() {
 
@@ -96,6 +97,12 @@ export function DashboardPage() {
             </p>
           </div>
         ))}
+      </div>
+
+      {/* Device map */}
+      <div className="mt-8">
+        <h2 className="mb-3 text-base font-semibold text-white">Device Locations</h2>
+        <DeviceMap devices={devicesData?.devices ?? []} />
       </div>
 
       {/* Recent alerts */}

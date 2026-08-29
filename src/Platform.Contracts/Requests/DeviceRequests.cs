@@ -8,7 +8,9 @@ public record CreateDeviceRequest(
     string? Hostname,
     string? IpAddress,
     string? MacAddress,
-    string? FirmwareVersion
+    string? FirmwareVersion,
+    double? Latitude,
+    double? Longitude
 );
 
 public record UpdateDeviceRequest(
@@ -20,7 +22,9 @@ public record UpdateDeviceRequest(
     string? IpAddress,
     string? MacAddress,
     string? FirmwareVersion,
-    bool? IsActive
+    bool? IsActive,
+    double? Latitude,
+    double? Longitude
 );
 
 public enum DeviceStatusRequest
@@ -58,5 +62,7 @@ public record ImportDeviceRow(
     string? IpAddress,
     string? MacAddress,
     string? FirmwareVersion,
-    string? Group
+    string? Group,
+    double? Latitude,
+    double? Longitude
 );
