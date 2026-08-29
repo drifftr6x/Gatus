@@ -864,6 +864,11 @@ function DeviceModal({
               }).filter((r) => r.name) // must have a name
 
               if (normalized.length === 0) { setParseError('No valid rows found. Ensure a "Name" column exists.'); return }
+              const noContact = normalized.filter((r) => !r.hostname && !r.ipAddress)
+              if (noContact.length > 0) {
+                setParseError(`${noContact.length} row(s) missing both Hostname and IP Address (one is required): ${noContact.slice(0, 3).map((r) => r.name).join(', ')}${noContact.length > 3 ? '…' : ''}`)
+                return
+              }
               setParsedRows(normalized)
             } catch (err) {
               setParseError(`Failed to parse file: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -895,7 +900,7 @@ function DeviceModal({
               <div className="w-full max-w-2xl rounded-2xl border border-surface-700 bg-surface-900 p-6 shadow-2xl">
                 <h2 className="text-lg font-semibold text-white">Import Devices</h2>
                 <p className="mt-1 text-sm text-slate-400">
-                  Upload an Excel (.xlsx) or CSV file with device data. Download the template to get started.
+                  Upload an Excel (.xlsx) or CSV file with device data. <strong className="text-slate-300">Name</strong> plus <strong className="text-slate-300">Hostname or IP Address</strong> are required. Missing groups are created automatically.
                 </p>
 
                 {!importResult ? (

@@ -628,16 +628,28 @@ public class DevicesController : ControllerBase
                 .Select(d => d.Name)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            // Resolve group names to IDs
+            // Resolve group names to IDs, auto-creating missing groups
             var groupNames = request.Devices
                 .Where(d => !string.IsNullOrWhiteSpace(d.Group))
-                .Select(d => d.Group!)
+                .Select(d => d.Group!.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             var groups = await _context.DeviceGroups
                 .Where(g => groupNames.Contains(g.Name))
                 .ToDictionaryAsync(g => g.Name, g => g.Id, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var name in groupNames.Where(n => !groups.ContainsKey(n)))
+            {
+                var newGroup = new DeviceGroup
+                {
+                    Id = Guid.NewGuid(),
+                    Name = name,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.DeviceGroups.Add(newGroup);
+                groups[name] = newGroup.Id;
+            }
 
             var results = new List<ImportRowResult>();
             var seenSerials = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -652,6 +664,12 @@ public class DevicesController : ControllerBase
                 if (string.IsNullOrWhiteSpace(row.Name))
                 {
                     results.Add(new ImportRowResult(rowNum, row.Name ?? "", "error", "Name is required"));
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(row.Hostname) && string.IsNullOrWhiteSpace(row.IpAddress))
+                {
+                    results.Add(new ImportRowResult(rowNum, row.Name, "error", "Hostname or IP Address is required"));
                     continue;
                 }
 
@@ -670,15 +688,12 @@ public class DevicesController : ControllerBase
                     continue;
                 }
 
-                // Resolve group
+                // Resolve group (missing groups were auto-created above)
                 Guid? groupId = null;
-                if (!string.IsNullOrWhiteSpace(row.Group))
+                if (!string.IsNullOrWhiteSpace(row.Group) &&
+                    groups.TryGetValue(row.Group.Trim(), out var gid))
                 {
-                    if (groups.TryGetValue(row.Group, out var gid))
-                        groupId = gid;
-                    else
-                        results.Add(new ImportRowResult(rowNum, row.Name, "error", $"Group not found: {row.Group}"));
-                    if (groupId == null) continue;
+                    groupId = gid;
                 }
 
                 var device = new Device
