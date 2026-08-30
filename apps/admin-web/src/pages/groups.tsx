@@ -1,14 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { groupsApi, devicesApi } from '@/lib/api'
-import { useState } from 'react'
-import { Plus, Pencil, Trash2, FolderTree, ChevronDown, ChevronRight, Monitor, Search } from 'lucide-react'
+import { groupsApi, devicesApi, alertsApi } from '@/lib/api'
+import { useState, useMemo } from 'react'
+import { Plus, Pencil, Trash2, FolderTree, ChevronDown, ChevronRight, Monitor, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Link } from 'react-router-dom'
+
+type SortField = 'name' | 'devices' | 'alerts' | 'online'
+type SortDir = 'asc' | 'desc'
 
 export function GroupsPage() {
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingGroup, setEditingGroup] = useState<{ id: string; name: string; description?: string } | null>(null)
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null)
+  const [sortField, setSortField] = useState<SortField>('name')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [searchFilter, setSearchFilter] = useState('')
 
   const { data: groups, isLoading, error } = useQuery({
     queryKey: ['deviceGroups'],
@@ -20,6 +26,11 @@ export function GroupsPage() {
     queryFn: () => devicesApi.list({ pageSize: 500 }),
   })
 
+  const { data: alertsData } = useQuery({
+    queryKey: ['alerts', 'active'],
+    queryFn: () => alertsApi.list({ status: 'Active', limit: 500 }),
+  })
+
   const deleteMutation = useMutation({
     mutationFn: groupsApi.delete,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['deviceGroups'] }),
@@ -28,6 +39,49 @@ export function GroupsPage() {
   const toggleExpand = (groupId: string) => {
     setExpandedGroupId(expandedGroupId === groupId ? null : groupId)
   }
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDir(field === 'name' ? 'asc' : 'desc')
+    }
+  }
+
+  // Compute per-group stats and sort
+  const sortedGroups = useMemo(() => {
+    if (!groups) return []
+
+    const devices = allDevices?.devices ?? []
+    const alerts = alertsData?.alerts ?? []
+
+    const enriched = groups.map(g => {
+      const gDevices = devices.filter(d => d.groupId === g.id)
+      const gAlerts = alerts.filter(a => gDevices.some(d => d.id === a.deviceId))
+      const online = gDevices.filter(d => d.status === 'Online').length
+      return { ...g, _devices: gDevices.length, _alerts: gAlerts.length, _online: online, _offline: gDevices.length - online }
+    })
+
+    // Filter
+    const filtered = searchFilter
+      ? enriched.filter(g => g.name.toLowerCase().includes(searchFilter.toLowerCase()) || g.description?.toLowerCase().includes(searchFilter.toLowerCase()))
+      : enriched
+
+    // Sort
+    const sorted = [...filtered].sort((a, b) => {
+      let cmp = 0
+      switch (sortField) {
+        case 'name': cmp = a.name.localeCompare(b.name); break
+        case 'devices': cmp = a._devices - b._devices; break
+        case 'alerts': cmp = a._alerts - b._alerts; break
+        case 'online': cmp = a._online - b._online; break
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+
+    return sorted
+  }, [groups, allDevices, alertsData, sortField, sortDir, searchFilter])
 
   return (
     <div>
@@ -45,6 +99,46 @@ export function GroupsPage() {
         </button>
       </div>
 
+      {/* Toolbar: search + sort */}
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+          <input
+            type="text"
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            placeholder="Filter groups…"
+            className="w-full rounded-lg border border-surface-700 bg-surface-850 py-2 pl-9 pr-3 text-sm text-white placeholder-slate-500 outline-none focus:border-accent-500"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-slate-500">Sort:</span>
+          {([
+            { field: 'name' as SortField, label: 'Name' },
+            { field: 'devices' as SortField, label: 'Devices' },
+            { field: 'alerts' as SortField, label: 'Alerts' },
+            { field: 'online' as SortField, label: 'Online' },
+          ]).map(({ field, label }) => (
+            <button
+              key={field}
+              onClick={() => toggleSort(field)}
+              className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                sortField === field
+                  ? 'bg-accent-500/20 text-accent-300'
+                  : 'text-slate-400 hover:bg-surface-800 hover:text-white'
+              }`}
+            >
+              {label}
+              {sortField === field ? (
+                sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+              ) : (
+                <ArrowUpDown className="h-3 w-3 opacity-40" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {isLoading ? (
         <div className="flex h-64 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-surface-700 border-t-accent-500" />
@@ -53,14 +147,16 @@ export function GroupsPage() {
         <div className="mt-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           Error loading groups: {error.message}
         </div>
-      ) : groups?.length === 0 ? (
+      ) : sortedGroups.length === 0 ? (
         <div className="mt-6 flex flex-col items-center rounded-xl border border-surface-800 bg-surface-900 py-12 shadow-lg">
           <FolderTree className="h-8 w-8 text-slate-600" />
-          <p className="mt-2 text-sm text-slate-500">No groups yet. Create one to organize your devices.</p>
+          <p className="mt-2 text-sm text-slate-500">
+            {searchFilter ? 'No groups match your filter.' : 'No groups yet. Create one to organize your devices.'}
+          </p>
         </div>
       ) : (
-        <div className="mt-6 space-y-3">
-          {groups?.map((group) => {
+        <div className="mt-4 space-y-3">
+          {sortedGroups.map((group) => {
             const isExpanded = expandedGroupId === group.id
             const groupDevices = allDevices?.devices.filter(d => d.groupId === group.id) ?? []
 
@@ -87,6 +183,16 @@ export function GroupsPage() {
                     <span className="rounded-full bg-surface-800 px-2.5 py-0.5 text-xs font-medium text-slate-300">
                       {group.deviceCount} device{group.deviceCount !== 1 ? 's' : ''}
                     </span>
+                    {(group as any)._online > 0 && (
+                      <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-500/30">
+                        {(group as any)._online} online
+                      </span>
+                    )}
+                    {(group as any)._alerts > 0 && (
+                      <span className="rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-400 ring-1 ring-red-500/30">
+                        {(group as any)._alerts} alert{(group as any)._alerts !== 1 ? 's' : ''}
+                      </span>
+                    )}
                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => { setEditingGroup(group); setIsModalOpen(true) }}
