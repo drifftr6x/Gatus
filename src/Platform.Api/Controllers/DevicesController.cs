@@ -325,6 +325,7 @@ public class DevicesController : ControllerBase
             FirmwareVersion = request.FirmwareVersion,
             Latitude = request.Latitude,
             Longitude = request.Longitude,
+            GroupId = request.GroupId,
             Status = DeviceStatus.Offline,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
@@ -377,6 +378,7 @@ public class DevicesController : ControllerBase
         device.FirmwareVersion = request.FirmwareVersion;
         device.Latitude = request.Latitude;
         device.Longitude = request.Longitude;
+        device.GroupId = request.GroupId;
 
         if (request.Status.HasValue)
         {

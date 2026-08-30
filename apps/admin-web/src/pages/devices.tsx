@@ -695,13 +695,20 @@ function DeviceModal({
     macAddress: device?.macAddress || '',
     latitude: device?.latitude?.toString() || '',
     longitude: device?.longitude?.toString() || '',
+    groupId: device?.groupId || '',
+  })
+
+  const { data: groups } = useQuery({
+    queryKey: ['deviceGroups'],
+    queryFn: groupsApi.list,
   })
 
   const mutation = useMutation({
-    mutationFn: (data: Partial<DeviceDto>) =>
+    mutationFn: (data: Partial<DeviceDto> & { groupId?: string }) =>
       device ? devicesApi.update(device.id, data) : devicesApi.create(data as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['devices'] })
+      queryClient.invalidateQueries({ queryKey: ['deviceGroups'] })
       onClose()
     },
   })
@@ -712,6 +719,7 @@ function DeviceModal({
       ...formData,
       latitude: formData.latitude ? parseFloat(formData.latitude) : undefined,
       longitude: formData.longitude ? parseFloat(formData.longitude) : undefined,
+      groupId: formData.groupId || undefined,
     }
     mutation.mutate(payload)
   }
@@ -759,6 +767,19 @@ function DeviceModal({
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               className={inputClass}
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300">Group <span className="text-slate-500">(optional)</span></label>
+            <select
+              value={formData.groupId}
+              onChange={(e) => setFormData({ ...formData, groupId: e.target.value })}
+              className={inputClass}
+            >
+              <option value="">No group</option>
+              {groups?.map((g) => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-300">Hostname (FQDN) <span className="text-red-400">*</span></label>

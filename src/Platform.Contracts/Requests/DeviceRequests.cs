@@ -10,7 +10,8 @@ public record CreateDeviceRequest(
     string? MacAddress,
     string? FirmwareVersion,
     double? Latitude,
-    double? Longitude
+    double? Longitude,
+    Guid? GroupId
 );
 
 public record UpdateDeviceRequest(
@@ -24,7 +25,8 @@ public record UpdateDeviceRequest(
     string? FirmwareVersion,
     bool? IsActive,
     double? Latitude,
-    double? Longitude
+    double? Longitude,
+    Guid? GroupId
 );
 
 public enum DeviceStatusRequest
