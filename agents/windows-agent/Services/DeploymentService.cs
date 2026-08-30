@@ -85,7 +85,7 @@ public class DeploymentService : BackgroundService
 
             foreach (var deployment in deployments)
             {
-                await ProcessDeploymentAsync(deployment, credentials.DeviceSecret, cancellationToken);
+                await ProcessDeploymentAsync(deployment, credentials, cancellationToken);
             }
 
             state.LastDeploymentCheck = DateTime.UtcNow;
@@ -97,7 +97,7 @@ public class DeploymentService : BackgroundService
         }
     }
 
-    private async Task ProcessDeploymentAsync(DeploymentInfo deployment, string deviceSecret, CancellationToken cancellationToken)
+    private async Task ProcessDeploymentAsync(DeploymentInfo deployment, DeviceCredentials credentials, CancellationToken cancellationToken)
     {
         var deploymentId = deployment.Id;
         var contentId = deployment.ContentVersionId;
@@ -110,10 +110,10 @@ public class DeploymentService : BackgroundService
             var stagingPath = _stateManager.GetStagingPath(deploymentId);
             Directory.CreateDirectory(stagingPath);
 
-            var downloadSuccess = await DownloadContentAsync(deployment, stagingPath, deviceSecret, cancellationToken);
+            var downloadSuccess = await DownloadContentAsync(deployment, stagingPath, credentials.DeviceSecret, cancellationToken);
             if (!downloadSuccess)
             {
-                await ReportDeploymentStatusAsync(deploymentId, "Failed", "Download failed", deviceSecret, cancellationToken);
+                await ReportDeploymentStatusAsync(deploymentId, "Failed", "Download failed", credentials, cancellationToken);
                 return;
             }
 
@@ -121,7 +121,7 @@ public class DeploymentService : BackgroundService
             var manifestPath = Path.Combine(stagingPath, "manifest.json");
             if (!File.Exists(manifestPath))
             {
-                await ReportDeploymentStatusAsync(deploymentId, "Failed", "Manifest not found", deviceSecret, cancellationToken);
+                await ReportDeploymentStatusAsync(deploymentId, "Failed", "Manifest not found", credentials, cancellationToken);
                 return;
             }
 
@@ -130,14 +130,14 @@ public class DeploymentService : BackgroundService
 
             if (manifest == null)
             {
-                await ReportDeploymentStatusAsync(deploymentId, "Failed", "Invalid manifest", deviceSecret, cancellationToken);
+                await ReportDeploymentStatusAsync(deploymentId, "Failed", "Invalid manifest", credentials, cancellationToken);
                 return;
             }
 
             var verifySuccess = await VerifyChecksumsAsync(stagingPath, manifest, cancellationToken);
             if (!verifySuccess)
             {
-                await ReportDeploymentStatusAsync(deploymentId, "Failed", "Checksum verification failed", deviceSecret, cancellationToken);
+                await ReportDeploymentStatusAsync(deploymentId, "Failed", "Checksum verification failed", credentials, cancellationToken);
                 return;
             }
 
@@ -164,7 +164,7 @@ public class DeploymentService : BackgroundService
             await _stateManager.SaveStateAsync(state);
 
             // 6. Report success
-            await ReportDeploymentStatusAsync(deploymentId, "Succeeded", null, deviceSecret, cancellationToken);
+            await ReportDeploymentStatusAsync(deploymentId, "Succeeded", null, credentials, cancellationToken);
 
             _logger.LogInformation("Deployment {DeploymentId} completed successfully", deploymentId);
         }
@@ -175,7 +175,7 @@ public class DeploymentService : BackgroundService
             // Attempt rollback
             await RollbackAsync(contentId, cancellationToken);
 
-            await ReportDeploymentStatusAsync(deploymentId, "Failed", ex.Message, deviceSecret, cancellationToken);
+            await ReportDeploymentStatusAsync(deploymentId, "Failed", ex.Message, credentials, cancellationToken);
         }
     }
 
@@ -260,20 +260,19 @@ public class DeploymentService : BackgroundService
         }
     }
 
-    private async Task ReportDeploymentStatusAsync(string deploymentId, string status, string? error, string deviceSecret, CancellationToken cancellationToken)
+    private async Task ReportDeploymentStatusAsync(string deploymentId, string status, string? error, DeviceCredentials credentials, CancellationToken cancellationToken)
     {
         try
         {
             var client = _httpClientFactory.CreateClient("SentinelServer");
             client.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", deviceSecret);
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credentials.DeviceSecret);
 
             var report = new
             {
-                deploymentId,
+                deviceId = credentials.DeviceId,
                 status,
-                error,
-                timestamp = DateTime.UtcNow
+                error
             };
 
             await client.PostAsJsonAsync($"/api/deployments/{deploymentId}/status", report, cancellationToken);

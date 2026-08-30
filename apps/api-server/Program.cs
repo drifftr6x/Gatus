@@ -40,6 +40,9 @@ builder.Services.AddHostedService<AlertEvaluatorService>();
 // Add ping monitor for unmanaged devices
 builder.Services.AddHostedService<PingMonitorService>();
 
+// Content file storage
+builder.Services.AddSingleton<ContentStorageService>();
+
 
 
 // Add Security (JWT, Authorization)

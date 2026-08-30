@@ -318,7 +318,73 @@ export const contentApi = {
   create: (data: Partial<ContentDto>) => api.post<ContentDto>('/content', data),
   update: (id: string, data: Partial<ContentDto>) => api.put<ContentDto>(`/content/${id}`, data),
   delete: (id: string) => api.delete(`/content/${id}`),
-}
+  upload: (file: File, name: string, description?: string) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('name', name)
+    if (description) formData.append('description', description)
+    return api.post<ContentDto>('/content/upload', formData)
+  },
+  versions: (contentId: string) => api.get<ContentVersionDto[]>(`/content/${contentId}/versions`),
+  }
+
+  export interface ContentVersionDto {
+  id: string
+  version: number
+  sha256Checksum: string
+  fileSizeBytes: number
+  mimeType?: string
+  createdAt: string
+  isActive: boolean
+  releaseNotes?: string
+  deploymentCount: number
+  }
+
+  export const deploymentsApi = {
+  list: (params?: { status?: string; limit?: number }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.status) searchParams.set('status', params.status)
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    const query = searchParams.toString()
+    return api.get<DeploymentDto[]>(`/deployments${query ? `?${query}` : ''}`)
+  },
+  create: (data: CreateDeploymentRequest) => api.post<{ id: string; name: string; deviceCount: number }>('/deployments', data),
+  cancel: (id: string) => api.post(`/deployments/${id}/cancel`),
+  }
+
+  export interface DeploymentDto {
+  id: string
+  name: string
+  description?: string
+  contentName: string
+  contentVersion: number
+  contentVersionId: string
+  status: string
+  scheduledAt?: string
+  startedAt?: string
+  completedAt?: string
+  createdAt: string
+  results: DeploymentResultDto[]
+  }
+
+  export interface DeploymentResultDto {
+  id: string
+  deviceId: string
+  deviceName: string
+  status: string
+  startedAt?: string
+  completedAt?: string
+  errorMessage?: string
+  rollbackPerformed: boolean
+  }
+
+  export interface CreateDeploymentRequest {
+  contentVersionId: string
+  deviceIds?: string[]
+  groupId?: string
+  name?: string
+  description?: string
+  }
 
 export interface EnrollmentTokenDto {
   id: string

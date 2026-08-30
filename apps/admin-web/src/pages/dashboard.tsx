@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { telemetryApi, devicesApi, alertsApi } from '@/lib/api'
+import { telemetryApi, devicesApi, alertsApi, deploymentsApi } from '@/lib/api'
 import { Monitor, CalendarClock, FolderOpen, AlertTriangle, BellRing } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { DeviceMap } from '@/components/device-map'
@@ -61,11 +61,16 @@ export function DashboardPage() {
     {
       label: 'Content Items',
       value: summary?.activeContent,
-      icon: FolderOpen,
-      accent: 'text-violet-400',
-      ring: 'from-violet-500/20',
-    },
-  ]
+        icon: FolderOpen,
+        accent: 'text-violet-400',
+        ring: 'from-violet-500/20',
+      },
+      ]
+
+      const { data: recentDeployments } = useQuery({
+      queryKey: ['recent-deployments'],
+      queryFn: () => deploymentsApi.list({ limit: 5 }),
+      })
 
   return (
     <div>
@@ -104,6 +109,73 @@ export function DashboardPage() {
         <h2 className="mb-3 text-base font-semibold text-white">Device Locations</h2>
         <DeviceMap devices={devicesData?.devices ?? []} />
       </div>
+
+      {/* Recent deployments */}
+      {(recentDeployments?.length ?? 0) > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-white">Recent Deployments</h2>
+            <Link to="/content" className="text-sm text-accent-400 hover:text-accent-300">
+              Manage →
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {recentDeployments?.map((dep) => {
+              const total = dep.results.length
+              const completed = dep.results.filter(r => r.status === 'Completed').length
+              const failed = dep.results.filter(r => r.status === 'Failed').length
+              const inProgress = dep.results.filter(r => r.status === 'InProgress' || r.status === 'Pending').length
+              return (
+                <div
+                  key={dep.id}
+                  className="flex items-center gap-3 rounded-xl border border-surface-800 bg-surface-900 px-4 py-3 shadow-lg"
+                >
+                  <span
+                    className={`h-2 w-2 shrink-0 rounded-full ${
+                      dep.status === 'Completed' ? 'bg-emerald-400'
+                      : dep.status === 'Failed' ? 'bg-red-400'
+                      : dep.status === 'InProgress' ? 'bg-blue-400 animate-pulse'
+                      : 'bg-slate-500'
+                    }`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-100">{dep.name}</p>
+                    <p className="truncate text-xs text-slate-500">
+                      {dep.contentName} v{dep.contentVersion} · {completed}/{total} done
+                      {failed > 0 && ` · ${failed} failed`}
+                      {inProgress > 0 && ` · ${inProgress} in progress`}
+                    </p>
+                  </div>
+                  {/* Progress bar */}
+                  <div className="w-24 shrink-0">
+                    <div className="h-1.5 rounded-full bg-surface-700 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          failed > 0 ? 'bg-red-500' : 'bg-emerald-500'
+                        }`}
+                        style={{ width: `${total > 0 ? (completed / total) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${
+                      dep.status === 'Completed'
+                        ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/30'
+                        : dep.status === 'Failed'
+                          ? 'bg-red-500/10 text-red-400 ring-red-500/30'
+                          : dep.status === 'InProgress'
+                            ? 'bg-blue-500/10 text-blue-400 ring-blue-500/30'
+                            : 'bg-slate-500/10 text-slate-400 ring-slate-500/30'
+                    }`}
+                  >
+                    {dep.status}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Recent alerts */}
       {(recentAlerts?.alerts?.length ?? 0) > 0 && (

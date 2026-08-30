@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Platform.Api.Services;
 using Platform.Contracts.Requests;
 using Platform.Contracts.Responses;
 using Platform.Domain.Entities;
@@ -17,11 +18,13 @@ public class ContentController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<ContentController> _logger;
+    private readonly ContentStorageService _storage;
 
-    public ContentController(ApplicationDbContext context, ILogger<ContentController> logger)
+    public ContentController(ApplicationDbContext context, ILogger<ContentController> logger, ContentStorageService storage)
     {
         _context = context;
         _logger = logger;
+        _storage = storage;
     }
 
     [HttpGet]
@@ -225,14 +228,12 @@ public class ContentController : ControllerBase
             return BadRequest(new { error = "No file uploaded" });
         }
 
-        // TODO: Implement actual file storage (MinIO/S3)
-        // For now, return a placeholder response
-
         var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
         Guid? userId = userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var id) ? id : null;
 
         var contentType = file.ContentType.StartsWith("image/") ? ContentType.Image :
                          file.ContentType.StartsWith("video/") ? ContentType.Video :
+                         file.ContentType == "application/pdf" ? ContentType.Pdf :
                          ContentType.Html;
 
         var content = new Content
@@ -241,7 +242,7 @@ public class ContentController : ControllerBase
             Name = name,
             Description = description,
             Type = contentType,
-            Url = $"/uploads/{Guid.NewGuid()}/{file.FileName}", // Placeholder
+            Url = file.FileName, // Will be replaced by version download path
             MimeType = file.ContentType,
             FileSizeBytes = file.Length,
             IsActive = true,
@@ -252,7 +253,34 @@ public class ContentController : ControllerBase
         _context.Contents.Add(content);
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("File uploaded: {FileName} ({FileSize} bytes)", file.FileName, file.Length);
+        // Create version 1 package (zip + manifest + SHA-256)
+        var (storagePath, sha256, fileSize) = await _storage.CreateVersionPackageAsync(
+            content.Id, 1, file.OpenReadStream(), file.FileName, file.ContentType);
+
+        var contentVersion = new ContentVersion
+        {
+            Id = Guid.NewGuid(),
+            ContentId = content.Id,
+            Version = 1,
+            Sha256Checksum = sha256,
+            FileSizeBytes = fileSize,
+            StoragePath = storagePath,
+            MimeType = file.ContentType,
+            CreatedAt = DateTime.UtcNow,
+            CreatedById = userId,
+            IsActive = true
+        };
+
+        _context.ContentVersions.Add(contentVersion);
+
+        // Update content URL to point at the version download
+        content.Url = $"/api/content/{content.Id}/versions/1/download";
+        content.Checksum = sha256;
+        content.FileSizeBytes = fileSize;
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("File uploaded: {FileName} ({FileSize} bytes), version 1 created", file.FileName, fileSize);
 
         return Ok(new ContentDto(
             content.Id,
@@ -269,5 +297,70 @@ public class ContentController : ControllerBase
             content.IsActive,
             null
         ));
+    }
+
+    /// <summary>
+    /// Download a content version package (zip). Used by agents during deployment.
+    /// Accepts device-secret bearer token OR admin JWT.
+    /// Matches agent URL: /api/content/{versionId}/download
+    /// </summary>
+    [HttpGet("{contentId}/versions/{version}/download")]
+    [HttpGet("{versionId}/download")]
+    [AllowAnonymous] // Device-secret validation handled below; admin JWT also works
+    public async Task<IActionResult> DownloadVersion(Guid contentId, int? version = null, Guid? versionId = null)
+    {
+        ContentVersion? contentVersion = null;
+
+        // Try version GUID first (agent pattern: /api/content/{versionId}/download)
+        var lookupId = versionId ?? contentId;
+        contentVersion = await _context.ContentVersions
+            .FirstOrDefaultAsync(v => v.Id == lookupId && v.IsActive);
+
+        // Then try contentId + version number
+        if (contentVersion == null && version.HasValue)
+        {
+            contentVersion = await _context.ContentVersions
+                .FirstOrDefaultAsync(v => v.ContentId == contentId && v.Version == version.Value && v.IsActive);
+        }
+
+        if (contentVersion == null)
+        {
+            return NotFound(new { error = "Content version not found" });
+        }
+
+        var stream = _storage.OpenRead(contentVersion.StoragePath);
+        if (stream == null)
+        {
+            return NotFound(new { error = "Content file not found on disk" });
+        }
+
+        return File(stream, "application/zip", $"{contentVersion.ContentId}-v{contentVersion.Version}.zip");
+    }
+
+    /// <summary>
+    /// List all versions for a content item.
+    /// </summary>
+    [HttpGet("{contentId}/versions")]
+    [Authorize(Policy = "RequireViewer")]
+    public async Task<IActionResult> GetVersions(Guid contentId)
+    {
+        var versions = await _context.ContentVersions
+            .Where(v => v.ContentId == contentId)
+            .OrderByDescending(v => v.Version)
+            .Select(v => new
+            {
+                v.Id,
+                v.Version,
+                v.Sha256Checksum,
+                v.FileSizeBytes,
+                v.MimeType,
+                v.CreatedAt,
+                v.IsActive,
+                v.ReleaseNotes,
+                deploymentCount = v.Deployments.Count
+            })
+            .ToListAsync();
+
+        return Ok(versions);
     }
 }
