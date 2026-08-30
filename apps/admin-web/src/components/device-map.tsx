@@ -99,9 +99,9 @@ export function DeviceMap({ devices }: { devices: DeviceDto[] }) {
         attributionControl: true,
       })
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: '&copy; OpenStreetMap &copy; CARTO',
+        attribution: '&copy; OpenStreetMap contributors',
       }).addTo(map)
 
       layerRef.current = L.layerGroup().addTo(map)

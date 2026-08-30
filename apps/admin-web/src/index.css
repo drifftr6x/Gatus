@@ -124,6 +124,11 @@ body {
   background: var(--text-6);
 }
 
+/* Dark map tiles — CSS filter darkens OSM tiles without an API key */
+.leaflet-tile-pane {
+  filter: brightness(0.7) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
 /* Leaflet overrides — Tailwind v4 preflight breaks tile sizing */
 .leaflet-container img,
 .leaflet-container .leaflet-tile,
