@@ -12,6 +12,7 @@ import { AlertsPage } from '@/pages/alerts'
 import { AnalyticsPage } from '@/pages/analytics'
 import { NotificationsPage } from '@/pages/notifications'
 import { SettingsPage } from '@/pages/settings'
+import { LogsPage } from '@/pages/logs'
 import { LoginPage } from '@/pages/login'
 
 export default function App() {
@@ -36,6 +37,7 @@ export default function App() {
                   <Route path="/analytics" element={<AnalyticsPage />} />
                   <Route path="/notifications" element={<NotificationsPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/logs" element={<LogsPage />} />
                 </Routes>
               </AppShell>
             </ProtectedRoute>

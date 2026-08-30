@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   ShieldCheck,
+  ScrollText,
   } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuth } from '@/hooks/useAuth'
@@ -26,6 +27,7 @@ const navItems = [
   { href: '/alerts', label: 'Alerts', icon: BellRing },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/notifications', label: 'Notifications', icon: Bell },
+  { href: '/logs', label: 'Logs', icon: ScrollText },
   { href: '/settings', label: 'Settings', icon: Settings },
   ]
 

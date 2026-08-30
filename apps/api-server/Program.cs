@@ -11,8 +11,15 @@ var builder = WebApplication.CreateBuilder(args);
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day)
+    .Enrich.WithProperty("Application", "GatUs.Api")
+    .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
+    .WriteTo.Console(new Serilog.Formatting.Compact.CompactJsonFormatter())
+    .WriteTo.File(
+        new Serilog.Formatting.Compact.CompactJsonFormatter(),
+        "logs/log-.json",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        fileSizeLimitBytes: 50_000_000) // 50MB per file
     .CreateLogger();
 
 builder.Host.UseSerilog();
@@ -70,6 +77,42 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAdminWeb");
+
+// Correlation ID + request logging
+app.Use(async (context, next) =>
+{
+    var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
+        ?? Guid.NewGuid().ToString("N")[..12];
+    context.Items["CorrelationId"] = correlationId;
+    context.Response.Headers["X-Correlation-Id"] = correlationId;
+
+    using (Serilog.Context.LogContext.PushProperty("CorrelationId", correlationId))
+    using (Serilog.Context.LogContext.PushProperty("RequestPath", context.Request.Path))
+    {
+        await next();
+    }
+});
+
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0}ms";
+    options.GetLevel = (ctx, elapsed, ex) => ex != null
+        ? Serilog.Events.LogEventLevel.Error
+        : ctx.Response.StatusCode >= 500
+            ? Serilog.Events.LogEventLevel.Error
+            : ctx.Response.StatusCode >= 400
+                ? Serilog.Events.LogEventLevel.Warning
+                : Serilog.Events.LogEventLevel.Information;
+    options.EnrichDiagnosticContext = (diag, ctx) =>
+    {
+        diag.Set("CorrelationId", ctx.Items["CorrelationId"] ?? "unknown");
+        diag.Set("RequestHost", ctx.Request.Host.Value ?? "unknown");
+        diag.Set("UserAgent", ctx.Request.Headers.UserAgent.ToString() ?? "");
+        if (ctx.User?.Identity?.IsAuthenticated == true)
+            diag.Set("User", ctx.User.Identity.Name ?? "unknown");
+    };
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

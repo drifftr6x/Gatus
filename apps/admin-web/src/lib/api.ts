@@ -467,7 +467,36 @@ export const alertsApi = {
   acknowledge: (id: string) => api.post(`/alerts/${id}/acknowledge`),
   resolve: (id: string) => api.post(`/alerts/${id}/resolve`),
   rules: () => api.get<AlertRuleDto[]>('/alerts/rules'),
-}
+  }
+
+  export const logsApi = {
+  list: (params?: { level?: string; search?: string; limit?: number; lastMinutes?: number }) => {
+    const sp = new URLSearchParams()
+    if (params?.level) sp.set('level', params.level)
+    if (params?.search) sp.set('search', params.search)
+    if (params?.limit) sp.set('limit', params.limit.toString())
+    if (params?.lastMinutes) sp.set('lastMinutes', params.lastMinutes.toString())
+    const q = sp.toString()
+    return api.get<LogResponse>(`/logs${q ? `?${q}` : ''}`)
+  },
+  }
+
+  export interface LogEntry {
+  timestamp: string
+  level: string
+  message: string
+  exception?: string
+  correlationId?: string
+  requestPath?: string
+  statusCode?: number
+  elapsed?: number
+  source?: string
+  }
+
+  export interface LogResponse {
+  entries: LogEntry[]
+  totalMatched: number
+  }
 
 export const commandsApi = {
   history: (params?: { deviceId?: string; status?: string; limit?: number }) => {
