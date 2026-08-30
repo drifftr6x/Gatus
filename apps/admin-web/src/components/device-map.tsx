@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { DeviceDto } from '@/lib/api'
@@ -57,19 +57,22 @@ export function DeviceMap({ devices }: { devices: DeviceDto[] }) {
 
   const mapped = devices.filter(d => d.latitude != null && d.longitude != null)
 
-  // Group by store location
-  const storeMap = new Map<string, StoreMarker>()
-  mapped.forEach(d => {
-    const key = `${d.latitude!.toFixed(3)},${d.longitude!.toFixed(3)}`
-    const ex = storeMap.get(key)
-    if (ex) {
-      ex.devices.push(d)
-      if ((STATUS_PRIORITY[d.status] ?? 99) < (STATUS_PRIORITY[ex.worstStatus] ?? 99)) ex.worstStatus = d.status
-    } else {
-      storeMap.set(key, { name: d.location || d.groupName || d.name, lat: d.latitude!, lng: d.longitude!, devices: [d], worstStatus: d.status })
-    }
-  })
-  const stores = [...storeMap.values()]
+  // Group by store location (memoized so marker effect doesn't re-run every render)
+  const stores = useMemo(() => {
+    const map = new Map<string, StoreMarker>()
+    mapped.forEach(d => {
+      const key = `${d.latitude!.toFixed(3)},${d.longitude!.toFixed(3)}`
+      const ex = map.get(key)
+      if (ex) {
+        ex.devices.push(d)
+        if ((STATUS_PRIORITY[d.status] ?? 99) < (STATUS_PRIORITY[ex.worstStatus] ?? 99)) ex.worstStatus = d.status
+      } else {
+        map.set(key, { name: d.location || d.groupName || d.name, lat: d.latitude!, lng: d.longitude!, devices: [d], worstStatus: d.status })
+      }
+    })
+    return [...map.values()]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(mapped.map(d => [d.id, d.status, d.latitude, d.longitude]))])
 
   // Initialize map
   useEffect(() => {
