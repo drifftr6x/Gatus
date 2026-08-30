@@ -32,7 +32,7 @@ todos:
     status: pending
   - id: c9
     content: Build + test + commit
-    status: pending
+    status: completed
   - id: c10
     content: 'Live E2E: upload content, deploy to laptop agent, verify Succeeded'
     status: pending
