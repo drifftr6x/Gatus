@@ -2,8 +2,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { devicesApi, enrollmentApi, commandsApi, groupsApi } from '@/lib/api'
 import type { DeviceDto, DeviceListResponse } from '@/lib/api'
-import { useState, useRef } from 'react'
-import { Plus, Pencil, Trash2, KeyRound, Copy, Check, Send, Upload, Download, FileSpreadsheet } from 'lucide-react'
+import { useState, useRef, useMemo } from 'react'
+import { Plus, Pencil, Trash2, KeyRound, Copy, Check, Send, Upload, Download, FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+
+type SortField = 'name' | 'group' | 'hostname' | 'ipAddress' | 'status' | 'location' | 'lastSeen'
+type SortDir = 'asc' | 'desc'
 
 export function DevicesPage() {
   const queryClient = useQueryClient()
@@ -15,10 +18,12 @@ export function DevicesPage() {
   const [editingDevice, setEditingDevice] = useState<DeviceDto | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [groupFilter, setGroupFilter] = useState('')
+  const [sortField, setSortField] = useState<SortField>('name')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['devices'],
-    queryFn: () => devicesApi.list(),
+    queryFn: () => devicesApi.list({ pageSize: 500 }),
   })
 
   const { data: groups } = useQuery({
@@ -26,9 +31,41 @@ export function DevicesPage() {
     queryFn: groupsApi.list,
   })
 
-  const filteredDevices = data?.devices.filter(d =>
-    !groupFilter || d.groupId === groupFilter
-  ) ?? []
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDir('asc')
+    }
+  }
+
+  const sortedDevices = useMemo(() => {
+    const filtered = data?.devices.filter(d =>
+      !groupFilter || d.groupId === groupFilter
+    ) ?? []
+
+    return [...filtered].sort((a, b) => {
+      let cmp = 0
+      switch (sortField) {
+        case 'name': cmp = a.name.localeCompare(b.name); break
+        case 'group': cmp = (a.groupName ?? '').localeCompare(b.groupName ?? ''); break
+        case 'hostname': cmp = (a.hostname ?? '').localeCompare(b.hostname ?? ''); break
+        case 'ipAddress': cmp = (a.ipAddress ?? '').localeCompare(b.ipAddress ?? ''); break
+        case 'status': cmp = a.status.localeCompare(b.status); break
+        case 'location': cmp = (a.location ?? '').localeCompare(b.location ?? ''); break
+        case 'lastSeen': {
+          const aTime = a.lastSeenAt ? new Date(a.lastSeenAt).getTime() : 0
+          const bTime = b.lastSeenAt ? new Date(b.lastSeenAt).getTime() : 0
+          cmp = aTime - bTime
+          break
+        }
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+  }, [data, groupFilter, sortField, sortDir])
+
+  const filteredDevices = sortedDevices
 
   const deleteMutation = useMutation({
     mutationFn: devicesApi.delete,
@@ -124,12 +161,33 @@ export function DevicesPage() {
                     className="h-4 w-4 rounded border-surface-600 bg-surface-800 text-accent-500 focus:ring-accent-500"
                   />
                 </th>
-                {['Name', 'Group', 'Hostname', 'IP Address', 'Metrics', 'Status', 'Location', 'Tags', 'Last Seen', ''].map((h) => (
+                {([
+                  { field: 'name' as SortField, label: 'Name' },
+                  { field: 'group' as SortField, label: 'Group' },
+                  { field: 'hostname' as SortField, label: 'Hostname' },
+                  { field: 'ipAddress' as SortField, label: 'IP Address' },
+                  { field: null, label: 'Metrics' },
+                  { field: 'status' as SortField, label: 'Status' },
+                  { field: 'location' as SortField, label: 'Location' },
+                  { field: null, label: 'Tags' },
+                  { field: 'lastSeen' as SortField, label: 'Last Seen' },
+                  { field: null, label: '' },
+                ]).map(({ field, label }) => (
                   <th
-                    key={h}
-                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 last:text-right"
+                    key={label}
+                    className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider last:text-right ${
+                      field ? 'cursor-pointer select-none hover:text-slate-300' : ''
+                    } ${sortField === field ? 'text-accent-400' : 'text-slate-500'}`}
+                    onClick={field ? () => toggleSort(field) : undefined}
                   >
-                    {h}
+                    <span className="inline-flex items-center gap-1">
+                      {label}
+                      {field && sortField === field ? (
+                        sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                      ) : field ? (
+                        <ArrowUpDown className="h-3 w-3 opacity-30" />
+                      ) : null}
+                    </span>
                   </th>
                 ))}
               </tr>
