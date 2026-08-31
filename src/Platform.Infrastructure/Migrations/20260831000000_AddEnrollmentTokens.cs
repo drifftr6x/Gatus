@@ -22,6 +22,7 @@ namespace Platform.Infrastructure.Migrations
                     is_used = table.Column<bool>(type: "boolean", nullable: false),
                     used_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     used_by_device_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    device_id = table.Column<Guid>(type: "uuid", nullable: true),
                     created_by_id = table.Column<Guid>(type: "uuid", nullable: false),
                     created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     is_revoked = table.Column<bool>(type: "boolean", nullable: false)

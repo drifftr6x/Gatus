@@ -64,7 +64,8 @@ public class EnrollmentService
                 return false;
             }
 
-            var result = await response.Content.ReadFromJsonAsync<EnrollmentResponse>();
+            var result = await response.Content.ReadFromJsonAsync<EnrollmentResponse>(
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             if (result == null)
             {
                 _logger.LogError("Enrollment response was empty");

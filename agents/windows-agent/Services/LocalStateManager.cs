@@ -14,9 +14,27 @@ public class LocalStateManager
     public LocalStateManager(ILogger<LocalStateManager> logger)
     {
         _logger = logger;
-        _basePath = Path.Combine(
+        var programData = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
             "SentinelKiosk");
+        try
+        {
+            Directory.CreateDirectory(programData);
+            // Probe write access (non-admin sessions cannot write ProgramData)
+            var probe = Path.Combine(programData, ".write-probe");
+            File.WriteAllText(probe, "ok");
+            File.Delete(probe);
+            _basePath = programData;
+        }
+        catch
+        {
+            _basePath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "SentinelKiosk");
+            _logger.LogWarning(
+                "Cannot write to {ProgramData}; using per-user state at {LocalPath}",
+                programData, _basePath);
+        }
         _jsonOptions = new JsonSerializerOptions { WriteIndented = true };
 
         EnsureDirectories();
