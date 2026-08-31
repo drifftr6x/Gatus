@@ -470,12 +470,13 @@ export const alertsApi = {
   }
 
   export const logsApi = {
-  list: (params?: { level?: string; search?: string; limit?: number; lastMinutes?: number }) => {
+  list: (params?: { level?: string; search?: string; limit?: number; lastMinutes?: number; source?: string }) => {
     const sp = new URLSearchParams()
     if (params?.level) sp.set('level', params.level)
     if (params?.search) sp.set('search', params.search)
     if (params?.limit) sp.set('limit', params.limit.toString())
     if (params?.lastMinutes) sp.set('lastMinutes', params.lastMinutes.toString())
+    if (params?.source) sp.set('source', params.source)
     const q = sp.toString()
     return api.get<LogResponse>(`/logs${q ? `?${q}` : ''}`)
   },

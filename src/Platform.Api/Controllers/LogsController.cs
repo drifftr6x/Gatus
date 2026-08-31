@@ -22,16 +22,18 @@ public class LogsController : ControllerBase
         [FromQuery] string? level = null,
         [FromQuery] string? search = null,
         [FromQuery] int limit = 200,
-        [FromQuery] int? lastMinutes = null)
+        [FromQuery] int? lastMinutes = null,
+        [FromQuery] string? source = null)
     {
         var logsDir = Path.Combine(_env.ContentRootPath, "logs");
         if (!Directory.Exists(logsDir))
             return Ok(new LogResponse([], 0));
 
-        // Find the most recent log file
-        var logFile = Directory.GetFiles(logsDir, "log-*.json")
-            .OrderByDescending(f => new FileInfo(f).LastWriteTimeUtc)
-            .FirstOrDefault();
+        // Find the most recent log file (or user actions log)
+          var pattern = source == "audit" ? "user-actions-*.json" : "log-*.json";
+          var logFile = Directory.GetFiles(logsDir, pattern)
+              .OrderByDescending(f => new FileInfo(f).LastWriteTimeUtc)
+              .FirstOrDefault();
 
         if (logFile == null)
             return Ok(new LogResponse([], 0));

@@ -22,6 +22,19 @@ Log.Logger = new LoggerConfiguration()
         fileSizeLimitBytes: 50_000_000) // 50MB per file
     .CreateLogger();
 
+// Separate audit logger for user actions
+var auditLogger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .Enrich.WithProperty("LogType", "UserAction")
+    .WriteTo.File(
+        new Serilog.Formatting.Compact.CompactJsonFormatter(),
+        "logs/user-actions-.json",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 90, // Keep audit logs longer
+        fileSizeLimitBytes: 50_000_000)
+    .CreateLogger();
+builder.Services.AddSingleton<Serilog.ILogger>(auditLogger);
+
 builder.Host.UseSerilog();
 
 // Add services to the container.
@@ -115,6 +128,41 @@ app.UseSerilogRequestLogging(options =>
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// User action audit logging
+app.Use(async (context, next) =>
+{
+    await next();
+
+    // Log after the request completes so we know the status code
+    if (context.User?.Identity?.IsAuthenticated == true)
+    {
+        var auditLog = context.RequestServices.GetRequiredService<Serilog.ILogger>();
+        var method = context.Request.Method;
+        var path = context.Request.Path.Value ?? "";
+        var status = context.Response.StatusCode;
+        var user = context.User.FindFirst("display_name")?.Value
+            ?? context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+            ?? context.User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+            ?? context.User.Identity?.Name
+            ?? "unknown";
+        var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var correlationId = context.Items["CorrelationId"]?.ToString();
+        var ip = context.Connection.RemoteIpAddress?.ToString();
+
+        // Skip noisy GET requests for polling/health — only log mutations and important reads
+        var isMutation = method != "GET" && method != "HEAD" && method != "OPTIONS";
+        var isImportantRead = path.Contains("/devices/") || path.Contains("/deployments") || path.Contains("/content") || path.Contains("/alerts");
+
+        if (isMutation || isImportantRead)
+        {
+            auditLog.Information(
+                "User {User} ({UserId}) {Method} {Path} → {StatusCode} from {Ip} [{CorrelationId}]",
+                user, userId, method, path, status, ip, correlationId);
+        }
+    }
+});
+
 app.MapControllers();
 app.MapHub<DeviceHub>("/hubs/devices");
 

@@ -27,6 +27,7 @@ export function LogsPage() {
   const [timeRange, setTimeRange] = useState<number | undefined>(60)
   const [autoRefresh, setAutoRefresh] = useState(false)
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null)
+  const [source, setSource] = useState<'server' | 'audit'>('server')
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // Debounce search
@@ -36,12 +37,13 @@ export function LogsPage() {
   }, [search])
 
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ['logs', level, debouncedSearch, timeRange],
+    queryKey: ['logs', level, debouncedSearch, timeRange, source],
     queryFn: () => logsApi.list({
       level: level || undefined,
       search: debouncedSearch || undefined,
       limit: 300,
       lastMinutes: timeRange,
+      source: source === 'audit' ? 'audit' : undefined,
     }),
     refetchInterval: autoRefresh ? 5000 : false,
   })
@@ -54,7 +56,7 @@ export function LogsPage() {
         <div>
           <h1 className="text-xl font-semibold text-white">Logs</h1>
           <p className="mt-1 text-sm text-slate-400">
-            API server logs — {data?.totalMatched ?? 0} entries
+            {source === 'audit' ? 'User action audit trail' : 'API server logs'} — {data?.totalMatched ?? 0} entries
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -76,6 +78,26 @@ export function LogsPage() {
             Refresh
           </button>
         </div>
+      </div>
+
+      {/* Source tabs */}
+      <div className="mt-4 flex gap-1 border-b border-surface-800 pb-0">
+        {([
+          { key: 'server' as const, label: 'Server Logs' },
+          { key: 'audit' as const, label: 'User Actions' },
+        ]).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setSource(tab.key)}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              source === tab.key
+                ? 'border-accent-500 text-accent-400'
+                : 'border-transparent text-slate-400 hover:text-white'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Filters */}
