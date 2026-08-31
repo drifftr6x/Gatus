@@ -26,10 +26,10 @@ todos:
     status: completed
   - id: c7
     content: 'Agent: verify contract match + send content-activated pipe message to kiosk'
-    status: pending
+    status: completed
   - id: c8
     content: 'Kiosk runtime: navigate WebView2 on content-activated message'
-    status: pending
+    status: completed
   - id: c9
     content: Build + test + commit
     status: completed

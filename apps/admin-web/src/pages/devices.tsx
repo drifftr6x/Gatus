@@ -863,11 +863,16 @@ function DeviceModal({
 
         function ImportModal({ onClose }: { onClose: () => void }) {
           const queryClient = useQueryClient()
-          const fileRef = useRef<HTMLInputElement>(null)
-          const [parsedRows, setParsedRows] = useState<Record<string, string>[]>([])
-          const [parseError, setParseError] = useState('')
-          const [fileName, setFileName] = useState('')
-          const [importResult, setImportResult] = useState<import('@/lib/api').ImportDevicesResponse | null>(null)
+            const fileRef = useRef<HTMLInputElement>(null)
+            const [parsedRows, setParsedRows] = useState<Record<string, string>[]>([])
+            const [parseError, setParseError] = useState('')
+            const [fileName, setFileName] = useState('')
+            const [importResult, setImportResult] = useState<import('@/lib/api').ImportDevicesResponse | null>(null)
+
+            const { data: groupsList } = useQuery({
+              queryKey: ['deviceGroups'],
+              queryFn: groupsApi.list,
+            })
 
           const importMutation = useMutation({
             mutationFn: (devices: import('@/lib/api').ImportDeviceRow[]) =>
@@ -929,15 +934,65 @@ function DeviceModal({
             }
           }
 
-          const downloadTemplate = () => {
-            const headers = 'Name,Serial Number,Description,Location,Hostname,IP Address,MAC Address,Firmware Version,Group\n'
-            const example = 'Lobby Kiosk 1,SN001,Main lobby display,Building A - Lobby,kiosk01.local,192.168.1.100,00:1A:2B:3C:4D:5E,1.2.3,Store 07\n'
-            const blob = new Blob([headers + example], { type: 'text/csv' })
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url; a.download = 'device-import-template.csv'; a.click()
-            URL.revokeObjectURL(url)
-          }
+          const downloadTemplate = async () => {
+              const XLSX = await import('xlsx')
+              const wb = XLSX.utils.book_new()
+
+              // Main sheet with headers + example rows
+              const headers = ['Name', 'Serial Number', 'Description', 'Location', 'Hostname', 'IP Address', 'MAC Address', 'Firmware Version', 'Group']
+              const groupNames = (groupsList ?? []).map(g => g.name)
+              const exampleRows = [
+                ['Lobby Kiosk 1', 'SN001', 'Main lobby display', 'Building A - Lobby', 'kiosk01.internal.livingspaces.com', '192.168.1.100', '00:1A:2B:3C:4D:5E', '1.2.3', groupNames[0] ?? ''],
+                ['Lobby Kiosk 2', 'SN002', 'Secondary lobby display', 'Building A - Lobby', 'kiosk02.internal.livingspaces.com', '192.168.1.101', '00:1A:2B:3C:4D:5F', '1.2.3', groupNames[0] ?? ''],
+                ['', '', '', '', '', '', '', '', ''],
+                ['', '', '', '', '', '', '', '', ''],
+                ['', '', '', '', '', '', '', '', ''],
+              ]
+              const ws = XLSX.utils.aoa_to_sheet([headers, ...exampleRows])
+              ws['!cols'] = [
+                { wch: 22 }, { wch: 14 }, { wch: 24 }, { wch: 20 }, { wch: 38 }, { wch: 16 }, { wch: 20 }, { wch: 16 }, { wch: 36 },
+              ]
+
+              // Groups reference sheet (hidden)
+              const groupsWs = XLSX.utils.aoa_to_sheet([['Groups'], ...groupNames.map(n => [n])])
+              XLSX.utils.book_append_sheet(wb, ws, 'Devices')
+              XLSX.utils.book_append_sheet(wb, groupsWs, 'GroupsRef')
+
+              // Hide GroupsRef sheet
+              if (!wb.Workbook) wb.Workbook = {}
+              wb.Workbook.Sheets = [{ Hidden: 0 }, { Hidden: 1 }]
+
+              // Write to array buffer
+              const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+
+              // Post-process: inject data validation XML into the Devices sheet
+              // We need to unzip, modify sheet1.xml, rezip
+              const JSZip = (await import('jszip')).default
+              const zip = await JSZip.loadAsync(wbout)
+
+              // Find the Devices sheet XML (usually sheet1.xml)
+              const sheetFiles = Object.keys(zip.files).filter(f => f.match(/xl\/worksheets\/sheet\d+\.xml/))
+              // Devices is the first sheet
+              const devicesSheetFile = sheetFiles[0]
+              if (devicesSheetFile) {
+                let sheetXml = await zip.file(devicesSheetFile)!.async('string')
+
+                // Build data validation XML for column I (Group)
+                const lastGroupRow = Math.max(groupNames.length, 1) + 1
+                const dvXml = `<dataValidations count="1"><dataValidation type="list" allowBlank="1" showErrorMessage="1" errorTitle="Invalid Group" error="Select a group from the list or type a new group name." errorStyle="warning" sqref="I2:I100"><formula1>GroupsRef!$A$2:$A$${lastGroupRow}</formula1></dataValidation></dataValidations>`
+
+                // Insert before </worksheet>
+                sheetXml = sheetXml.replace('</worksheet>', dvXml + '</worksheet>')
+                zip.file(devicesSheetFile, sheetXml)
+              }
+
+              // Download
+              const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url; a.download = 'device-import-template.xlsx'; a.click()
+              URL.revokeObjectURL(url)
+            }
 
           const handleImport = () => {
             const devices = parsedRows.map((r) => ({
