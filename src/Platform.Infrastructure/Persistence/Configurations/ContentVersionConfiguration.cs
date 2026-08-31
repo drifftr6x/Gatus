@@ -84,7 +84,7 @@ public class DeploymentResultConfiguration : IEntityTypeConfiguration<Deployment
         builder.HasOne(r => r.Device)
             .WithMany()
             .HasForeignKey(r => r.DeviceId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(r => r.DeploymentId);
         builder.HasIndex(r => r.DeviceId);
