@@ -1,6 +1,8 @@
 using System.IO.Compression;
+using System.IO.Pipes;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using SentinelKiosk.Agent.Models;
 
@@ -167,7 +169,10 @@ public class DeploymentService : BackgroundService
             await ReportDeploymentStatusAsync(deploymentId, "Succeeded", null, credentials, cancellationToken);
 
             _logger.LogInformation("Deployment {DeploymentId} completed successfully", deploymentId);
-        }
+
+            // Notify kiosk runtime that new content is available
+            await NotifyKioskContentActivatedAsync(contentId, activePath, cancellationToken);
+            }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Deployment {DeploymentId} failed", deploymentId);
@@ -257,6 +262,52 @@ public class DeploymentService : BackgroundService
 
             Directory.Move(backupPath, activePath);
             _logger.LogInformation("Rolled back content {ContentId} to previous version", contentId);
+        }
+    }
+
+    private async Task NotifyKioskContentActivatedAsync(string contentId, string contentPath, CancellationToken cancellationToken)
+    {
+        const string pipeName = "SentinelKioskContentPipe";
+        try
+        {
+            // Find the main content file (index.html, or the single file in the directory)
+            var mainFile = Path.Combine(contentPath, "index.html");
+            if (!File.Exists(mainFile))
+            {
+                var files = Directory.GetFiles(contentPath, "*", SearchOption.TopDirectoryOnly)
+                    .Where(f => !f.EndsWith("manifest.json"))
+                    .ToArray();
+                if (files.Length > 0)
+                    mainFile = files[0];
+                else
+                    mainFile = contentPath; // Directory itself
+            }
+
+            var message = JsonSerializer.Serialize(new
+            {
+                type = "content-activated",
+                contentId,
+                contentPath,
+                mainFile,
+                timestamp = DateTime.UtcNow
+            });
+
+            using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.Out);
+            await pipe.ConnectAsync(2000, cancellationToken); // 2s timeout
+
+            var bytes = Encoding.UTF8.GetBytes(message);
+            await pipe.WriteAsync(bytes, cancellationToken);
+            await pipe.FlushAsync(cancellationToken);
+
+            _logger.LogInformation("Notified kiosk runtime: content {ContentId} activated at {Path}", contentId, mainFile);
+        }
+        catch (TimeoutException)
+        {
+            _logger.LogDebug("Kiosk runtime not listening on pipe {PipeName} — content notification skipped", pipeName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to notify kiosk runtime of content activation");
         }
     }
 

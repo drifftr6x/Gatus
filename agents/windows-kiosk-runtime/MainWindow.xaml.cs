@@ -15,6 +15,7 @@ public partial class MainWindow : Window
     private readonly SessionManager _sessionManager;
     private readonly CrashMonitor _crashMonitor;
     private readonly PolicyReceiver _policyReceiver;
+    private readonly ContentReceiver _contentReceiver;
     private bool _isInitialized;
 
     public MainWindow(KioskConfiguration config)
@@ -24,6 +25,7 @@ public partial class MainWindow : Window
         _sessionManager = new SessionManager(config, ResetToHome);
         _crashMonitor = new CrashMonitor(config, RestartApplication);
         _policyReceiver = new PolicyReceiver(config, OnPolicyUpdated);
+        _contentReceiver = new ContentReceiver(OnContentActivated);
 
         InitializeComponent();
         InitializeWebView();
@@ -81,6 +83,9 @@ public partial class MainWindow : Window
 
             // Start policy receiver
             _policyReceiver.Start();
+
+            // Start content receiver
+            _contentReceiver.Start();
 
             Log.Information("WebView2 initialized successfully");
         }
@@ -218,12 +223,57 @@ public partial class MainWindow : Window
         {
             NavigateToHome();
         }
-    }
+        }
 
-    protected override void OnClosed(EventArgs e)
-    {
+        private void OnContentActivated(ContentActivatedMessage message)
+        {
+        Dispatcher.Invoke(() =>
+        {
+            Log.Information("Content activated: {ContentId}, navigating to {MainFile}", message.ContentId, message.MainFile);
+
+            // Determine the URL to navigate to
+            string url;
+            if (File.Exists(message.MainFile))
+            {
+                // Local file — use file:// URI
+                url = new Uri(message.MainFile).AbsoluteUri;
+            }
+            else if (message.MainFile.StartsWith("http"))
+            {
+                // Remote URL
+                url = message.MainFile;
+            }
+            else if (Directory.Exists(message.ContentPath))
+            {
+                // Directory — look for index.html
+                var indexPath = Path.Combine(message.ContentPath, "index.html");
+                url = File.Exists(indexPath)
+                    ? new Uri(indexPath).AbsoluteUri
+                    : new Uri(message.ContentPath).AbsoluteUri;
+            }
+            else
+            {
+                Log.Warning("Content path not found: {Path}", message.MainFile);
+                return;
+            }
+
+            // Update config home URL so session reset goes to new content
+            _config.HomeUrl = url;
+
+            // Navigate WebView2
+            if (_isInitialized)
+            {
+                WebView.Source = new Uri(url);
+                Log.Information("Navigated to deployed content: {Url}", url);
+            }
+        });
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
         _sessionManager.Stop();
         _policyReceiver.Stop();
+        _contentReceiver.Stop();
         base.OnClosed(e);
-    }
-}
+        }
+        }
