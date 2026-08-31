@@ -1,33 +1,45 @@
 # Security
 
-## Authentication
+## Implemented
 
-- JWT Bearer tokens
-- Refresh token rotation
-- Multi-factor authentication (MFA) support
+- **Passwords**: BCrypt hashes; never stored plaintext
+- **Sessions**: JWT access tokens + rotating refresh tokens (DB-backed)
+- **RBAC policies**: `RequireViewer`, `RequireEditor`, `RequireAdmin` (roles Viewer, Editor, Admin, SuperAdmin)
+- **Enrollment tokens**: cryptographically random, SHA-256 at rest, expiry, single-use, revoke
+- **Content**: SHA-256 on packages; agent refuses mismatch
+- **Agent secrets**: DPAPI (`ProtectedData`) on disk
+- **Lockdown**: intended to be reversible; recovery scripts under ProgramData (do not ship a policy that cannot be undone)
+- **Audit-ish logs**: Serilog file logs + optional `user-actions-*.json` viewed in the Logs page
+- **CI**: `.github/workflows/security.yml` plus `ci.yml` / `deploy.yml`
 
-## Authorization
+## Not implemented (do not assume)
 
-- Role-based access control (RBAC)
-- Policy-based authorization
-- Tenant isolation
+- MFA / Entra ID / SAML / LDAP
+- Multi-tenant isolation
+- Mutual TLS or signed agent payloads
+- Hard device-secret validation on heartbeat/telemetry (several agent routes are `[AllowAnonymous]`)
+- Production TLS termination in this repo’s Compose file (local API is HTTP :5163)
+- Digitally signed agent installers
 
-## Data Protection
+Treat agent-facing anonymous endpoints as **LAN/dev only** until they authenticate with the issued `deviceSecret` or a client certificate.
 
-- TLS 1.3 for transport
-- AES-256 for data at rest
-- Encrypted connection strings
+## Secrets
 
-## API Security
+- Never commit `.env`, production JWT keys, or enrollment plaintext
+- Local JWT secret is in `apps/api-server/appsettings.json` — replace before any shared environment
+- Compose Postgres password is a **dev default**
 
-- Rate limiting
-- Input validation
-- SQL injection prevention (parameterized queries)
-- XSS protection
-- CORS configuration
+## Threat notes (short)
 
-## Compliance
+| Threat | Current mitigation | Gap |
+|--------|--------------------|-----|
+| Stolen enrollment token | Hash, TTL, one-time | Token shown in UI clipboard |
+| Agent impersonation | Per-device secret issued | Heartbeat/telemetry often unauthenticated |
+| Privilege escalation | Server-side role policies | UI hiding is not enough; always enforce on API |
+| Malicious content | Checksum + staging | Package signing later |
+| Kiosk escape | WebView2 guards + optional OS lockdown | Depends on Windows edition and policy |
+| Irreversible lockdown | Restore scripts, maintenance mode | Test recovery **before** production rollout |
 
-- GDPR data handling
-- Audit logging
-- Data retention policies
+## Vulnerability disclosures
+
+Report issues privately to the platform owners. Dependency advisories (`NU1903` on some packages) should be triaged in `Directory.Packages.props`.

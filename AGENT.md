@@ -1,79 +1,40 @@
-# AGENT.md - AI Assistant Guidelines
+# AGENT.md — AI assistant guidelines
 
-## Project Context
+## Product
 
-This is an enterprise kiosk management platform built with:
-- **Backend**: .NET 10 (C# 14) - Modular Monolith
-- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS v4
-- **Database**: PostgreSQL 16 with EF Core
-- **Infrastructure**: Docker, Redis, MinIO
+**Gatus Kiosk**: .NET 10 modular monolith API + React admin + Windows agent + WebView2 runtime.
 
-## Code Conventions
+Do not invent a `src/Hosts/Kiosk.Api` or `src/Modules/` tree — those paths are obsolete. Host is `apps/api-server`. Libraries are `src/Platform.*`.
 
-### C# / .NET
-- Use file-scoped namespaces
-- Prefer records for DTOs
-- Use nullable reference types
-- Follow Clean Architecture within modules
-- Use MediatR for CQRS pattern
+## Environment (this workstation)
 
-### TypeScript / React
-- Use functional components with hooks
-- Prefer named exports
-- Use TypeScript strict mode
-- Follow ESLint configuration
-- Use Tailwind for styling (no CSS modules)
+- SDK: `C:\Users\001adm_am\dotnet\dotnet.exe` (often **not** on PATH)
+- API: **http://localhost:5163** (`apps/api-server/Properties/launchSettings.json`)
+- Vite proxy: `apps/admin-web/vite.config.ts` → 5163
+- Postgres: Docker `kiosk-postgres`, db/user `kiosk`, password `kiosk-dev-password`
+- Seed: `admin@gatus.local` / `Admin123!`
+- Node: system Node or `C:\Users\001adm_am\node\node-v22.14.0-win-x64`
+- PowerShell may block `npm.ps1` — use `npm.cmd`
 
-### File Naming
-- C#: PascalCase (e.g., `DeviceService.cs`)
-- TypeScript: kebab-case (e.g., `device-service.ts`)
-- React components: PascalCase (e.g., `DeviceList.tsx`)
+Before starting a second API, stop the listener on 5163. Before rebuilding the agent, stop `SentinelKiosk.Agent.exe`.
 
-## Testing Requirements
+`dotnet ef` is unreliable here; apply SQL + `__EFMigrationsHistory` if migrate-on-startup is not enough.
 
-- Write unit tests for domain logic
-- Write integration tests for API endpoints
-- Use xUnit for .NET tests
-- Use Vitest for React tests
+## Conventions
 
-## Security Notes
+- C#: file-scoped namespaces, nullable, DTO records in `Platform.Contracts`
+- No MediatR — controllers use `ApplicationDbContext`
+- React: hooks, React Query, Tailwind, pages under `apps/admin-web/src/pages`
+- Commits: Conventional Commits; never commit secrets
 
-- Never commit secrets
-- Use user-secrets for local dev
-- Validate all inputs
-- Use parameterized queries
+## Tests
 
-## Common Commands
-
-```bash
-# .NET
-dotnet build
-dotnet test
-dotnet run --project src/Hosts/Kiosk.Api
-
-# React
-cd apps/admin-web
-npm run dev
-npm run build
-npm test
-
-# Docker
-docker compose -f infrastructure/compose.yaml up -d
+```powershell
+C:\Users\001adm_am\dotnet\dotnet.exe test KioskPlatform.slnx
 ```
 
-## Module Structure
+Integration tests: `WebApplicationFactory` + InMemory. Domain tests do not need the API process.
 
-Each module in `src/Modules/` follows:
-```
-ModuleName/
-├── Domain/
-├── Application/
-├── Infrastructure/
-└── Api/
-```
+## Docs
 
-## Important Files
-
-- `global.json` - .NET SDK version
-- `Directory.Build.props` - Shared MSBuild properties
-- `Directory.Packages.props` - Central package management
+Keep `README.md` and `docs/*` in sync when ports, seed emails, or enroll flows change.
