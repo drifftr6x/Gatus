@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Net.Http.Json;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using SentinelKiosk.Agent.Models;
 
@@ -81,6 +83,7 @@ public class HeartbeatService : BackgroundService
         {
             deviceId = credentials.DeviceId,
             hostname = Environment.MachineName,
+            ipAddress = GetLocalIPv4(),
             timestamp = DateTime.UtcNow,
             uptimeSeconds = (long)(DateTime.UtcNow - Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalSeconds,
             cpuUsage = metrics.CpuUsage,
@@ -122,6 +125,30 @@ public class HeartbeatService : BackgroundService
             state.Status = "Offline";
             await _stateManager.SaveStateAsync(state);
         }
+    }
+
+    private static string? GetLocalIPv4()
+    {
+        try
+        {
+            // Pick the first non-loopback IPv4 on an up, non-tunnel interface
+            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (ni.OperationalStatus != OperationalStatus.Up) continue;
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
+
+                var props = ni.GetIPProperties();
+                if (props.GatewayAddresses.Count == 0) continue; // skip interfaces with no gateway (VPN/virtual)
+
+                var addr = props.UnicastAddresses
+                    .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork);
+                if (addr != null)
+                    return addr.Address.ToString();
+            }
+        }
+        catch { /* best effort */ }
+        return null;
     }
 
     private SystemMetrics CollectSystemMetrics()

@@ -520,7 +520,18 @@ public class DevicesController : ControllerBase
             if (p.TryGetProperty("memoryUsage", out var mem)) AddMetric("memory_usage", mem.ToString(), "%");
             if (p.TryGetProperty("diskFreePercent", out var disk)) AddMetric("disk_free_percent", disk.ToString(), "%");
             if (p.TryGetProperty("uptimeSeconds", out var up)) AddMetric("uptime_seconds", up.ToString(), "s");
-        }
+
+            // Auto-update IP address if the agent reports a different one (DHCP lease change, etc.)
+            if (p.TryGetProperty("ipAddress", out var ipProp) && ipProp.ValueKind == System.Text.Json.JsonValueKind.String)
+            {
+                var reportedIp = ipProp.GetString();
+                if (!string.IsNullOrWhiteSpace(reportedIp) && reportedIp != device.IpAddress)
+                {
+                    _logger.LogInformation("Device {DeviceId} IP changed: {OldIp} -> {NewIp}", device.Id, device.IpAddress, reportedIp);
+                    device.IpAddress = reportedIp;
+                }
+            }
+            }
 
         await _context.SaveChangesAsync();
 
