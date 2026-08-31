@@ -441,7 +441,7 @@ function UserFormModal({
               className="w-full max-w-md rounded-lg border border-surface-700 bg-surface-800 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-accent-500/50"
               />
               <p className="mt-1 text-xs text-slate-500">
-              Matches NetBIOS or DNS names (e.g. LIVINGSPACES and livingspaces.com). Leave blank to skip mismatch alerts.
+              Agents report the DNS domain when a DC is reachable (fallback: NetBIOS). Matching is case-insensitive and treats LSF and livingspaces.com as the same forest if one is a suffix of the other. Leave blank to skip mismatch alerts.
               </p>
               </div>
               <label className="flex items-start gap-3 text-sm text-slate-300">

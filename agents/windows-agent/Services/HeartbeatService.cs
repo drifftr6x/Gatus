@@ -152,17 +152,31 @@ public class HeartbeatService : BackgroundService
     [DllImport("netapi32.dll")]
     private static extern int NetApiBufferFree(IntPtr buffer);
 
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct DomainControllerInfo
+    {
+        public string DomainControllerName;
+        public string DomainControllerAddress;
+        public int DomainControllerAddressType;
+        public Guid DomainGuid;
+        public string DomainName;
+        public string DnsForestName;
+        public int Flags;
+        public string DcSiteName;
+        public string ClientSiteName;
+    }
+
     private DomainInfo CollectDomainInfo()
     {
         string joinStatus = "Unknown";
-        string? name = null;
+        string? netbiosName = null;
 
         try
         {
             var rc = NetGetJoinInformation(null, out var buf, out var status);
             if (rc == 0 && buf != IntPtr.Zero)
             {
-                name = Marshal.PtrToStringUni(buf);
+                netbiosName = Marshal.PtrToStringUni(buf);
                 NetApiBufferFree(buf);
                 joinStatus = status switch
                 {
@@ -178,17 +192,23 @@ public class HeartbeatService : BackgroundService
             _logger.LogDebug(ex, "NetGetJoinInformation failed");
         }
 
+        string? name = netbiosName;
         bool? secure = null;
-        if (joinStatus == "Domain" && !string.IsNullOrEmpty(name))
+        if (joinStatus == "Domain" && !string.IsNullOrEmpty(netbiosName))
         {
             if (DateTime.UtcNow - _lastDcCheck < TimeSpan.FromMinutes(5)
-                && string.Equals(_cachedDomainName, name, StringComparison.OrdinalIgnoreCase))
+                && !string.IsNullOrEmpty(_cachedDomainName))
             {
+                name = _cachedDomainName;
                 secure = _cachedSecureChannel;
             }
             else
             {
-                secure = ProbeDomainController(name);
+                var probe = ProbeDomainController(netbiosName);
+                secure = probe.Healthy;
+                // Prefer DNS domain so Settings "livingspaces.com" matches (NetBIOS is often "LSF")
+                if (!string.IsNullOrWhiteSpace(probe.DnsDomain))
+                    name = probe.DnsDomain;
                 _lastDcCheck = DateTime.UtcNow;
                 _cachedDomainName = name;
                 _cachedSecureChannel = secure;
@@ -198,24 +218,35 @@ public class HeartbeatService : BackgroundService
         return new DomainInfo(name, joinStatus, secure);
     }
 
-    private bool ProbeDomainController(string domainName)
+    private (bool Healthy, string? DnsDomain) ProbeDomainController(string domainName)
     {
         try
         {
             // DS_DIRECTORY_SERVICE_REQUIRED | DS_RETURN_DNS_NAME
             const int flags = 0x00000010 | 0x40000000;
             var rc = DsGetDcName(null, domainName, IntPtr.Zero, null, flags, out var info);
+            string? dns = null;
             if (info != IntPtr.Zero)
-                NetApiBufferFree(info);
+            {
+                try
+                {
+                    var dc = Marshal.PtrToStructure<DomainControllerInfo>(info);
+                    dns = string.IsNullOrWhiteSpace(dc.DomainName) ? null : dc.DomainName.Trim().TrimEnd('.');
+                }
+                finally
+                {
+                    NetApiBufferFree(info);
+                }
+            }
             if (rc == 0)
-                return true;
+                return (true, dns);
             _logger.LogWarning("DsGetDcName for {Domain} failed with {Code}", domainName, rc);
-            return false;
+            return (false, dns);
         }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "DsGetDcName failed for {Domain}", domainName);
-            return false;
+            return (false, null);
         }
     }
 
