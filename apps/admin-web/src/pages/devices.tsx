@@ -1073,7 +1073,7 @@ function DeviceModal({
 
           return (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-              <div className="w-full max-w-2xl rounded-2xl border border-surface-700 bg-surface-900 p-6 shadow-2xl">
+              <div className="w-full max-w-4xl rounded-2xl border border-surface-700 bg-surface-900 p-6 shadow-2xl">
                 <h2 className="text-lg font-semibold text-white">Import Devices</h2>
                 <p className="mt-1 text-sm text-slate-400">
                   Upload an Excel (.xlsx) or CSV file with device data. <strong className="text-slate-300">Name</strong> plus <strong className="text-slate-300">Hostname or IP Address</strong> are required. Missing groups are created automatically. <strong className="text-slate-300">Hostname</strong> and <strong className="text-slate-300">Location</strong> auto-fill from Name and Group — you can override any cell.
@@ -1107,35 +1107,38 @@ function DeviceModal({
 
                     {parsedRows.length > 0 && (
                       <div className="mt-4">
-                        <p className="text-sm text-slate-300">{parsedRows.length} device(s) ready to import:</p>
-                        <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-surface-700">
-                          <table className="min-w-full divide-y divide-surface-800 text-xs">
-                            <thead>
-                              <tr className="bg-surface-850">
-                                <th className="px-3 py-2 text-left text-slate-400">Name</th>
-                                <th className="px-3 py-2 text-left text-slate-400">Hostname</th>
-                                <th className="px-3 py-2 text-left text-slate-400">IP</th>
-                                <th className="px-3 py-2 text-left text-slate-400">Serial</th>
-                                <th className="px-3 py-2 text-left text-slate-400">Group</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-surface-800">
-                              {parsedRows.slice(0, 20).map((r, i) => (
-                                <tr key={i}>
-                                  <td className="px-3 py-1.5 text-white">{r.name}</td>
-                                  <td className="px-3 py-1.5 text-slate-400">{r.hostname || '—'}</td>
-                                  <td className="px-3 py-1.5 text-slate-400">{r.ipAddress || '—'}</td>
-                                  <td className="px-3 py-1.5 text-slate-400">{r.serialNumber || '—'}</td>
-                                  <td className="px-3 py-1.5 text-slate-400">{r.group || '—'}</td>
-                                </tr>
-                              ))}
-                              {parsedRows.length > 20 && (
-                                <tr><td colSpan={5} className="px-3 py-2 text-center text-slate-500">…and {parsedRows.length - 20} more</td></tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
+                                                <p className="text-sm text-slate-300">{parsedRows.length} device(s) ready to import:</p>
+                                                <div className="mt-2 max-h-80 overflow-y-auto overflow-x-auto rounded-lg border border-surface-700">
+                                                  <table className="min-w-full divide-y divide-surface-800 text-xs">
+                                                    <thead>
+                                                      <tr className="bg-surface-850 sticky top-0">
+                                                        <th className="px-3 py-2 text-left text-slate-400">#</th>
+                                                        <th className="px-3 py-2 text-left text-slate-400">Name</th>
+                                                        <th className="px-3 py-2 text-left text-slate-400">Group</th>
+                                                        <th className="px-3 py-2 text-left text-slate-400">Location</th>
+                                                        <th className="px-3 py-2 text-left text-slate-400">Hostname</th>
+                                                        <th className="px-3 py-2 text-left text-slate-400">IP</th>
+                                                        <th className="px-3 py-2 text-left text-slate-400">Serial</th>
+                                                        <th className="px-3 py-2 text-left text-slate-400">Description</th>
+                                                      </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-surface-800">
+                                                      {parsedRows.map((r, i) => (
+                                                        <tr key={i}>
+                                                          <td className="px-3 py-1.5 text-slate-500 font-mono">{i + 2}</td>
+                                                          <td className="px-3 py-1.5 text-white">{r.name}</td>
+                                                          <td className="px-3 py-1.5 text-slate-400">{r.group || '—'}</td>
+                                                          <td className="px-3 py-1.5 text-slate-400">{r.location || '—'}</td>
+                                                          <td className="px-3 py-1.5 text-slate-400 font-mono text-[11px]">{r.hostname || '—'}</td>
+                                                          <td className="px-3 py-1.5 text-slate-400 font-mono">{r.ipAddress || '—'}</td>
+                                                          <td className="px-3 py-1.5 text-slate-400">{r.serialNumber || '—'}</td>
+                                                          <td className="px-3 py-1.5 text-slate-400">{r.description || '—'}</td>
+                                                        </tr>
+                                                      ))}
+                                                    </tbody>
+                                                  </table>
+                                                </div>
+                                              </div>
                     )}
 
                     <div className="mt-6 flex justify-end gap-3">
