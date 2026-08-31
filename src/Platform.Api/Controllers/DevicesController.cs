@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Platform.Api.Hubs;
+using Platform.Api.Services;
 using Platform.Contracts.Requests;
 using Platform.Contracts.Responses;
 using Platform.Domain.Entities;
@@ -18,15 +19,18 @@ public class DevicesController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly ILogger<DevicesController> _logger;
     private readonly IDeviceEventBroadcaster _broadcaster;
+    private readonly GeocodingService _geocoding;
 
     public DevicesController(
         ApplicationDbContext context,
         ILogger<DevicesController> logger,
-        IDeviceEventBroadcaster broadcaster)
+        IDeviceEventBroadcaster broadcaster,
+        GeocodingService geocoding)
     {
         _context = context;
         _logger = logger;
         _broadcaster = broadcaster;
+        _geocoding = geocoding;
     }
 
     /// <summary>
@@ -334,6 +338,24 @@ public class DevicesController : ControllerBase
         _context.Devices.Add(device);
         await _context.SaveChangesAsync();
 
+        // Auto-geocode from group name if no explicit coordinates
+        if (!device.Latitude.HasValue && device.GroupId.HasValue)
+        {
+            var group = await _context.DeviceGroups.FindAsync(device.GroupId.Value);
+            if (group != null)
+            {
+                var coords = await _geocoding.GeocodeFromGroupNameAsync(group.Name);
+                if (coords.HasValue)
+                {
+                    device.Latitude = coords.Value.lat;
+                    device.Longitude = coords.Value.lng;
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("Auto-geocoded {DeviceName} from group '{GroupName}' → {Lat}, {Lng}",
+                        device.Name, group.Name, coords.Value.lat, coords.Value.lng);
+                }
+            }
+        }
+
         _logger.LogInformation("Device created: {DeviceName} ({SerialNumber})", device.Name, device.SerialNumber);
 
         return CreatedAtAction(nameof(GetDevice), new { id = device.Id }, new DeviceDto(
@@ -391,6 +413,22 @@ public class DevicesController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+
+        // Auto-geocode if group assigned and no explicit coordinates
+        if (device.GroupId.HasValue && !device.Latitude.HasValue)
+        {
+            var group = await _context.DeviceGroups.FindAsync(device.GroupId.Value);
+            if (group != null)
+            {
+                var coords = await _geocoding.GeocodeFromGroupNameAsync(group.Name);
+                if (coords.HasValue)
+                {
+                    device.Latitude = coords.Value.lat;
+                    device.Longitude = coords.Value.lng;
+                    await _context.SaveChangesAsync();
+                }
+            }
+        }
 
         _logger.LogInformation("Device updated: {DeviceId}", id);
 
@@ -574,6 +612,27 @@ public class DevicesController : ControllerBase
 
         await _context.SaveChangesAsync();
 
+        // Auto-geocode devices that got a group but no coordinates
+        if (request.GroupId.HasValue)
+        {
+            var group = await _context.DeviceGroups.FindAsync(request.GroupId.Value);
+            if (group != null)
+            {
+                var coords = await _geocoding.GeocodeFromGroupNameAsync(group.Name);
+                if (coords.HasValue)
+                {
+                    var needsCoords = devices.Where(d => !d.Latitude.HasValue).ToList();
+                    foreach (var d in needsCoords)
+                    {
+                        d.Latitude = coords.Value.lat;
+                        d.Longitude = coords.Value.lng;
+                    }
+                    if (needsCoords.Count > 0)
+                        await _context.SaveChangesAsync();
+                }
+            }
+        }
+
         _logger.LogInformation("Bulk group assignment: {Count} devices → group {GroupId}",
             results.Count(r => r.Success), request.GroupId);
 
@@ -742,6 +801,39 @@ public class DevicesController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
+
+            // Second pass: auto-geocode devices from their group names
+            var createdNames = results.Where(r => r.Status == "created").Select(r => r.Name).ToList();
+            if (createdNames.Count > 0)
+            {
+                var createdDevices = await _context.Devices
+                    .Include(d => d.Group)
+                    .Where(d => createdNames.Contains(d.Name) && d.Latitude == null && d.GroupId != null)
+                    .ToListAsync();
+
+                var geocodedGroups = new Dictionary<string, (double lat, double lng)?>();
+                foreach (var device in createdDevices)
+                {
+                    if (device.Group?.Name == null) continue;
+                    if (!geocodedGroups.TryGetValue(device.Group.Name, out var coords))
+                    {
+                        coords = await _geocoding.GeocodeFromGroupNameAsync(device.Group.Name);
+                        geocodedGroups[device.Group.Name] = coords;
+                    }
+                    if (coords.HasValue)
+                    {
+                        device.Latitude = coords.Value.lat;
+                        device.Longitude = coords.Value.lng;
+                    }
+                }
+
+                if (createdDevices.Any(d => d.Latitude.HasValue))
+                {
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("Auto-geocoded {Count} devices from group names",
+                        createdDevices.Count(d => d.Latitude.HasValue));
+                }
+            }
 
             _logger.LogInformation("Device import: {Total} rows, {Imported} created, {Skipped} skipped, {Failed} failed",
                 request.Devices.Length,

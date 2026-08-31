@@ -62,6 +62,8 @@ builder.Services.AddHostedService<PingMonitorService>();
 
 // Content file storage
 builder.Services.AddSingleton<ContentStorageService>();
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<GeocodingService>();
 
 
 
