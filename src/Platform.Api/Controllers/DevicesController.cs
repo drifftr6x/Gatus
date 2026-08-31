@@ -241,7 +241,10 @@ public class DevicesController : ControllerBase
                 GetNum("uptime_seconds", "uptime"),
                 GetStr("os_version"),
                 d.Latitude,
-                d.Longitude);
+                d.Longitude,
+                d.DomainName,
+                d.DomainJoinStatus,
+                d.DomainSecureChannelHealthy);
                 }).ToList();
 
         return Ok(new DeviceListResponse(dtos, totalCount, page, pageSize));
@@ -297,7 +300,10 @@ public class DevicesController : ControllerBase
             GetNum("uptime_seconds", "uptime"),
             GetStr("os_version"),
             device.Latitude,
-            device.Longitude));
+            device.Longitude,
+            device.DomainName,
+            device.DomainJoinStatus,
+            device.DomainSecureChannelHealthy));
             }
 
             [HttpPost]
@@ -377,7 +383,8 @@ public class DevicesController : ControllerBase
             device.UpdatedAt,
             device.IsActive,
             null, null, null, null, null, null,
-            device.Latitude, device.Longitude
+            device.Latitude, device.Longitude,
+            device.DomainName, device.DomainJoinStatus, device.DomainSecureChannelHealthy
             ));
             }
 
@@ -451,7 +458,8 @@ public class DevicesController : ControllerBase
             device.UpdatedAt,
             device.IsActive,
             null, null, null, null, null, null,
-            device.Latitude, device.Longitude
+            device.Latitude, device.Longitude,
+            device.DomainName, device.DomainJoinStatus, device.DomainSecureChannelHealthy
             ));
             }
 
@@ -529,9 +537,37 @@ public class DevicesController : ControllerBase
                 {
                     _logger.LogInformation("Device {DeviceId} IP changed: {OldIp} -> {NewIp}", device.Id, device.IpAddress, reportedIp);
                     device.IpAddress = reportedIp;
-                }
-            }
-            }
+                    }
+                    }
+
+                    if (p.TryGetProperty("domainName", out var domainNameProp))
+                    {
+                    device.DomainName = domainNameProp.ValueKind == System.Text.Json.JsonValueKind.String
+                    ? domainNameProp.GetString()
+                    : null;
+                    }
+
+                    if (p.TryGetProperty("domainJoinStatus", out var joinProp) && joinProp.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                    var joinStatus = joinProp.GetString();
+                    if (!string.IsNullOrWhiteSpace(joinStatus) && joinStatus != device.DomainJoinStatus)
+                    {
+                    _logger.LogInformation("Device {DeviceId} domain join status: {Old} -> {New} ({Domain})",
+                        device.Id, device.DomainJoinStatus, joinStatus, device.DomainName);
+                    }
+                    device.DomainJoinStatus = joinStatus;
+                    }
+
+                    if (p.TryGetProperty("domainSecureChannelHealthy", out var scProp))
+                    {
+                    device.DomainSecureChannelHealthy = scProp.ValueKind switch
+                    {
+                    System.Text.Json.JsonValueKind.True => true,
+                    System.Text.Json.JsonValueKind.False => false,
+                    _ => null
+                    };
+                    }
+                    }
 
         await _context.SaveChangesAsync();
 

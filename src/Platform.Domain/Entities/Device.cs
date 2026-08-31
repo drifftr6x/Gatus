@@ -17,6 +17,12 @@ public class Device
     public string? Tags { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
+    /// <summary>AD domain or workgroup name last reported by the agent.</summary>
+    public string? DomainName { get; set; }
+    /// <summary>Domain | Workgroup | Unjoined | Unknown</summary>
+    public string? DomainJoinStatus { get; set; }
+    /// <summary>True when a domain controller is reachable (secure channel healthy).</summary>
+    public bool? DomainSecureChannelHealthy { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public bool IsActive { get; set; } = true;

@@ -158,6 +158,9 @@ export interface DeviceDto {
   osVersion?: string
   latitude?: number
   longitude?: number
+  domainName?: string
+  domainJoinStatus?: string
+  domainSecureChannelHealthy?: boolean
   }
 
 export interface DeviceListResponse {
@@ -467,6 +470,18 @@ export const alertsApi = {
   acknowledge: (id: string) => api.post(`/alerts/${id}/acknowledge`),
   resolve: (id: string) => api.post(`/alerts/${id}/resolve`),
   rules: () => api.get<AlertRuleDto[]>('/alerts/rules'),
+  }
+
+  export interface DomainHealthSettings {
+  expectedDomain?: string | null
+  alertOnMismatch: boolean
+  alertOnTrustBroken: boolean
+  }
+
+  export const settingsApi = {
+  getDomainHealth: () => api.get<DomainHealthSettings>('/settings/domain-health'),
+  updateDomainHealth: (data: DomainHealthSettings) =>
+  api.put<DomainHealthSettings>('/settings/domain-health', data),
   }
 
   export const logsApi = {

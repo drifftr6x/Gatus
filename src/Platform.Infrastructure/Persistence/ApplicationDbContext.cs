@@ -27,6 +27,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ContentVersion> ContentVersions => Set<ContentVersion>();
     public DbSet<Deployment> Deployments => Set<Deployment>();
     public DbSet<DeploymentResult> DeploymentResults => Set<DeploymentResult>();
+    public DbSet<PlatformSetting> PlatformSettings => Set<PlatformSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

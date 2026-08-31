@@ -27,7 +27,10 @@ public record DeviceDto(
     string? OsVersion,
     // Geo coordinates for map display
     double? Latitude,
-    double? Longitude
+    double? Longitude,
+    string? DomainName,
+    string? DomainJoinStatus,
+    bool? DomainSecureChannelHealthy
     );
 
 public record DeviceListResponse(

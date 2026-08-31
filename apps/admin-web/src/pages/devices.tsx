@@ -167,6 +167,7 @@ export function DevicesPage() {
                   { field: 'group' as SortField, label: 'Group' },
                   { field: 'hostname' as SortField, label: 'Hostname' },
                   { field: 'ipAddress' as SortField, label: 'IP' },
+                  { field: null, label: 'Domain' },
                   { field: null, label: 'Metrics' },
                   { field: 'location' as SortField, label: 'Location' },
                   { field: 'lastSeen' as SortField, label: 'Last Seen' },
@@ -225,10 +226,13 @@ export function DevicesPage() {
                     {device.hostname || '—'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-400">
-                    {device.ipAddress || '—'}
+                      {device.ipAddress || '—'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                    <DeviceMetrics device={device} />
+                      <DomainBadge device={device} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <DeviceMetrics device={device} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
                     {device.location || '—'}
@@ -716,11 +720,41 @@ function StatusBadge({ status }: { status: string }) {
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {status}
-    </span>
-  )
-}
+      </span>
+      )
+      }
 
-const inputClass =
+      function DomainBadge({ device }: { device: DeviceDto }) {
+      const status = device.domainJoinStatus
+      if (!status) {
+      return <span className="text-xs text-slate-600">—</span>
+      }
+      const healthy = device.domainSecureChannelHealthy
+      const styles =
+      status === 'Domain' && healthy === false
+      ? 'bg-red-500/10 text-red-400 ring-red-500/30'
+      : status === 'Domain'
+        ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/30'
+        : status === 'Workgroup'
+          ? 'bg-amber-500/10 text-amber-400 ring-amber-500/30'
+          : 'bg-slate-500/10 text-slate-400 ring-slate-500/30'
+      const label =
+      status === 'Domain'
+      ? healthy === false
+        ? `${device.domainName || 'Domain'} (trust broken)`
+        : device.domainName || 'Domain'
+      : status === 'Workgroup'
+        ? device.domainName ? `WG: ${device.domainName}` : 'Workgroup'
+        : status
+      return (
+      <span className={`inline-flex max-w-[14rem] items-center gap-1.5 truncate rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${styles}`} title={label}>
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
+      {label}
+      </span>
+      )
+      }
+
+      const inputClass =
   'mt-1.5 block w-full rounded-lg border border-surface-700 bg-surface-850 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none transition-colors focus:border-accent-500 focus:ring-1 focus:ring-accent-500'
 
 function DeviceModal({

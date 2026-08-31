@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Platform.Api.Controllers;
 using Platform.Api.Hubs;
 using Platform.Domain.Entities;
 using Platform.Infrastructure.Persistence;
@@ -68,6 +69,11 @@ public class AlertEvaluatorService : BackgroundService
             .Where(d => d.IsActive)
             .ToListAsync(ct);
 
+        var expectedDomain = await context.PlatformSettings
+            .Where(s => s.Key == SettingsController.ExpectedDomainKey)
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+
         // Latest heartbeat metrics per device from telemetry
         var now = DateTime.UtcNow;
 
@@ -77,7 +83,7 @@ public class AlertEvaluatorService : BackgroundService
         {
             foreach (var rule in rules)
             {
-                await EvaluateRuleAsync(context, device, rule, now, broadcaster, ct);
+                await EvaluateRuleAsync(context, device, rule, now, expectedDomain, broadcaster, ct);
             }
         }
 
@@ -86,7 +92,7 @@ public class AlertEvaluatorService : BackgroundService
 
     private async Task EvaluateRuleAsync(
         ApplicationDbContext context, Device device, AlertRule rule, DateTime now,
-        IDeviceEventBroadcaster broadcaster, CancellationToken ct)
+        string? expectedDomain, IDeviceEventBroadcaster broadcaster, CancellationToken ct)
     {
         bool conditionMet;
         string detail;
@@ -110,6 +116,30 @@ public class AlertEvaluatorService : BackgroundService
                 conditionMet = Compare(metricValue.Value, rule.Operator, rule.Threshold);
                 var unit = rule.Metric.Equals("disk", StringComparison.OrdinalIgnoreCase) ? "% free" : "%";
                 detail = $"{rule.Metric} = {metricValue.Value:0.##}{unit} ({rule.Operator} {rule.Threshold}{unit})";
+                break;
+
+            case "domain_mismatch":
+                if (string.IsNullOrWhiteSpace(expectedDomain))
+                    return; // No expected domain configured
+                if (string.IsNullOrWhiteSpace(device.DomainJoinStatus))
+                    return; // Agent has not reported domain info yet
+                var joinedOk = string.Equals(device.DomainJoinStatus, "Domain", StringComparison.OrdinalIgnoreCase)
+                               && DomainsMatch(device.DomainName, expectedDomain);
+                conditionMet = !joinedOk;
+                detail = joinedOk
+                    ? $"Joined to {device.DomainName} (matches {expectedDomain})"
+                    : $"Expected domain '{expectedDomain}', device reports {device.DomainJoinStatus} '{device.DomainName ?? "(none)"}'";
+                break;
+
+            case "domain_trust":
+                if (!string.Equals(device.DomainJoinStatus, "Domain", StringComparison.OrdinalIgnoreCase))
+                    return; // Trust only applies to domain-joined machines
+                if (device.DomainSecureChannelHealthy == null)
+                    return;
+                conditionMet = device.DomainSecureChannelHealthy == false;
+                detail = conditionMet
+                    ? $"Secure channel to '{device.DomainName}' is broken (domain controller unreachable)"
+                    : $"Secure channel to '{device.DomainName}' is healthy";
                 break;
 
             default:
@@ -161,6 +191,20 @@ public class AlertEvaluatorService : BackgroundService
                 _logger.LogInformation("ALERT auto-resolved: {Rule} on {Device}", rule.Name, device.Name);
             }
         }
+    }
+
+    internal static bool DomainsMatch(string? reported, string expected)
+    {
+        if (string.IsNullOrWhiteSpace(reported)) return false;
+        var a = reported.Trim().TrimEnd('.').ToLowerInvariant();
+        var b = expected.Trim().TrimEnd('.').ToLowerInvariant();
+        if (a == b) return true;
+        if (a.EndsWith("." + b, StringComparison.Ordinal) || b.EndsWith("." + a, StringComparison.Ordinal))
+            return true;
+        // Compare NetBIOS (first label) so LIVINGSPACES matches livingspaces.com
+        var aNet = a.Split('.')[0];
+        var bNet = b.Split('.')[0];
+        return aNet == bNet;
     }
 
     private static bool Compare(double value, string op, double threshold) =>

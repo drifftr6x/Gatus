@@ -115,6 +115,19 @@ export function DeviceDetailPage() {
           <dl className="mt-4 space-y-3 text-sm">
             <InfoRow icon={<Globe size={14} />} label="Hostname" value={device.hostname} />
             <InfoRow icon={<Wifi size={14} />} label="IP Address" value={device.ipAddress} mono />
+            <InfoRow icon={<Globe size={14} />} label="Domain" value={
+              device.domainJoinStatus
+                ? `${device.domainJoinStatus}${device.domainName ? ` · ${device.domainName}` : ''}${
+                    device.domainJoinStatus === 'Domain'
+                      ? device.domainSecureChannelHealthy === false
+                        ? ' · trust broken'
+                        : device.domainSecureChannelHealthy === true
+                          ? ' · trust OK'
+                          : ''
+                      : ''
+                  }`
+                : undefined
+            } />
             <InfoRow icon={<Fingerprint size={14} />} label="Serial Number" value={device.serialNumber} mono />
             <InfoRow icon={<MapPin size={14} />} label="Location" value={device.location} />
             <InfoRow icon={<Tag size={14} />} label="Group" value={device.groupName} />

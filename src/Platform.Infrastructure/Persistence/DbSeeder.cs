@@ -62,8 +62,20 @@ public static class DbSeeder
                 Id = Guid.NewGuid(), Name = "Device offline", Metric = "offline",
                 Operator = "gt", Threshold = 5, Severity = AlertSeverity.Critical,
                 IsEnabled = true, CreatedAt = now
+            },
+            new AlertRule
+            {
+                Id = Guid.NewGuid(), Name = "Domain mismatch", Metric = "domain_mismatch",
+                Operator = "eq", Threshold = 0, Severity = AlertSeverity.Warning,
+                IsEnabled = false, CreatedAt = now
+            },
+            new AlertRule
+            {
+                Id = Guid.NewGuid(), Name = "Domain trust broken", Metric = "domain_trust",
+                Operator = "eq", Threshold = 0, Severity = AlertSeverity.Critical,
+                IsEnabled = false, CreatedAt = now
             }
-        };
+            };
         context.AlertRules.AddRange(alertRules);
 
         await context.SaveChangesAsync();

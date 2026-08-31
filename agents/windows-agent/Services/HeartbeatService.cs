@@ -16,6 +16,9 @@ public class HeartbeatService : BackgroundService
     private readonly AgentConfig _config;
     private readonly PerformanceCounter? _cpuCounter;
     private readonly PerformanceCounter? _ramCounter;
+    private DateTime _lastDcCheck = DateTime.MinValue;
+    private string? _cachedDomainName;
+    private bool? _cachedSecureChannel;
 
     public HeartbeatService(
         IHttpClientFactory httpClientFactory,
@@ -79,11 +82,16 @@ public class HeartbeatService : BackgroundService
         var state = await _stateManager.LoadStateAsync();
         var metrics = CollectSystemMetrics();
 
+        var domain = CollectDomainInfo();
+
         var heartbeat = new
         {
             deviceId = credentials.DeviceId,
             hostname = Environment.MachineName,
             ipAddress = GetLocalIPv4(),
+            domainName = domain.Name,
+            domainJoinStatus = domain.JoinStatus,
+            domainSecureChannelHealthy = domain.SecureChannelHealthy,
             timestamp = DateTime.UtcNow,
             uptimeSeconds = (long)(DateTime.UtcNow - Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalSeconds,
             cpuUsage = metrics.CpuUsage,
@@ -124,6 +132,90 @@ public class HeartbeatService : BackgroundService
             _logger.LogWarning(ex, "Network error sending heartbeat");
             state.Status = "Offline";
             await _stateManager.SaveStateAsync(state);
+        }
+    }
+
+    private sealed record DomainInfo(string? Name, string JoinStatus, bool? SecureChannelHealthy);
+
+    [DllImport("netapi32.dll", CharSet = CharSet.Unicode)]
+    private static extern int NetGetJoinInformation(string? server, out IntPtr name, out int status);
+
+    [DllImport("netapi32.dll", CharSet = CharSet.Unicode)]
+    private static extern int DsGetDcName(
+        string? computerName,
+        string? domainName,
+        IntPtr domainGuid,
+        string? siteName,
+        int flags,
+        out IntPtr domainControllerInfo);
+
+    [DllImport("netapi32.dll")]
+    private static extern int NetApiBufferFree(IntPtr buffer);
+
+    private DomainInfo CollectDomainInfo()
+    {
+        string joinStatus = "Unknown";
+        string? name = null;
+
+        try
+        {
+            var rc = NetGetJoinInformation(null, out var buf, out var status);
+            if (rc == 0 && buf != IntPtr.Zero)
+            {
+                name = Marshal.PtrToStringUni(buf);
+                NetApiBufferFree(buf);
+                joinStatus = status switch
+                {
+                    3 => "Domain",
+                    2 => "Workgroup",
+                    1 => "Unjoined",
+                    _ => "Unknown"
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "NetGetJoinInformation failed");
+        }
+
+        bool? secure = null;
+        if (joinStatus == "Domain" && !string.IsNullOrEmpty(name))
+        {
+            if (DateTime.UtcNow - _lastDcCheck < TimeSpan.FromMinutes(5)
+                && string.Equals(_cachedDomainName, name, StringComparison.OrdinalIgnoreCase))
+            {
+                secure = _cachedSecureChannel;
+            }
+            else
+            {
+                secure = ProbeDomainController(name);
+                _lastDcCheck = DateTime.UtcNow;
+                _cachedDomainName = name;
+                _cachedSecureChannel = secure;
+            }
+        }
+
+        return new DomainInfo(name, joinStatus, secure);
+    }
+
+    private bool ProbeDomainController(string domainName)
+    {
+        try
+        {
+            // DS_DIRECTORY_SERVICE_REQUIRED | DS_RETURN_DNS_NAME
+            const int flags = 0x00000010 | 0x40000000;
+            var rc = DsGetDcName(null, domainName, IntPtr.Zero, null, flags, out var info);
+            if (info != IntPtr.Zero)
+                NetApiBufferFree(info);
+            if (rc == 0)
+                return true;
+            _logger.LogWarning("DsGetDcName for {Domain} failed with {Code}", domainName, rc);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "DsGetDcName failed for {Domain}", domainName);
+            return false;
         }
     }
 

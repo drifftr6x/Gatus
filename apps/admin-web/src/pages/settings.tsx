@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, X } from 'lucide-react'
-import { usersApi } from '@/lib/api'
+import { usersApi, settingsApi } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 
 export function SettingsPage() {
@@ -57,7 +57,7 @@ export function SettingsPage() {
 
       <div>
         <h1 className="text-xl font-semibold text-white">Settings</h1>
-        <p className="mt-1 text-sm text-slate-400">Account and user management</p>
+        <p className="mt-1 text-sm text-slate-400">Account, domain health, and user management</p>
       </div>
 
       {/* Current user */}
@@ -88,6 +88,8 @@ export function SettingsPage() {
           </div>
         </dl>
       </div>
+
+      <DomainHealthSection showToast={showToast} />
 
       {/* Users table */}
       <div className="mt-8">
@@ -375,10 +377,110 @@ function UserFormModal({
               className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent-500/25 hover:bg-accent-400 disabled:opacity-50"
             >
               {isPending ? 'Saving…' : isEdit ? 'Update' : 'Create User'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
+              </button>
+              </div>
+              </form>
+              </div>
+              </div>
+              )
+              }
+
+              function DomainHealthSection({
+              showToast,
+              }: {
+              showToast: (type: 'success' | 'error', message: string) => void
+              }) {
+              const queryClient = useQueryClient()
+              const { data, isLoading } = useQuery({
+              queryKey: ['settings-domain-health'],
+              queryFn: settingsApi.getDomainHealth,
+              })
+              const [expectedDomain, setExpectedDomain] = useState('')
+              const [alertOnMismatch, setAlertOnMismatch] = useState(false)
+              const [alertOnTrustBroken, setAlertOnTrustBroken] = useState(false)
+
+              useEffect(() => {
+                if (!data) return
+                setExpectedDomain(data.expectedDomain ?? '')
+                setAlertOnMismatch(!!data.alertOnMismatch)
+                setAlertOnTrustBroken(!!data.alertOnTrustBroken)
+              }, [data])
+
+              const saveMutation = useMutation({
+              mutationFn: () =>
+              settingsApi.updateDomainHealth({
+              expectedDomain: expectedDomain.trim() || null,
+              alertOnMismatch,
+              alertOnTrustBroken,
+              }),
+              onSuccess: () => {
+              queryClient.invalidateQueries({ queryKey: ['settings-domain-health'] })
+              showToast('success', 'Domain health settings saved')
+              },
+              onError: () => showToast('error', 'Failed to save domain health settings'),
+              })
+
+              return (
+              <div className="mt-6 rounded-xl border border-surface-800 bg-surface-900 p-5 shadow-lg">
+              <h2 className="text-base font-semibold text-white">Domain Health Monitoring</h2>
+              <p className="mt-1 text-sm text-slate-400">
+              Agents always report AD join status. Configure the expected domain and which conditions should raise alerts.
+              </p>
+
+              {isLoading ? (
+              <div className="mt-4 h-6 w-6 animate-spin rounded-full border-2 border-surface-700 border-t-accent-500" />
+              ) : (
+              <div className="mt-4 space-y-4">
+              <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1">Expected domain</label>
+              <input
+              type="text"
+              value={expectedDomain}
+              onChange={(e) => setExpectedDomain(e.target.value)}
+              placeholder="livingspaces.com"
+              className="w-full max-w-md rounded-lg border border-surface-700 bg-surface-800 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-accent-500/50"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+              Matches NetBIOS or DNS names (e.g. LIVINGSPACES and livingspaces.com). Leave blank to skip mismatch alerts.
+              </p>
+              </div>
+              <label className="flex items-start gap-3 text-sm text-slate-300">
+              <input
+              type="checkbox"
+              checked={alertOnMismatch}
+              onChange={(e) => setAlertOnMismatch(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-surface-600 bg-surface-800 text-accent-500 focus:ring-accent-500"
+              />
+              <span>
+              <span className="font-medium text-slate-200">Alert on domain mismatch</span>
+              <span className="block text-xs text-slate-500">
+              Warn when a device is in a workgroup or joined to a different domain than expected.
+              </span>
+              </span>
+              </label>
+              <label className="flex items-start gap-3 text-sm text-slate-300">
+              <input
+              type="checkbox"
+              checked={alertOnTrustBroken}
+              onChange={(e) => setAlertOnTrustBroken(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-surface-600 bg-surface-800 text-accent-500 focus:ring-accent-500"
+              />
+              <span>
+              <span className="font-medium text-slate-200">Alert on broken trust relationship</span>
+              <span className="block text-xs text-slate-500">
+              Critical alert when a domain-joined device cannot reach a domain controller.
+              </span>
+              </span>
+              </label>
+              <button
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
+              className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent-500/25 transition-colors hover:bg-accent-400 disabled:opacity-50"
+              >
+              {saveMutation.isPending ? 'Saving…' : 'Save domain settings'}
+              </button>
+              </div>
+              )}
+              </div>
+              )
+              }

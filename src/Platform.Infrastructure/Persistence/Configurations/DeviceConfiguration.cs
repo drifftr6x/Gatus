@@ -28,6 +28,9 @@ public class DeviceConfiguration : IEntityTypeConfiguration<Device>
         builder.Property(d => d.Tags).HasColumnName("tags").HasMaxLength(500);
         builder.Property(d => d.Latitude).HasColumnName("latitude");
         builder.Property(d => d.Longitude).HasColumnName("longitude");
+        builder.Property(d => d.DomainName).HasColumnName("domain_name").HasMaxLength(255);
+        builder.Property(d => d.DomainJoinStatus).HasColumnName("domain_join_status").HasMaxLength(20);
+        builder.Property(d => d.DomainSecureChannelHealthy).HasColumnName("domain_secure_channel_healthy");
 
         builder.HasOne(d => d.Group)
             .WithMany(g => g.Devices)
