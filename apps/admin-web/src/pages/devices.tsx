@@ -988,8 +988,8 @@ function DeviceModal({
               const headers = ['Name', 'Serial Number', 'Description', 'Location', 'Hostname', 'IP Address', 'MAC Address', 'Firmware Version', 'Group']
               const groupNames = (groupsList ?? []).map(g => g.name)
               const exampleRows = [
-                ['PCS3DR000001', 'SN001', 'Main lobby display', 'Building A - Lobby', null, '192.168.1.100', '00:1A:2B:3C:4D:5E', '1.2.3', groupNames[0] ?? ''],
-                ['PCS3DR000002', 'SN002', 'Secondary lobby display', 'Building A - Lobby', null, '192.168.1.101', '00:1A:2B:3C:4D:5F', '1.2.3', groupNames[0] ?? ''],
+                ['PCS3DR000001', 'SN001', 'Main lobby display', null, null, '192.168.1.100', '00:1A:2B:3C:4D:5E', '1.2.3', groupNames[0] ?? ''],
+                ['PCS3DR000002', 'SN002', 'Secondary lobby display', null, null, '192.168.1.101', '00:1A:2B:3C:4D:5F', '1.2.3', groupNames[0] ?? ''],
               ]
               const ws = XLSX.utils.aoa_to_sheet([headers, ...exampleRows])
               ws['!cols'] = [
@@ -1003,13 +1003,21 @@ function DeviceModal({
               range.e.r = Math.max(range.e.r, 199) // extend to row 200
               ws['!ref'] = XLSX.utils.encode_range(range)
               for (let row = 2; row <= 200; row++) {
-                const cellRef = `E${row}`
-                ws[cellRef] = {
-                  t: 's',
-                  v: '',
-                  f: `IF(A${row}="","",UPPER(A${row})&".internal.livingspaces.com")`,
+                  const cellRef = `E${row}`
+                  ws[cellRef] = {
+                    t: 's',
+                    v: '',
+                    f: `IF(A${row}="","",UPPER(A${row})&".internal.livingspaces.com")`,
+                  }
+                  // Location prefill: extract "City, ST" from Group column
+                  // "Store 05 - Monrovia, CA" → "Monrovia, CA"
+                  const locRef = `D${row}`
+                  ws[locRef] = {
+                    t: 's',
+                    v: '',
+                    f: `IF(OR(I${row}="",ISERROR(FIND(" - ",I${row}))),"",TRIM(RIGHT(I${row},LEN(I${row})-FIND(" - ",I${row})-2)))`,
+                  }
                 }
-              }
 
               // Groups reference sheet (hidden)
               const groupsWs = XLSX.utils.aoa_to_sheet([['Groups'], ...groupNames.map(n => [n])])
@@ -1068,7 +1076,7 @@ function DeviceModal({
               <div className="w-full max-w-2xl rounded-2xl border border-surface-700 bg-surface-900 p-6 shadow-2xl">
                 <h2 className="text-lg font-semibold text-white">Import Devices</h2>
                 <p className="mt-1 text-sm text-slate-400">
-                  Upload an Excel (.xlsx) or CSV file with device data. <strong className="text-slate-300">Name</strong> plus <strong className="text-slate-300">Hostname or IP Address</strong> are required. Missing groups are created automatically.
+                  Upload an Excel (.xlsx) or CSV file with device data. <strong className="text-slate-300">Name</strong> plus <strong className="text-slate-300">Hostname or IP Address</strong> are required. Missing groups are created automatically. <strong className="text-slate-300">Hostname</strong> and <strong className="text-slate-300">Location</strong> auto-fill from Name and Group — you can override any cell.
                 </p>
 
                 {!importResult ? (
