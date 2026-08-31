@@ -718,8 +718,8 @@ function BulkModal({
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     Online: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/30',
-    Offline: 'bg-slate-500/10 text-slate-400 ring-slate-500/30',
-    Error: 'bg-red-500/10 text-red-400 ring-red-500/30',
+    Offline: 'bg-red-500/10 text-red-400 ring-red-500/30',
+    Error: 'bg-red-500/20 text-red-300 ring-red-500/40',
     Maintenance: 'bg-amber-500/10 text-amber-400 ring-amber-500/30',
   }
   return (
