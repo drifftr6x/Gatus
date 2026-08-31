@@ -143,7 +143,7 @@ export function DevicesPage() {
           Error loading devices: {error.message}
         </div>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-xl border border-surface-800 bg-surface-900 shadow-lg">
+        <div className="mt-6 overflow-x-auto rounded-xl border border-surface-800 bg-surface-900 shadow-lg">
           <table className="min-w-full divide-y divide-surface-800">
             <thead>
               <tr className="bg-surface-850">
@@ -162,14 +162,13 @@ export function DevicesPage() {
                   />
                 </th>
                 {([
+                  { field: 'status' as SortField, label: 'Status' },
                   { field: 'name' as SortField, label: 'Name' },
                   { field: 'group' as SortField, label: 'Group' },
                   { field: 'hostname' as SortField, label: 'Hostname' },
-                  { field: 'ipAddress' as SortField, label: 'IP Address' },
+                  { field: 'ipAddress' as SortField, label: 'IP' },
                   { field: null, label: 'Metrics' },
-                  { field: 'status' as SortField, label: 'Status' },
                   { field: 'location' as SortField, label: 'Location' },
-                  { field: null, label: 'Tags' },
                   { field: 'lastSeen' as SortField, label: 'Last Seen' },
                   { field: null, label: '' },
                 ]).map(({ field, label }) => (
@@ -207,8 +206,11 @@ export function DevicesPage() {
                       }}
                       className="h-4 w-4 rounded border-surface-600 bg-surface-800 text-accent-500 focus:ring-accent-500"
                     />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                    <StatusBadge status={device.status} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                     <Link to={`/devices/${device.id}`} className="text-sm font-medium text-slate-100 hover:text-accent-300 transition-colors">
                       {device.name}
                     </Link>
@@ -218,36 +220,22 @@ export function DevicesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
                     {device.groupName || '—'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-400">
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-400">
                     {device.hostname || '—'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-400">
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-slate-400">
                     {device.ipAddress || '—'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                     <DeviceMetrics device={device} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <StatusBadge status={device.status} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
                     {device.location || '—'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {device.tags ? (
-                      <div className="flex flex-wrap gap-1">
-                        {device.tags.split(',').filter(Boolean).map((tag) => (
-                          <span key={tag.trim()} className="inline-flex rounded-full bg-surface-800 px-2 py-0.5 text-xs text-slate-400">
-                            {tag.trim()}
-                          </span>
-                        ))}
-                      </div>
-                    ) : '—'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
                     {device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString() : 'Never'}
-                  </td>
+                    </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <button
                       onClick={() => setCommandDevice(device)}
