@@ -13,7 +13,7 @@ export function DashboardPage() {
 
   const { data: devicesData } = useQuery({
     queryKey: ['devices'],
-    queryFn: () => devicesApi.list({ pageSize: 10 }),
+    queryFn: () => devicesApi.list({ pageSize: 100 }),
   })
 
   const { data: alertCount } = useQuery({
