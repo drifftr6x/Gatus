@@ -1146,14 +1146,50 @@ function DeviceModal({
                   </>
                 ) : (
                   <div className="mt-5">
-                    <div className="grid grid-cols-3 gap-4 text-center">
+                    {/* Progress bar */}
+                    {(() => {
+                      const total = importResult.imported + importResult.skipped + importResult.failed
+                      const pct = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0
+                      const importedPct = pct(importResult.imported)
+                      const skippedPct = pct(importResult.skipped)
+                      const failedPct = pct(importResult.failed)
+                      return (
+                        <div>
+                          <div className="flex h-3 w-full overflow-hidden rounded-full bg-surface-800">
+                            {importedPct > 0 && (
+                              <div className="bg-emerald-500 transition-all" style={{ width: `${importedPct}%` }} />
+                            )}
+                            {skippedPct > 0 && (
+                              <div className="bg-amber-500 transition-all" style={{ width: `${skippedPct}%` }} />
+                            )}
+                            {failedPct > 0 && (
+                              <div className="bg-red-500 transition-all" style={{ width: `${failedPct}%` }} />
+                            )}
+                          </div>
+                          <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+                            <span>{total} rows processed</span>
+                            <span>
+                              {importResult.failed === 0 && importResult.skipped === 0
+                                ? <span className="text-emerald-400 font-medium">All devices imported successfully</span>
+                                : importResult.failed === 0
+                                  ? <span className="text-amber-400 font-medium">{importResult.imported} imported, {importResult.skipped} skipped</span>
+                                  : <span className="text-red-400 font-medium">{importResult.failed} failed — see details below</span>
+                              }
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })()}
+
+                    {/* Counts */}
+                    <div className="mt-4 grid grid-cols-3 gap-4 text-center">
                       <div className="rounded-lg bg-emerald-500/10 p-3">
                         <p className="text-2xl font-bold text-emerald-400">{importResult.imported}</p>
                         <p className="text-xs text-slate-400">Imported</p>
                       </div>
                       <div className="rounded-lg bg-amber-500/10 p-3">
                         <p className="text-2xl font-bold text-amber-400">{importResult.skipped}</p>
-                        <p className="text-xs text-slate-400">Skipped</p>
+                        <p className="text-xs text-slate-400">Skipped (duplicate)</p>
                       </div>
                       <div className="rounded-lg bg-red-500/10 p-3">
                         <p className="text-2xl font-bold text-red-400">{importResult.failed}</p>
@@ -1161,15 +1197,35 @@ function DeviceModal({
                       </div>
                     </div>
 
+                    {/* Row-level detail with Excel cell references */}
                     {importResult.results.filter(r => r.status !== 'created').length > 0 && (
-                      <div className="mt-4 max-h-40 overflow-y-auto rounded-lg border border-surface-700">
-                        {importResult.results.filter(r => r.status !== 'created').map((r) => (
-                          <div key={r.row} className={`flex items-center gap-2 px-3 py-1.5 text-xs ${r.status === 'error' ? 'text-red-400' : 'text-amber-400'}`}>
-                            <span className="font-mono">Row {r.row}:</span>
-                            <span>{r.name}</span>
-                            <span className="text-slate-500">— {r.message}</span>
-                          </div>
-                        ))}
+                      <div className="mt-4 max-h-48 overflow-y-auto rounded-lg border border-surface-700">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-surface-700 bg-surface-800/50">
+                              <th className="px-3 py-2 text-left text-slate-500">Cell</th>
+                              <th className="px-3 py-2 text-left text-slate-500">Name</th>
+                              <th className="px-3 py-2 text-left text-slate-500">Status</th>
+                              <th className="px-3 py-2 text-left text-slate-500">Reason</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {importResult.results.filter(r => r.status !== 'created').map((r) => (
+                              <tr key={r.row} className={`border-b border-surface-800/50 ${r.status === 'error' ? 'text-red-400' : 'text-amber-400'}`}>
+                                <td className="px-3 py-1.5 font-mono font-medium">A{r.row + 1}</td>
+                                <td className="px-3 py-1.5">{r.name}</td>
+                                <td className="px-3 py-1.5">
+                                  <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                    r.status === 'error' ? 'bg-red-500/10 ring-1 ring-red-500/30' : 'bg-amber-500/10 ring-1 ring-amber-500/30'
+                                  }`}>
+                                    {r.status === 'error' ? 'Failed' : 'Skipped'}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-1.5 text-slate-500">{r.message}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     )}
 
