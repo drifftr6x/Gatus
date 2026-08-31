@@ -1,13 +1,15 @@
-import { useParams, Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Monitor, Cpu, MemoryStick, HardDrive, Clock,
-  Globe, Tag, MapPin, Fingerprint, Wifi, AlertTriangle, Terminal, Activity
+  Globe, Tag, MapPin, Fingerprint, Wifi, AlertTriangle, Terminal, Activity, Trash2
 } from 'lucide-react'
 import { devicesApi, telemetryApi, alertsApi, commandsApi } from '@/lib/api'
 
 export function DeviceDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const { data: device, isLoading } = useQuery({
     queryKey: ['device', id],
@@ -33,6 +35,14 @@ export function DeviceDetailPage() {
     queryKey: ['device-commands', id],
     queryFn: () => commandsApi.history({ deviceId: id!, limit: 10 }),
     enabled: !!id,
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: () => devicesApi.delete(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['devices'] })
+      navigate('/devices')
+    },
   })
 
   if (isLoading) {
@@ -221,13 +231,40 @@ export function DeviceDetailPage() {
               ))
             ) : (
               <p className="px-5 py-6 text-center text-sm text-slate-500">No commands sent to this device</p>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
+              )}
+              </div>
+              </div>
+              </div>
+
+              {/* Danger Zone */}
+              <div className="mt-8 rounded-xl border border-red-500/30 bg-red-500/5 p-5">
+              <div className="flex items-center justify-between">
+              <div>
+              <h2 className="text-base font-semibold text-red-400">Danger Zone</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Permanently delete this device and all associated telemetry, alerts, commands, and deployment history.
+              </p>
+              </div>
+              <button
+              onClick={() => {
+                if (confirm(`Delete device "${device.name}"? This will remove all associated data and cannot be undone.`)) {
+                  deleteMutation.mutate()
+                }
+              }}
+              disabled={deleteMutation.isPending}
+              className="flex items-center gap-2 rounded-lg border border-red-500/50 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+              >
+              <Trash2 className="h-4 w-4" />
+              {deleteMutation.isPending ? 'Deleting…' : 'Delete Device'}
+              </button>
+              </div>
+              {deleteMutation.isError && (
+              <p className="mt-2 text-sm text-red-400">{deleteMutation.error.message}</p>
+              )}
+              </div>
+              </div>
+              )
+              }
 
 function MetricCard({ icon, label, value, unit = '', warn, invert, format }: {
   icon: React.ReactNode; label: string; value?: number | null; unit?: string
