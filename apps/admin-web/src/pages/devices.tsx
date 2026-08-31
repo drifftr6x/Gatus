@@ -942,16 +942,28 @@ function DeviceModal({
               const headers = ['Name', 'Serial Number', 'Description', 'Location', 'Hostname', 'IP Address', 'MAC Address', 'Firmware Version', 'Group']
               const groupNames = (groupsList ?? []).map(g => g.name)
               const exampleRows = [
-                ['Lobby Kiosk 1', 'SN001', 'Main lobby display', 'Building A - Lobby', 'kiosk01.internal.livingspaces.com', '192.168.1.100', '00:1A:2B:3C:4D:5E', '1.2.3', groupNames[0] ?? ''],
-                ['Lobby Kiosk 2', 'SN002', 'Secondary lobby display', 'Building A - Lobby', 'kiosk02.internal.livingspaces.com', '192.168.1.101', '00:1A:2B:3C:4D:5F', '1.2.3', groupNames[0] ?? ''],
-                ['', '', '', '', '', '', '', '', ''],
-                ['', '', '', '', '', '', '', '', ''],
-                ['', '', '', '', '', '', '', '', ''],
+                ['PCS3DR000001', 'SN001', 'Main lobby display', 'Building A - Lobby', null, '192.168.1.100', '00:1A:2B:3C:4D:5E', '1.2.3', groupNames[0] ?? ''],
+                ['PCS3DR000002', 'SN002', 'Secondary lobby display', 'Building A - Lobby', null, '192.168.1.101', '00:1A:2B:3C:4D:5F', '1.2.3', groupNames[0] ?? ''],
               ]
               const ws = XLSX.utils.aoa_to_sheet([headers, ...exampleRows])
               ws['!cols'] = [
                 { wch: 22 }, { wch: 14 }, { wch: 24 }, { wch: 20 }, { wch: 38 }, { wch: 16 }, { wch: 20 }, { wch: 16 }, { wch: 36 },
               ]
+
+              // Hostname prefill: formula in column E for rows 2-100
+              // =IF(A2="","",UPPER(A2)&".internal.livingspaces.com")
+              // User can type over it if they need a custom hostname
+              const range = XLSX.utils.decode_range(ws['!ref'] ?? 'A1')
+              range.e.r = Math.max(range.e.r, 99) // extend to row 100
+              ws['!ref'] = XLSX.utils.encode_range(range)
+              for (let row = 2; row <= 100; row++) {
+                const cellRef = `E${row}`
+                ws[cellRef] = {
+                  t: 's',
+                  v: '',
+                  f: `IF(A${row}="","",UPPER(A${row})&".internal.livingspaces.com")`,
+                }
+              }
 
               // Groups reference sheet (hidden)
               const groupsWs = XLSX.utils.aoa_to_sheet([['Groups'], ...groupNames.map(n => [n])])
@@ -965,26 +977,25 @@ function DeviceModal({
               // Write to array buffer
               const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
 
-              // Post-process: inject data validation XML into the Devices sheet
-              // We need to unzip, modify sheet1.xml, rezip
+              // Post-process: inject data validation XML into the Devices sheet.
+              // Schema order: dataValidations must come right after </sheetData>.
               const JSZip = (await import('jszip')).default
               const zip = await JSZip.loadAsync(wbout)
+              const devicesSheetFile = 'xl/worksheets/sheet1.xml'
+              let sheetXml = await zip.file(devicesSheetFile)!.async('string')
 
-              // Find the Devices sheet XML (usually sheet1.xml)
-              const sheetFiles = Object.keys(zip.files).filter(f => f.match(/xl\/worksheets\/sheet\d+\.xml/))
-              // Devices is the first sheet
-              const devicesSheetFile = sheetFiles[0]
-              if (devicesSheetFile) {
-                let sheetXml = await zip.file(devicesSheetFile)!.async('string')
+              const lastGroupRow = Math.max(groupNames.length, 1) + 1
+              const dvXml = '<dataValidations count="1">'
+                + '<dataValidation type="list" allowBlank="1" showErrorMessage="1" '
+                + 'errorTitle="Invalid Group" error="Select a group from the list or type a new group name." '
+                + 'errorStyle="warning" sqref="I2:I100">'
+                + `<formula1>GroupsRef!$A$2:$A$${lastGroupRow}</formula1>`
+                + '</dataValidation></dataValidations>'
 
-                // Build data validation XML for column I (Group)
-                const lastGroupRow = Math.max(groupNames.length, 1) + 1
-                const dvXml = `<dataValidations count="1"><dataValidation type="list" allowBlank="1" showErrorMessage="1" errorTitle="Invalid Group" error="Select a group from the list or type a new group name." errorStyle="warning" sqref="I2:I100"><formula1>GroupsRef!$A$2:$A$${lastGroupRow}</formula1></dataValidation></dataValidations>`
-
-                // Insert before </worksheet>
-                sheetXml = sheetXml.replace('</worksheet>', dvXml + '</worksheet>')
-                zip.file(devicesSheetFile, sheetXml)
+              if (sheetXml.includes('</sheetData>')) {
+                sheetXml = sheetXml.replace('</sheetData>', '</sheetData>' + dvXml)
               }
+              zip.file(devicesSheetFile, sheetXml)
 
               // Download
               const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
