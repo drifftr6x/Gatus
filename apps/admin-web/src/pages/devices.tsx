@@ -996,13 +996,13 @@ function DeviceModal({
                 { wch: 22 }, { wch: 14 }, { wch: 24 }, { wch: 20 }, { wch: 38 }, { wch: 16 }, { wch: 20 }, { wch: 16 }, { wch: 36 },
               ]
 
-              // Hostname prefill: formula in column E for rows 2-100
+              // Hostname prefill: formula in column E for rows 2-200
               // =IF(A2="","",UPPER(A2)&".internal.livingspaces.com")
               // User can type over it if they need a custom hostname
               const range = XLSX.utils.decode_range(ws['!ref'] ?? 'A1')
-              range.e.r = Math.max(range.e.r, 99) // extend to row 100
+              range.e.r = Math.max(range.e.r, 199) // extend to row 200
               ws['!ref'] = XLSX.utils.encode_range(range)
-              for (let row = 2; row <= 100; row++) {
+              for (let row = 2; row <= 200; row++) {
                 const cellRef = `E${row}`
                 ws[cellRef] = {
                   t: 's',
@@ -1034,7 +1034,7 @@ function DeviceModal({
               const dvXml = '<dataValidations count="1">'
                 + '<dataValidation type="list" allowBlank="1" showErrorMessage="1" '
                 + 'errorTitle="Invalid Group" error="Select a group from the list or type a new group name." '
-                + 'errorStyle="warning" sqref="I2:I100">'
+                + 'errorStyle="warning" sqref="I2:I200">'
                 + `<formula1>GroupsRef!$A$2:$A$${lastGroupRow}</formula1>`
                 + '</dataValidation></dataValidations>'
 
