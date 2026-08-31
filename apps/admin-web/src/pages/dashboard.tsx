@@ -3,6 +3,7 @@ import { telemetryApi, devicesApi, alertsApi, deploymentsApi } from '@/lib/api'
 import { Monitor, CalendarClock, FolderOpen, AlertTriangle, BellRing } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { DeviceMap } from '@/components/device-map'
+import { ConnectivityChart } from '@/components/connectivity-chart'
 
 export function DashboardPage() {
 
@@ -108,7 +109,15 @@ export function DashboardPage() {
       <div className="mt-8">
         <h2 className="mb-3 text-base font-semibold text-white">Device Locations</h2>
         <DeviceMap devices={devicesData?.devices ?? []} />
-      </div>
+        </div>
+
+        {/* Connectivity timeline */}
+        <div className="mt-8">
+        <h2 className="mb-3 text-base font-semibold text-white">Connectivity</h2>
+        <div className="rounded-xl border border-surface-800 bg-surface-900 p-4 shadow-lg">
+          <ConnectivityChart />
+        </div>
+        </div>
 
       {/* Recent deployments */}
       {(recentDeployments?.length ?? 0) > 0 && (

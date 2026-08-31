@@ -223,5 +223,75 @@ public class AnalyticsController : ControllerBase
         }).ToList();
 
         return summaries;
-    }
-}
+        }
+
+        /// <summary>Per-device connectivity timeline with time-bucketed online/offline status.</summary>
+        [HttpGet("connectivity")]
+        public async Task<ActionResult<ConnectivityResponse>> GetConnectivity(
+        [FromQuery] int hours = 24,
+        [FromQuery] int bucketMinutes = 30,
+        [FromQuery] Guid? deviceId = null)
+        {
+        var from = DateTime.UtcNow.AddHours(-hours);
+        var devicesQuery = _context.Devices
+            .Include(d => d.Group)
+            .Where(d => d.IsActive);
+
+        if (deviceId.HasValue)
+            devicesQuery = devicesQuery.Where(d => d.Id == deviceId.Value);
+
+        var devices = await devicesQuery.OrderBy(d => d.Name).ToListAsync();
+        var deviceIds = devices.Select(d => d.Id).ToList();
+
+        // Get all connectivity snapshots in range
+        var snapshots = await _context.Set<DeviceConnectivity>()
+            .Where(c => deviceIds.Contains(c.DeviceId) && c.Timestamp >= from)
+            .OrderBy(c => c.Timestamp)
+            .ToListAsync();
+
+        var results = devices.Select(d =>
+        {
+            var deviceSnapshots = snapshots.Where(s => s.DeviceId == d.Id).ToList();
+            var totalSlots = Math.Max(1, (int)(TimeSpan.FromHours(hours).TotalMinutes / bucketMinutes));
+            var slots = new List<ConnectivitySlot>();
+
+            for (var i = 0; i < totalSlots; i++)
+            {
+                var slotStart = from.AddMinutes(i * bucketMinutes);
+                var slotEnd = slotStart.AddMinutes(bucketMinutes);
+                var slotSnapshots = deviceSnapshots
+                    .Where(s => s.Timestamp >= slotStart && s.Timestamp < slotEnd)
+                    .ToList();
+
+                // A slot is online if ANY snapshot in it shows online
+                var isOnline = slotSnapshots.Any(s => s.IsOnline);
+                var hasData = slotSnapshots.Count > 0;
+                var avgResponseMs = slotSnapshots.Where(s => s.ResponseTimeMs.HasValue)
+                    .Select(s => s.ResponseTimeMs!.Value)
+                    .DefaultIfEmpty()
+                    .Average();
+
+                slots.Add(new ConnectivitySlot(
+                    slotStart,
+                    hasData ? (isOnline ? "online" : "offline") : "unknown",
+                    hasData && avgResponseMs > 0 ? (int)avgResponseMs : null));
+            }
+
+            var onlineSlots = slots.Count(s => s.Status == "online");
+            var knownSlots = slots.Count(s => s.Status != "unknown");
+            var uptimePercent = knownSlots > 0 ? Math.Round((double)onlineSlots / knownSlots * 100, 1) : 0;
+
+            return new DeviceConnectivityDto(
+                d.Id, d.Name, d.Group?.Name, d.Status.ToString(),
+                uptimePercent, slots);
+        }).ToList();
+
+        return new ConnectivityResponse(results, hours, bucketMinutes);
+        }
+        }
+
+        public record ConnectivitySlot(DateTime Timestamp, string Status, int? AvgResponseMs);
+        public record DeviceConnectivityDto(
+        Guid DeviceId, string DeviceName, string? GroupName, string CurrentStatus,
+        double UptimePercent, List<ConnectivitySlot> Slots);
+        public record ConnectivityResponse(List<DeviceConnectivityDto> Devices, int Hours, int BucketMinutes);

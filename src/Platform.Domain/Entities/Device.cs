@@ -47,3 +47,16 @@ public class DeviceTelemetry
     // Navigation
     public Device Device { get; set; } = null!;
 }
+
+public class DeviceConnectivity
+{
+    public Guid Id { get; set; }
+    public Guid DeviceId { get; set; }
+    public DateTime Timestamp { get; set; }
+    public bool IsOnline { get; set; }
+    public int? ResponseTimeMs { get; set; }
+    public string Source { get; set; } = "ping"; // "ping" or "agent"
+
+    // Navigation
+    public Device Device { get; set; } = null!;
+}

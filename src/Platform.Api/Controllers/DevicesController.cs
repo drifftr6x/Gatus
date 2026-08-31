@@ -450,6 +450,16 @@ public class DevicesController : ControllerBase
         device.LastSeenAt = now;
         device.Status = DeviceStatus.Online;
 
+        // Record connectivity snapshot for agent devices
+        _context.Set<DeviceConnectivity>().Add(new DeviceConnectivity
+        {
+            Id = Guid.NewGuid(),
+            DeviceId = device.Id,
+            Timestamp = now,
+            IsOnline = true,
+            Source = "agent"
+        });
+
         // Persist heartbeat metrics as telemetry so alerting has data
         if (payload.HasValue)
         {

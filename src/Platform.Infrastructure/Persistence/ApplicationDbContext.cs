@@ -12,6 +12,7 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<Device> Devices => Set<Device>();
     public DbSet<DeviceTelemetry> DeviceTelemetry => Set<DeviceTelemetry>();
+    public DbSet<DeviceConnectivity> DeviceConnectivity => Set<DeviceConnectivity>();
     public DbSet<Content> Contents => Set<Content>();
     public DbSet<ContentTag> ContentTags => Set<ContentTag>();
     public DbSet<User> Users => Set<User>();

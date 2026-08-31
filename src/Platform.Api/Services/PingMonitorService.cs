@@ -103,6 +103,16 @@ public class PingMonitorService : BackgroundService
             var newStatus = isReachable ? DeviceStatus.Online : DeviceStatus.Offline;
             var previousStatus = device.Status;
 
+            // Record connectivity snapshot every cycle
+            context.Set<DeviceConnectivity>().Add(new DeviceConnectivity
+            {
+                Id = Guid.NewGuid(),
+                DeviceId = device.Id,
+                Timestamp = DateTime.UtcNow,
+                IsOnline = isReachable,
+                Source = "ping"
+            });
+
             if (device.Status != newStatus)
             {
                 device.Status = newStatus;
@@ -122,11 +132,14 @@ public class PingMonitorService : BackgroundService
                 // Broadcast status change via SignalR
                 await broadcaster.DeviceStatusChanged(device.Id, newStatus.ToString(), DateTime.UtcNow);
             }
-            else if (isReachable && device.Status == DeviceStatus.Online)
+            else
             {
-                // Keep LastSeenAt fresh for online devices
-                device.LastSeenAt = DateTime.UtcNow;
+                // Always save to persist connectivity snapshot
                 changed = true;
+                if (isReachable)
+                {
+                    device.LastSeenAt = DateTime.UtcNow;
+                }
             }
         }
 

@@ -60,5 +60,27 @@ public class DeviceTelemetryConfiguration : IEntityTypeConfiguration<DeviceTelem
 
         builder.HasIndex(t => t.DeviceId);
         builder.HasIndex(t => t.Timestamp);
-    }
-}
+        }
+        }
+
+        public class DeviceConnectivityConfiguration : IEntityTypeConfiguration<DeviceConnectivity>
+        {
+        public void Configure(EntityTypeBuilder<DeviceConnectivity> builder)
+        {
+        builder.ToTable("device_connectivity");
+        builder.HasKey(c => c.Id);
+        builder.Property(c => c.Id).HasColumnName("id");
+        builder.Property(c => c.DeviceId).HasColumnName("device_id");
+        builder.Property(c => c.Timestamp).HasColumnName("timestamp");
+        builder.Property(c => c.IsOnline).HasColumnName("is_online");
+        builder.Property(c => c.ResponseTimeMs).HasColumnName("response_time_ms");
+        builder.Property(c => c.Source).HasColumnName("source").HasMaxLength(20);
+
+        builder.HasOne(c => c.Device)
+            .WithMany()
+            .HasForeignKey(c => c.DeviceId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(c => new { c.DeviceId, c.Timestamp });
+        }
+        }

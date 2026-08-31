@@ -700,6 +700,35 @@ export const analyticsApi = {
     return api.get<TelemetryAggregationResponse>(`/analytics/telemetry${q ? `?${q}` : ''}`)
   },
   deviceHealth: () => api.get<DeviceHealthSummary[]>('/analytics/device-health'),
+  connectivity: (hours?: number, bucketMinutes?: number, deviceId?: string) => {
+    const sp = new URLSearchParams()
+    if (hours) sp.set('hours', hours.toString())
+    if (bucketMinutes) sp.set('bucketMinutes', bucketMinutes.toString())
+    if (deviceId) sp.set('deviceId', deviceId)
+    const q = sp.toString()
+    return api.get<ConnectivityResponse>(`/analytics/connectivity${q ? `?${q}` : ''}`)
+  },
+  }
+
+  export interface ConnectivitySlot {
+  timestamp: string
+  status: 'online' | 'offline' | 'unknown'
+  avgResponseMs?: number
+  }
+
+  export interface DeviceConnectivityDto {
+  deviceId: string
+  deviceName: string
+  groupName?: string
+  currentStatus: string
+  uptimePercent: number
+  slots: ConnectivitySlot[]
+  }
+
+  export interface ConnectivityResponse {
+  devices: DeviceConnectivityDto[]
+  hours: number
+  bucketMinutes: number
   }
 
   export interface NotificationChannelDto {
