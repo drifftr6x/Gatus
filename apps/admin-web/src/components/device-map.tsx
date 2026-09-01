@@ -99,13 +99,16 @@ export function DeviceMap({ devices }: { devices: DeviceDto[] }) {
         attributionControl: true,
       })
 
-      // Use Carto's HTTPS basemap instead of the public OSM tile endpoint,
-      // which can reject browser requests in enterprise/proxied networks.
-      const tiles = L.tileLayer('https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        subdomains: 'abcd',
-      }).addTo(map)
+      // Use Esri's public HTTPS tiles. Some enterprise networks block both
+      // the public OSM endpoint and Carto subdomains, which leaves only the
+      // map background visible.
+      const tiles = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+        {
+          maxZoom: 19,
+          attribution: 'Tiles &copy; Esri | &copy; OpenStreetMap contributors',
+        },
+      ).addTo(map)
       tiles.on('tileerror', () => {
         setError('Map tiles could not be loaded. Check network access to the basemap provider.')
       })
