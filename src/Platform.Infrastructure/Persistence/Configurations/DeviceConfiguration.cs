@@ -31,6 +31,11 @@ public class DeviceConfiguration : IEntityTypeConfiguration<Device>
         builder.Property(d => d.DomainName).HasColumnName("domain_name").HasMaxLength(255);
         builder.Property(d => d.DomainJoinStatus).HasColumnName("domain_join_status").HasMaxLength(20);
         builder.Property(d => d.DomainSecureChannelHealthy).HasColumnName("domain_secure_channel_healthy");
+        builder.Property(d => d.KioskEnabled).HasColumnName("kiosk_enabled").HasDefaultValue(false);
+        builder.Property(d => d.PolicyJson).HasColumnName("policy_json").HasColumnType("jsonb");
+        builder.Property(d => d.DeviceSecretHash).HasColumnName("device_secret_hash").HasMaxLength(64);
+        builder.Property(d => d.DeviceSecretIssuedAt).HasColumnName("device_secret_issued_at");
+        builder.Property(d => d.DeviceSecretRevokedAt).HasColumnName("device_secret_revoked_at");
 
         builder.HasOne(d => d.Group)
             .WithMany(g => g.Devices)

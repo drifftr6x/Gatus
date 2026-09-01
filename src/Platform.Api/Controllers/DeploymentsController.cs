@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Platform.Api.Hubs;
+using Platform.Api.Services;
 using Platform.Domain.Entities;
 using Platform.Infrastructure.Persistence;
 
@@ -15,15 +16,18 @@ public class DeploymentsController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly ILogger<DeploymentsController> _logger;
     private readonly IDeviceEventBroadcaster _broadcaster;
+    private readonly DeviceAuthenticationService _deviceAuth;
 
     public DeploymentsController(
         ApplicationDbContext context,
         ILogger<DeploymentsController> logger,
-        IDeviceEventBroadcaster broadcaster)
+        IDeviceEventBroadcaster broadcaster,
+        DeviceAuthenticationService deviceAuth)
     {
         _context = context;
         _logger = logger;
         _broadcaster = broadcaster;
+        _deviceAuth = deviceAuth;
     }
 
     /// <summary>
@@ -40,6 +44,9 @@ public class DeploymentsController : ControllerBase
         // Agent poll: deviceId + status=Pending, no JWT needed (device secret in bearer)
         if (deviceId.HasValue && string.Equals(status, "Pending", StringComparison.OrdinalIgnoreCase))
         {
+            if (await _deviceAuth.AuthenticateAsync(HttpContext, deviceId.Value) is null)
+                return Unauthorized(new { error = "Valid device credentials are required" });
+
             var results = await _context.DeploymentResults
                 .Include(r => r.Deployment)
                 .Where(r => r.DeviceId == deviceId.Value && r.Status == DeploymentResultStatus.Pending)

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Platform.Api.Hubs;
+using Platform.Api.Services;
 using Platform.Contracts.Requests;
 using Platform.Contracts.Responses;
 using Platform.Domain.Entities;
@@ -18,21 +19,26 @@ public class TelemetryController : ControllerBase
     private readonly ILogger<TelemetryController> _logger;
 
     private readonly IDeviceEventBroadcaster _broadcaster;
+    private readonly DeviceAuthenticationService _deviceAuth;
 
-    public TelemetryController(ApplicationDbContext context, ILogger<TelemetryController> logger, IDeviceEventBroadcaster broadcaster)
+    public TelemetryController(ApplicationDbContext context, ILogger<TelemetryController> logger, IDeviceEventBroadcaster broadcaster, DeviceAuthenticationService deviceAuth)
     {
         _context = context;
         _logger = logger;
         _broadcaster = broadcaster;
+        _deviceAuth = deviceAuth;
     }
 
     /// <summary>
     /// Batch telemetry ingestion from kiosk devices.
     /// </summary>
     [HttpPost]
-    [AllowAnonymous] // Devices authenticate via device credentials in a later phase
+    [AllowAnonymous]
     public async Task<IActionResult> Ingest(TelemetryBatchRequest request)
     {
+        if (await _deviceAuth.AuthenticateAsync(HttpContext, request.DeviceId) is null)
+            return Unauthorized(new { error = "Valid device credentials are required" });
+
         var deviceExists = await _context.Devices.AnyAsync(d => d.Id == request.DeviceId);
         if (!deviceExists)
         {

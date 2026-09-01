@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 using Platform.Api.Hubs;
 using Platform.Api.Services;
 using Platform.Contracts.Requests;
@@ -132,6 +133,9 @@ public class DevicesController : ControllerBase
         // Issue a device secret (random, shown once to the agent)
         var deviceSecret = Convert.ToBase64String(
             System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        device.DeviceSecretHash = DeviceAuthenticationService.HashSecret(deviceSecret);
+        device.DeviceSecretIssuedAt = DateTime.UtcNow;
+        device.DeviceSecretRevokedAt = null;
 
         // Consume the token
         token.IsUsed = true;
@@ -479,9 +483,106 @@ public class DevicesController : ControllerBase
         _logger.LogInformation("Device deleted: {DeviceId}", id);
 
         return NoContent();
-    }
+        }
 
-    [HttpPost("{id}/heartbeat")]
+        [HttpGet("{id}/policy")]
+        [AllowAnonymous]
+        public async Task<ActionResult<DevicePolicyDto>> GetPolicy(Guid id)
+        {
+        var device = await _context.Devices.FindAsync(id);
+        if (device == null) return NotFound();
+        return Ok(BuildPolicyDto(device));
+        }
+
+        [HttpPut("{id}/policy")]
+        [Authorize(Policy = "RequireEditor")]
+        public async Task<ActionResult<DevicePolicyDto>> UpdatePolicy(Guid id, [FromBody] UpdateDevicePolicyRequest request)
+        {
+        var device = await _context.Devices.FindAsync(id);
+        if (device == null) return NotFound();
+
+        var current = ParseStoredPolicy(device.PolicyJson);
+        if (request.HomeUrl != null) current.HomeUrl = request.HomeUrl;
+        if (request.SessionTimeoutSeconds.HasValue) current.SessionTimeoutSeconds = request.SessionTimeoutSeconds.Value;
+        if (request.InactivityResetSeconds.HasValue) current.InactivityResetSeconds = request.InactivityResetSeconds.Value;
+        if (request.ClearSessionOnReset.HasValue) current.ClearSessionOnReset = request.ClearSessionOnReset.Value;
+        if (request.AllowedUrls != null) current.AllowedUrls = request.AllowedUrls.ToList();
+        if (request.BlockedUrls != null) current.BlockedUrls = request.BlockedUrls.ToList();
+        if (request.RestartOnExit.HasValue) current.RestartOnExit = request.RestartOnExit.Value;
+        if (request.MaxRestartAttempts.HasValue) current.MaxRestartAttempts = request.MaxRestartAttempts.Value;
+        if (request.RestartDelaySeconds.HasValue) current.RestartDelaySeconds = request.RestartDelaySeconds.Value;
+        if (request.LockdownProfile != null) current.LockdownProfile = request.LockdownProfile;
+        if (request.KioskEnabled.HasValue) device.KioskEnabled = request.KioskEnabled.Value;
+
+        current.Version = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+        device.PolicyJson = JsonSerializer.Serialize(current, PolicyJsonOptions);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Policy updated for {Device}: v{Version} kiosk={Kiosk}",
+            device.Name, current.Version, device.KioskEnabled);
+        return Ok(BuildPolicyDto(device));
+        }
+
+        private static readonly JsonSerializerOptions PolicyJsonOptions = new()
+        {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+        };
+
+        private DevicePolicyDto BuildPolicyDto(Device device)
+        {
+        var stored = ParseStoredPolicy(device.PolicyJson);
+        var kiosk = device.KioskEnabled;
+        var profile = kiosk
+            ? (string.IsNullOrWhiteSpace(stored.LockdownProfile) || stored.LockdownProfile == "none"
+                ? "kiosk"
+                : stored.LockdownProfile)
+            : "none";
+
+        return new DevicePolicyDto(
+            stored.Version ?? "1",
+            stored.HomeUrl,
+            stored.SessionTimeoutSeconds,
+            stored.InactivityResetSeconds,
+            stored.ClearSessionOnReset,
+            stored.AllowedUrls,
+            stored.BlockedUrls,
+            stored.RestartOnExit,
+            stored.MaxRestartAttempts,
+            stored.RestartDelaySeconds,
+            kiosk,
+            new DeviceLockdownDto(profile, HideDesktop: kiosk, HideTaskbar: kiosk, MaintenanceModeAllowed: true));
+        }
+
+        private static StoredDevicePolicy ParseStoredPolicy(string? json)
+        {
+        if (string.IsNullOrWhiteSpace(json)) return new StoredDevicePolicy();
+        try
+        {
+            return JsonSerializer.Deserialize<StoredDevicePolicy>(json, PolicyJsonOptions) ?? new StoredDevicePolicy();
+        }
+        catch
+        {
+            return new StoredDevicePolicy();
+        }
+        }
+
+        private sealed class StoredDevicePolicy
+        {
+        public string? Version { get; set; } = "1";
+        public string? HomeUrl { get; set; }
+        public int SessionTimeoutSeconds { get; set; } = 3600;
+        public int InactivityResetSeconds { get; set; } = 180;
+        public bool ClearSessionOnReset { get; set; } = true;
+        public List<string> AllowedUrls { get; set; } = [];
+        public List<string> BlockedUrls { get; set; } = [];
+        public bool RestartOnExit { get; set; } = true;
+        public int MaxRestartAttempts { get; set; } = 3;
+        public int RestartDelaySeconds { get; set; } = 5;
+        public string? LockdownProfile { get; set; }
+        }
+
+        [HttpPost("{id}/heartbeat")]
     [AllowAnonymous] // Devices may not have full auth
     public async Task<IActionResult> Heartbeat(Guid id, [FromBody] System.Text.Json.JsonElement? payload)
     {

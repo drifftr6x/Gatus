@@ -15,6 +15,7 @@ public class CommandsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<CommandsController> _logger;
+    private readonly Platform.Api.Services.DeviceAuthenticationService _deviceAuth;
 
     private static readonly HashSet<string> AllowedCommandTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -23,10 +24,11 @@ public class CommandsController : ControllerBase
         "EnterMaintenanceMode", "CollectDiagnostics", "UploadLogs"
     };
 
-    public CommandsController(ApplicationDbContext context, ILogger<CommandsController> logger)
+    public CommandsController(ApplicationDbContext context, ILogger<CommandsController> logger, Platform.Api.Services.DeviceAuthenticationService deviceAuth)
     {
         _context = context;
         _logger = logger;
+        _deviceAuth = deviceAuth;
     }
 
     // ─── Agent endpoints (AllowAnonymous — device authenticates via Bearer deviceSecret) ───
@@ -38,6 +40,9 @@ public class CommandsController : ControllerBase
         [FromQuery] Guid deviceId,
         [FromQuery] string? status = null)
     {
+        if (await _deviceAuth.AuthenticateAsync(HttpContext, deviceId) is null)
+            return Unauthorized(new { error = "Valid device credentials are required" });
+
         // When the agent passes a deviceId, return that device's queued commands.
         // (Admin history view is the other GET overload below.)
         var query = _context.Commands.Where(c => c.DeviceId == deviceId);

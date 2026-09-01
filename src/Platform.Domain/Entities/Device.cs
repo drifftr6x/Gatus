@@ -21,9 +21,17 @@ public class Device
     public string? DomainName { get; set; }
     /// <summary>Domain | Workgroup | Unjoined | Unknown</summary>
     public string? DomainJoinStatus { get; set; }
-    /// <summary>True when a domain controller is reachable (secure channel healthy).</summary>
-    public bool? DomainSecureChannelHealthy { get; set; }
-    public DateTime CreatedAt { get; set; }
+     /// <summary>True when a domain controller is reachable (secure channel healthy).</summary>
+     public bool? DomainSecureChannelHealthy { get; set; }
+     /// <summary>When true, the agent applies OS kiosk lockdown and starts the runtime.</summary>
+     public bool KioskEnabled { get; set; }
+     /// <summary>JSON blob for kiosk policy (timeouts, URLs, lockdown). Camel-cased.</summary>
+     public string? PolicyJson { get; set; }
+     /// <summary>SHA-256 hash of the device bearer secret. Plaintext is never persisted.</summary>
+     public string? DeviceSecretHash { get; set; }
+     public DateTime? DeviceSecretIssuedAt { get; set; }
+     public DateTime? DeviceSecretRevokedAt { get; set; }
+     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public bool IsActive { get; set; } = true;
 

@@ -71,6 +71,8 @@ builder.Services.AddHostedService<PingMonitorService>();
 builder.Services.AddSingleton<ContentStorageService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<GeocodingService>();
+builder.Services.AddScoped<DeviceAuthenticationService>();
+builder.Services.AddScoped<DeviceAuthenticationService>();
 
 
 
