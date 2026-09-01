@@ -81,6 +81,12 @@ public class CommandExecutor : BackgroundService
                 $"/api/commands?deviceId={credentials.DeviceId}&status=Queued",
                 cancellationToken);
 
+            if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+            {
+                await _stateManager.MarkCredentialRejectedAsync("command polling");
+                return;
+            }
+
             if (!response.IsSuccessStatusCode)
             {
                 return;

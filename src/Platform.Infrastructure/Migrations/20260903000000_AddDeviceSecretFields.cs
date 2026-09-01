@@ -4,6 +4,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Platform.Infrastructure.Migrations;
 
+/// <summary>
+/// Adds per-device bearer credential fields. The SQL is idempotent because some
+/// development databases received the columns before EF migration history was repaired.
+/// </summary>
 public partial class AddDeviceSecretFields : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)

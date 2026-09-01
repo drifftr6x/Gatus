@@ -9,6 +9,7 @@ public class PolicySyncService : BackgroundService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly LocalStateManager _stateManager;
     private readonly EnrollmentService _enrollmentService;
+    private readonly LockdownEngine _lockdownEngine;
     private readonly ILogger<PolicySyncService> _logger;
     private readonly AgentConfig _config;
     private readonly JsonSerializerOptions _jsonOptions;
@@ -17,15 +18,17 @@ public class PolicySyncService : BackgroundService
         IHttpClientFactory httpClientFactory,
         LocalStateManager stateManager,
         EnrollmentService enrollmentService,
+        LockdownEngine lockdownEngine,
         ILogger<PolicySyncService> logger,
         IConfiguration configuration)
     {
         _httpClientFactory = httpClientFactory;
         _stateManager = stateManager;
         _enrollmentService = enrollmentService;
+        _lockdownEngine = lockdownEngine;
         _logger = logger;
         _config = configuration.GetSection("Agent").Get<AgentConfig>() ?? new AgentConfig();
-        _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -66,6 +69,16 @@ public class PolicySyncService : BackgroundService
             var response = await client.GetAsync(
                 $"/api/devices/{credentials.DeviceId}/policy",
                 cancellationToken);
+
+            if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+            {
+                state.Status = "CredentialRejected";
+                state.CredentialStatus = "Rejected";
+                state.CredentialRejectedAt = DateTime.UtcNow;
+                await _stateManager.SaveStateAsync(state);
+                _logger.LogError("Policy credentials rejected. Re-enroll the device; cached policy remains active.");
+                return;
+            }
 
             if (!response.IsSuccessStatusCode)
             {
@@ -110,7 +123,11 @@ public class PolicySyncService : BackgroundService
 
         // Check critical policy fields
         var localPolicyPath = Path.Combine(_stateManager.ConfigPath, "current-policy.json");
-        if (File.Exists(localPolicyPath))
+        if (!File.Exists(localPolicyPath))
+        {
+            issues.Add("No local policy cache");
+        }
+        else
         {
             var localJson = File.ReadAllText(localPolicyPath);
             var localPolicy = JsonSerializer.Deserialize<PolicyDocument>(localJson, _jsonOptions);
@@ -135,18 +152,61 @@ public class PolicySyncService : BackgroundService
 
     private async Task ApplyPolicyAsync(PolicyDocument policy, CancellationToken cancellationToken)
     {
-        // Save policy to local cache
         var policyPath = Path.Combine(_stateManager.ConfigPath, "current-policy.json");
         var json = JsonSerializer.Serialize(policy, _jsonOptions);
         await File.WriteAllTextAsync(policyPath, json, cancellationToken);
 
-        _logger.LogInformation("Policy applied locally. Version: {Version}", policy.Version);
+        var homeUrl = policy.HomeUrl;
+        if (string.IsNullOrWhiteSpace(homeUrl))
+        {
+            var waiting = Path.Combine(_stateManager.ContentPath, "waiting.html");
+            EnsureWaitingPage(waiting);
+            homeUrl = new Uri(waiting).AbsoluteUri;
+        }
 
-        // In a full implementation, this would:
-        // 1. Restart kiosk runtime if URL changed
-        // 2. Update Windows lockdown settings
-        // 3. Notify SignalR hub of policy change
-        // 4. Report application status to server
+        var kioskConfig = new
+        {
+            homeUrl,
+            allowedUrls = policy.AllowedUrls ?? new List<string>(),
+            blockedUrls = policy.BlockedUrls ?? new List<string>(),
+            sessionTimeoutSeconds = policy.SessionTimeoutSeconds,
+            inactivityTimeoutSeconds = policy.InactivityResetSeconds,
+            clearSessionOnReset = policy.ClearSessionOnReset,
+            allowPopups = false,
+            allowDownloads = false,
+            allowContextMenus = false,
+            allowDevTools = false,
+            maintenanceModeEnabled = false,
+            maxRestartAttempts = policy.MaxRestartAttempts,
+            restartDelaySeconds = policy.RestartDelaySeconds,
+            policyVersion = policy.Version
+        };
+
+        var kioskConfigPath = Path.Combine(_stateManager.ConfigPath, "kiosk-config.json");
+        await File.WriteAllTextAsync(
+            kioskConfigPath,
+            JsonSerializer.Serialize(kioskConfig, _jsonOptions),
+            cancellationToken);
+
+        await KioskIpc.SendAsync(KioskIpc.PolicyPipe, kioskConfig, 2000, _logger, cancellationToken);
+        await _lockdownEngine.ApplyAsync(policy.Lockdown, cancellationToken);
+
+        _logger.LogInformation("Policy applied. Version: {Version} HomeUrl: {HomeUrl} Lockdown: {Profile}",
+            policy.Version, homeUrl, policy.Lockdown?.Profile ?? "none");
+    }
+
+    private void EnsureWaitingPage(string path)
+    {
+        if (File.Exists(path)) return;
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, """
+            <!doctype html>
+            <html><head><meta charset="utf-8"><title>Sentinel Kiosk</title>
+            <style>html,body{margin:0;height:100%;background:#0b1220;color:#94a3b8;font-family:Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center}
+            .c{text-align:center}.t{font-size:22px;color:#e2e8f0;margin:0 0 8px}.s{font-size:14px}</style></head>
+            <body><div class="c"><p class="t">Waiting for content</p>
+            <p class="s">This kiosk is online. Deploy content from the admin console.</p></div></body></html>
+            """);
     }
 }
 

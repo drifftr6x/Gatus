@@ -71,6 +71,12 @@ public class DeploymentService : BackgroundService
                 $"/api/deployments?deviceId={credentials.DeviceId}&status=Pending",
                 cancellationToken);
 
+            if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+            {
+                await _stateManager.MarkCredentialRejectedAsync("deployment polling");
+                return;
+            }
+
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogDebug("No pending deployments or error: {StatusCode}", response.StatusCode);

@@ -198,6 +198,96 @@ public class TelemetryControllerTests : IClassFixture<CustomWebApplicationFactor
     }
 
     [Fact]
+    public async Task Ingest_WithInvalidDeviceSecret_ReturnsUnauthorized()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var device = new Device
+        {
+            Id = Guid.NewGuid(), Name = "Protected Device", SerialNumber = $"SN-{Guid.NewGuid():N}",
+            Status = DeviceStatus.Online, IsActive = true,
+            DeviceSecretHash = Platform.Api.Services.DeviceAuthenticationService.HashSecret("correct-secret")
+        };
+        db.Devices.Add(device);
+        await db.SaveChangesAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/telemetry")
+        {
+            Content = JsonContent.Create(new TelemetryBatchRequest(device.Id, new List<TelemetryMetricRequest>
+            {
+                new("cpu_percent", "42", "%")
+            }))
+        };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "wrong-secret");
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Ingest_WithInactiveDevice_ReturnsUnauthorized()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var device = new Device
+        {
+            Id = Guid.NewGuid(), Name = "Revoked Device", SerialNumber = $"SN-{Guid.NewGuid():N}",
+            Status = DeviceStatus.Online, IsActive = false,
+            DeviceSecretHash = Platform.Api.Services.DeviceAuthenticationService.HashSecret("revoked-secret")
+        };
+        db.Devices.Add(device);
+        await db.SaveChangesAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/telemetry")
+        {
+            Content = JsonContent.Create(new TelemetryBatchRequest(device.Id, new List<TelemetryMetricRequest>
+            {
+                new("cpu_percent", "42", "%")
+            }))
+        };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "revoked-secret");
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Ingest_WithAnotherDevicesSecret_ReturnsUnauthorized()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var deviceA = new Device
+        {
+            Id = Guid.NewGuid(), Name = "Device A", SerialNumber = $"SN-{Guid.NewGuid():N}",
+            Status = DeviceStatus.Online, IsActive = true,
+            DeviceSecretHash = Platform.Api.Services.DeviceAuthenticationService.HashSecret("device-a-secret")
+        };
+        var deviceB = new Device
+        {
+            Id = Guid.NewGuid(), Name = "Device B", SerialNumber = $"SN-{Guid.NewGuid():N}",
+            Status = DeviceStatus.Online, IsActive = true,
+            DeviceSecretHash = Platform.Api.Services.DeviceAuthenticationService.HashSecret("device-b-secret")
+        };
+        db.Devices.AddRange(deviceA, deviceB);
+        await db.SaveChangesAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/telemetry")
+        {
+            Content = JsonContent.Create(new TelemetryBatchRequest(deviceB.Id, new List<TelemetryMetricRequest>
+            {
+                new("cpu_percent", "42", "%")
+            }))
+        };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "device-a-secret");
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Summary_WithoutAuth_ReturnsUnauthorized()
     {
         var response = await _client.GetAsync("/api/telemetry/summary");

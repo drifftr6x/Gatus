@@ -215,6 +215,10 @@ public class TelemetryCollector : BackgroundService
                 await _stateManager.SaveStateAsync(state);
                 _logger.LogDebug("Uploaded {Count} telemetry points", batch.Count);
             }
+            else if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+            {
+                await _stateManager.MarkCredentialRejectedAsync("telemetry upload");
+            }
             else
             {
                 _logger.LogWarning("Telemetry upload failed: {StatusCode}", response.StatusCode);

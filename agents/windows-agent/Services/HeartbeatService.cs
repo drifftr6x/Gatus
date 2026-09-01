@@ -123,7 +123,14 @@ public class HeartbeatService : BackgroundService
             else
             {
                 _logger.LogWarning("Heartbeat failed: {StatusCode}", response.StatusCode);
-                state.Status = "Offline";
+                state.Status = response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden
+                    ? "CredentialRejected" : "Offline";
+                if (state.Status == "CredentialRejected")
+                {
+                    _logger.LogError("Device credentials rejected. Generate a new enrollment token and re-run the agent with --enroll; cached policy/content will be preserved.");
+                    state.CredentialStatus = "Rejected";
+                    state.CredentialRejectedAt = DateTime.UtcNow;
+                }
                 await _stateManager.SaveStateAsync(state);
             }
         }

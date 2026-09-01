@@ -45,7 +45,15 @@ Authorization: Bearer <device-secret>
 
 The server stores only a SHA-256 hash of the secret and binds the credential to the device ID. Heartbeats, telemetry, command polling/results, deployment polling/status, policy retrieval, and content downloads must use the enrolled device credential. Enrollment remains the only anonymous agent operation and requires a valid one-time token.
 
-If the device receives `401` or `403`, stop the agent and re-enroll it with a newly generated token after confirming the device has not been revoked.
+If the device receives `401` or `403`, the agent records `CredentialRejected`, preserves cached policy/content, and logs a re-enrollment instruction. Stop the service, generate a new token in **Devices → Enroll a Device**, then run:
+
+```powershell
+Stop-Service SentinelKioskAgent
+SentinelKiosk.Agent.exe --enroll <new-token>
+Start-Service SentinelKioskAgent
+```
+
+Enrollment replaces the DPAPI-protected credential only after the server accepts the new token. Confirm the device is Online before deploying content.
 
 ## Configuration
 
@@ -78,7 +86,7 @@ FROM devices
 ORDER BY last_seen_at DESC NULLS LAST;
 ```
 
-This laptop has already enrolled as **LAPITG001116** in the lab database.
+This laptop is registered as **LAPITG001116** in the lab database. When the API and agent run on the same laptop, keep the agent URL as `http://localhost:5163`. Because this device predates stored device-secret hashes, it must be re-enrolled once with a token linked to the existing device before authenticated heartbeat and deployment verification can pass.
 
 ## Lockdown
 

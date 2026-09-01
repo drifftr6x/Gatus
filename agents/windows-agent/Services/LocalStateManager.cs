@@ -114,6 +114,16 @@ public class LocalStateManager
         await File.WriteAllTextAsync(statePath, json);
     }
 
+    public async Task MarkCredentialRejectedAsync(string source)
+    {
+        var state = await LoadStateAsync();
+        state.Status = "CredentialRejected";
+        state.CredentialStatus = "Rejected";
+        state.CredentialRejectedAt = DateTime.UtcNow;
+        await SaveStateAsync(state);
+        _logger.LogError("Device credentials rejected by {Source}. Re-enroll the device; cached policy and content are preserved.", source);
+    }
+
     public string GetStagingPath(string deploymentId) =>
         Path.Combine(CachePath, "staging", deploymentId);
 

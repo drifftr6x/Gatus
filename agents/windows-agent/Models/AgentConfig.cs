@@ -31,6 +31,8 @@ public class AgentState
     public DateTime LastHeartbeat { get; set; }
     public DateTime LastPolicySync { get; set; }
     public DateTime LastDeploymentCheck { get; set; }
+    public string? CredentialStatus { get; set; }
+    public DateTime? CredentialRejectedAt { get; set; }
     public List<PendingTelemetry> PendingTelemetry { get; set; } = [];
     public List<string> PendingCommands { get; set; } = [];
 }
