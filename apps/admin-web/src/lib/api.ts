@@ -222,7 +222,20 @@ export const devicesApi = {
     api.post<BulkOperationResponse>('/devices/bulk-tag', data),
   import: (data: ImportDevicesRequest) =>
     api.post<ImportDevicesResponse>('/devices/import', data),
-  }
+  listAll: async () => {
+    const pageSize = 100
+    const first = await devicesApi.list({ page: 1, pageSize })
+    const pageCount = Math.ceil(first.totalCount / pageSize)
+    if (pageCount <= 1) return first.devices
+
+    const remaining = await Promise.all(
+      Array.from({ length: pageCount - 1 }, (_, index) =>
+        devicesApi.list({ page: index + 2, pageSize }),
+      ),
+    )
+    return [first.devices, ...remaining.map((page) => page.devices)].flat()
+  },
+    }
 
   export interface ImportDeviceRow {
   name: string

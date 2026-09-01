@@ -12,9 +12,9 @@ export function DashboardPage() {
     queryFn: telemetryApi.summary,
   })
 
-  const { data: devicesData } = useQuery({
-    queryKey: ['devices'],
-    queryFn: () => devicesApi.list({ pageSize: 100 }),
+  const { data: allDevices } = useQuery({
+    queryKey: ['devices', 'all'],
+    queryFn: devicesApi.listAll,
   })
 
   const { data: alertCount } = useQuery({
@@ -108,7 +108,7 @@ export function DashboardPage() {
       {/* Device map */}
       <div className="mt-8">
         <h2 className="mb-3 text-base font-semibold text-white">Device Locations</h2>
-        <DeviceMap devices={devicesData?.devices ?? []} />
+        <DeviceMap devices={allDevices ?? []} />
         </div>
 
         {/* Connectivity timeline */}
