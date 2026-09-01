@@ -484,36 +484,6 @@ export const alertsApi = {
   api.put<DomainHealthSettings>('/settings/domain-health', data),
   }
 
-  export const logsApi = {
-  list: (params?: { level?: string; search?: string; limit?: number; lastMinutes?: number; source?: string }) => {
-    const sp = new URLSearchParams()
-    if (params?.level) sp.set('level', params.level)
-    if (params?.search) sp.set('search', params.search)
-    if (params?.limit) sp.set('limit', params.limit.toString())
-    if (params?.lastMinutes) sp.set('lastMinutes', params.lastMinutes.toString())
-    if (params?.source) sp.set('source', params.source)
-    const q = sp.toString()
-    return api.get<LogResponse>(`/logs${q ? `?${q}` : ''}`)
-  },
-  }
-
-  export interface LogEntry {
-  timestamp: string
-  level: string
-  message: string
-  exception?: string
-  correlationId?: string
-  requestPath?: string
-  statusCode?: number
-  elapsed?: number
-  source?: string
-  }
-
-  export interface LogResponse {
-  entries: LogEntry[]
-  totalMatched: number
-  }
-
 export const commandsApi = {
   history: (params?: { deviceId?: string; status?: string; limit?: number }) => {
     const searchParams = new URLSearchParams()
@@ -693,6 +663,43 @@ export interface DeviceHealthSummary {
   diskFreeAvg?: number
   uptimeSeconds?: number
   lastHeartbeat?: string
+}
+
+export interface LogEntryDto {
+  timestamp: string
+  level: string
+  message: string
+  exception?: string
+  correlationId?: string
+  requestPath?: string
+  statusCode?: number
+  elapsed?: number
+  source?: string
+}
+
+export interface LogResponseDto {
+  entries: LogEntryDto[]
+  totalMatched: number
+}
+
+export const logsApi = {
+  list: (params?: {
+    level?: string
+    search?: string
+    limit?: number
+    lastMinutes?: number
+    source?: 'audit'
+  }) => {
+    const sp = new URLSearchParams()
+    if (params?.level) sp.set('level', params.level)
+    if (params?.search) sp.set('search', params.search)
+    if (params?.limit) sp.set('limit', params.limit.toString())
+    if (params?.lastMinutes) sp.set('lastMinutes', params.lastMinutes.toString())
+    if (params?.source) sp.set('source', params.source)
+    const q = sp.toString()
+    return api.get<LogResponseDto>(`/logs${q ? `?${q}` : ''}`)
+  },
+  levels: () => api.get<string[]>('/logs/levels'),
 }
 
 export const analyticsApi = {

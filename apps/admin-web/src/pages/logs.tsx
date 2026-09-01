@@ -36,7 +36,7 @@ export function LogsPage() {
     return () => clearTimeout(timer)
   }, [search])
 
-  const { data, isLoading, refetch, isFetching } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['logs', level, debouncedSearch, timeRange, source],
     queryFn: () => logsApi.list({
       level: level || undefined,
@@ -145,6 +145,11 @@ export function LogsPage() {
       </div>
 
       {/* Log entries */}
+      {error && (
+        <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          Failed to load logs: {error.message}
+        </div>
+      )}
       <div className="mt-4 overflow-hidden rounded-xl border border-surface-800 bg-surface-900 shadow-lg">
         {isLoading ? (
           <div className="flex h-64 items-center justify-center">
