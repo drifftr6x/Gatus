@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { logsApi } from '@/lib/api'
 import { useState, useEffect, useRef } from 'react'
-import { Search, RefreshCw, ChevronDown, ChevronRight, AlertCircle, AlertTriangle, Info, Bug } from 'lucide-react'
+import type { LogEntryDto } from '@/lib/api'
+import * as XLSX from 'xlsx'
+import { Search, RefreshCw, Download, FileSpreadsheet, FileText, ChevronDown, ChevronRight, AlertCircle, AlertTriangle, Info, Bug } from 'lucide-react'
 
 const levelConfig: Record<string, { icon: typeof Info; color: string; bg: string; ring: string }> = {
   Verbose:     { icon: Bug,            color: 'text-slate-500',  bg: 'bg-slate-500/10',  ring: 'ring-slate-500/30' },
@@ -50,6 +52,9 @@ export function LogsPage() {
 
   const levels = ['', 'Information', 'Warning', 'Error', 'Fatal']
 
+  const exportEntries = data?.entries ?? []
+  const exportDisabled = exportEntries.length === 0 || isFetching
+
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -59,8 +64,35 @@ export function LogsPage() {
             {source === 'audit' ? 'User action audit trail' : 'API server logs'} — {data?.totalMatched ?? 0} entries
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2 text-sm text-slate-400">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => downloadCsv(exportEntries)}
+              disabled={exportDisabled}
+              title="Export the currently filtered entries as CSV"
+              className="flex items-center gap-1.5 rounded-lg border border-surface-700 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-surface-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Download className="h-3.5 w-3.5" />
+              CSV
+            </button>
+            <button
+              onClick={() => downloadExcel(exportEntries)}
+              disabled={exportDisabled}
+              title="Export the currently filtered entries as Excel"
+              className="flex items-center gap-1.5 rounded-lg border border-surface-700 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-surface-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Excel
+            </button>
+            <button
+              onClick={() => printPdf(exportEntries, source)}
+              disabled={exportDisabled}
+              title="Print the currently filtered entries or save them as PDF"
+              className="flex items-center gap-1.5 rounded-lg border border-surface-700 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-surface-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              PDF
+            </button>
+            <label className="flex items-center gap-2 text-sm text-slate-400">
             <input
               type="checkbox"
               checked={autoRefresh}
@@ -250,6 +282,77 @@ export function LogsPage() {
       </div>
     </div>
   )
+}
+
+function exportRows(entries: LogEntryDto[]) {
+  return entries.map((entry) => ({
+    Timestamp: entry.timestamp,
+    Level: entry.level,
+    Message: entry.message,
+    Source: entry.source ?? '',
+    RequestPath: entry.requestPath ?? '',
+    StatusCode: entry.statusCode ?? '',
+    ElapsedMs: entry.elapsed ?? '',
+    CorrelationId: entry.correlationId ?? '',
+    Exception: entry.exception ?? '',
+  }))
+}
+
+function downloadFile(content: BlobPart, filename: string, type: string) {
+  const url = URL.createObjectURL(new Blob([content], { type }))
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(url)
+}
+
+function downloadCsv(entries: LogEntryDto[]) {
+  const rows = exportRows(entries)
+  if (!rows.length) return
+  const columns = Object.keys(rows[0])
+  const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
+  const csv = [
+    columns.join(','),
+    ...rows.map((row) => columns.map((column) => escape(row[column as keyof typeof row])).join(',')),
+  ].join('\r\n')
+  downloadFile(`\uFEFF${csv}`, `gatus-logs-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8')
+}
+
+function downloadExcel(entries: LogEntryDto[]) {
+  const rows = exportRows(entries)
+  if (!rows.length) return
+  const worksheet = XLSX.utils.json_to_sheet(rows)
+  worksheet['!cols'] = [
+    { wch: 26 }, { wch: 14 }, { wch: 80 }, { wch: 38 }, { wch: 34 },
+    { wch: 12 }, { wch: 12 }, { wch: 28 }, { wch: 80 },
+  ]
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Logs')
+  XLSX.writeFile(workbook, `gatus-logs-${new Date().toISOString().slice(0, 10)}.xlsx`)
+}
+
+function printPdf(entries: LogEntryDto[], source: 'server' | 'audit') {
+  if (!entries.length) return
+  const popup = window.open('', '_blank', 'width=1200,height=800')
+  if (!popup) {
+    window.alert('Allow pop-ups to create the PDF print view.')
+    return
+  }
+  const rows = exportRows(entries).map((row) => `
+    <tr>${Object.values(row).map((value) => `<td>${escapeHtml(String(value ?? ''))}</td>`).join('')}</tr>
+  `).join('')
+  const headers = Object.keys(exportRows(entries)[0]).map((key) => `<th>${escapeHtml(key)}</th>`).join('')
+  popup.document.write(`<!doctype html><html><head><title>Gatus ${source === 'audit' ? 'User Actions' : 'Server Logs'}</title>
+    <style>body{font:12px Arial;color:#111;margin:24px}h1{font-size:20px}p{color:#555}table{border-collapse:collapse;width:100%;table-layout:fixed}th,td{border:1px solid #ccc;padding:5px;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:#eee}td:nth-child(3),td:nth-child(9){white-space:pre-wrap}@media print{button{display:none}}</style>
+    </head><body><h1>Gatus Kiosk — ${source === 'audit' ? 'User Actions' : 'Server Logs'}</h1><p>Exported ${new Date().toLocaleString()} · ${entries.length} entries</p><table><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()</script></body></html>`)
+  popup.document.close()
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] ?? character)
 }
 
 function formatTime(iso: string): string {
