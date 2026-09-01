@@ -1,4 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { devicesApi, groupsApi } from '@/lib/api'
 import {
   LayoutDashboard,
   Monitor,
@@ -33,8 +35,29 @@ const navItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation()
+  const queryClient = useQueryClient()
   const { user, logout } = useAuth()
   const { isConnected } = useSignalR()
+
+  const prefetchNavigation = (href: string) => {
+    if (href === '/devices' || href === '/groups') {
+      void queryClient.prefetchQuery({
+        queryKey: ['devices'],
+        queryFn: () => devicesApi.list({ pageSize: 500 }),
+        staleTime: 30_000,
+      })
+      void queryClient.prefetchQuery({
+        queryKey: ['devices', 'all'],
+        queryFn: devicesApi.listAll,
+        staleTime: 30_000,
+      })
+      void queryClient.prefetchQuery({
+        queryKey: ['deviceGroups'],
+        queryFn: groupsApi.list,
+        staleTime: 30_000,
+      })
+    }
+  }
 
   return (
     <div className="min-h-screen bg-surface-950">
@@ -92,6 +115,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.href}
                   to={item.href}
+                  onMouseEnter={() => prefetchNavigation(item.href)}
+                  onFocus={() => prefetchNavigation(item.href)}
                   className={clsx(
                     'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                     isActive

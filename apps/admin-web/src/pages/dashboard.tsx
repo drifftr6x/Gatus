@@ -8,13 +8,15 @@ import { ConnectivityChart } from '@/components/connectivity-chart'
 export function DashboardPage() {
 
   const { data: summary, isLoading } = useQuery({
-    queryKey: ['telemetry-summary'],
-    queryFn: telemetryApi.summary,
+  queryKey: ['telemetry-summary'],
+  queryFn: telemetryApi.summary,
+  staleTime: 15_000,
   })
 
   const { data: allDevices } = useQuery({
-    queryKey: ['devices', 'all'],
-    queryFn: devicesApi.listAll,
+  queryKey: ['devices', 'all'],
+  queryFn: devicesApi.listAll,
+  staleTime: 30_000,
   })
 
   const { data: alertCount } = useQuery({

@@ -17,18 +17,21 @@ export function GroupsPage() {
   const [searchFilter, setSearchFilter] = useState('')
 
   const { data: groups, isLoading, error } = useQuery({
-    queryKey: ['deviceGroups'],
-    queryFn: groupsApi.list,
+  queryKey: ['deviceGroups'],
+  queryFn: groupsApi.list,
+  staleTime: 30_000,
   })
 
   const { data: allDevices } = useQuery({
-    queryKey: ['devices', 'all'],
-    queryFn: () => devicesApi.list({ pageSize: 500 }),
+  queryKey: ['devices', 'all'],
+  queryFn: devicesApi.listAll,
+  staleTime: 30_000,
   })
 
   const { data: alertsData } = useQuery({
-    queryKey: ['alerts', 'active'],
-    queryFn: () => alertsApi.list({ status: 'Active', limit: 500 }),
+  queryKey: ['alerts', 'active'],
+  queryFn: () => alertsApi.list({ status: 'Active', limit: 500 }),
+  staleTime: 30_000,
   })
 
   const deleteMutation = useMutation({

@@ -22,13 +22,15 @@ export function DevicesPage() {
   const [sortDir, setSortDir] = useState<SortDir>('asc')
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['devices'],
-    queryFn: () => devicesApi.list({ pageSize: 500 }),
+  queryKey: ['devices'],
+  queryFn: () => devicesApi.list({ pageSize: 500 }),
+  staleTime: 30_000,
   })
 
   const { data: groups } = useQuery({
-    queryKey: ['deviceGroups'],
-    queryFn: groupsApi.list,
+  queryKey: ['deviceGroups'],
+  queryFn: groupsApi.list,
+  staleTime: 30_000,
   })
 
   const toggleSort = (field: SortField) => {
