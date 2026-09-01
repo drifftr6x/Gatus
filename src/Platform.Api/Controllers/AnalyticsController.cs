@@ -38,39 +38,74 @@ public class AnalyticsController : ControllerBase
             .ToListAsync();
 
         var deviceIds = devices.Select(d => d.Id).ToList();
+        var totalWindowMinutes = days * 24L * 60;
 
-        // Get heartbeats (online indicators) in the window
-        var heartbeats = await _context.DeviceTelemetry
-            .Where(t => deviceIds.Contains(t.DeviceId) && t.Timestamp >= cutoff)
-            .GroupBy(t => t.DeviceId)
-            .Select(g => new { DeviceId = g.Key, Count = g.Count(), First = g.Min(t => t.Timestamp), Last = g.Max(t => t.Timestamp) })
+        // Ping / agent connectivity snapshots (authoritative when present)
+        var connectivity = await _context.DeviceConnectivity
+            .Where(c => deviceIds.Contains(c.DeviceId) && c.Timestamp >= cutoff)
+            .GroupBy(c => c.DeviceId)
+            .Select(g => new
+            {
+                DeviceId = g.Key,
+                Total = g.Count(),
+                Online = g.Count(c => c.IsOnline)
+            })
             .ToListAsync();
 
-        var totalWindowMinutes = days * 24 * 60;
+        // One row per agent heartbeat (cpu_usage is written once per beat)
+        var heartbeats = await _context.DeviceTelemetry
+            .Where(t => deviceIds.Contains(t.DeviceId) && t.Timestamp >= cutoff && t.MetricName == "cpu_usage")
+            .GroupBy(t => t.DeviceId)
+            .Select(g => new { DeviceId = g.Key, Count = g.Count() })
+            .ToListAsync();
+
         var summaries = devices.Select(d =>
         {
+            var conn = connectivity.FirstOrDefault(c => c.DeviceId == d.Id);
             var hb = heartbeats.FirstOrDefault(h => h.DeviceId == d.Id);
-            var onlineMinutes = hb?.Count ?? 0; // each heartbeat ≈ 30s → 2 per minute
-            onlineMinutes = onlineMinutes / 2; // rough conversion
 
-            // Cap at window size
-            onlineMinutes = Math.Min(onlineMinutes, totalWindowMinutes);
-            var uptimePercent = totalWindowMinutes > 0
-                ? Math.Round((double)onlineMinutes / totalWindowMinutes * 100, 1)
-                : 0;
+            long onlineMinutes;
+            double uptimePercent;
+            bool hasSamples;
+
+            if (conn is { Total: > 0 })
+            {
+                hasSamples = true;
+                uptimePercent = Math.Round(100.0 * conn.Online / conn.Total, 1);
+                onlineMinutes = (long)Math.Round(uptimePercent / 100.0 * totalWindowMinutes);
+            }
+            else if (hb is { Count: > 0 })
+            {
+                hasSamples = true;
+                // Agent interval is 30s → 2 samples per minute
+                onlineMinutes = Math.Min(hb.Count / 2, totalWindowMinutes);
+                uptimePercent = totalWindowMinutes > 0
+                    ? Math.Round(100.0 * onlineMinutes / totalWindowMinutes, 1)
+                    : 0;
+            }
+            else
+            {
+                hasSamples = false;
+                onlineMinutes = 0;
+                uptimePercent = 0;
+            }
 
             return new DeviceUptimeSummary(
                 d.Id, d.Name, d.Group?.Name, d.Status.ToString(),
                 uptimePercent, onlineMinutes, totalWindowMinutes - onlineMinutes,
-                d.LastSeenAt);
+                d.LastSeenAt, hasSamples);
         }).ToList();
 
-        var overallUptime = summaries.Count > 0
-            ? Math.Round(summaries.Average(s => s.UptimePercent), 1)
+        var sampled = summaries.Where(s => s.HasSamples).ToList();
+        var overallUptime = sampled.Count > 0
+            ? Math.Round(sampled.Average(s => s.UptimePercent), 1)
             : 0;
 
         return new UptimeReportResponse(
-            summaries.OrderByDescending(s => s.UptimePercent).ToList(),
+            summaries
+                .OrderByDescending(s => s.HasSamples)
+                .ThenByDescending(s => s.UptimePercent)
+                .ToList(),
             summaries.Count,
             overallUptime,
             DateTime.UtcNow);
@@ -147,15 +182,21 @@ public class AnalyticsController : ControllerBase
             .GroupBy(t => t.MetricName!)
             .Select(g =>
             {
-                var values = g.Select(t => double.Parse(t.MetricValue!, CultureInfo.InvariantCulture)).ToList();
+                var parsed = g
+                    .Select(t => (
+                        t.Timestamp,
+                        Value: double.Parse(t.MetricValue!, CultureInfo.InvariantCulture),
+                        Unit: t.Unit ?? ""))
+                    .OrderBy(x => x.Timestamp)
+                    .ToList();
                 return new TelemetryMetricAggregate(
                     g.Key,
-                    g.First().Unit ?? "",
-                    values.Min(),
-                    values.Max(),
-                    Math.Round(values.Average(), 2),
-                    values.Last(),
-                    values.Count);
+                    parsed.Last().Unit,
+                    Math.Round(parsed.Min(x => x.Value), 2),
+                    Math.Round(parsed.Max(x => x.Value), 2),
+                    Math.Round(parsed.Average(x => x.Value), 2),
+                    Math.Round(parsed.Last().Value, 2),
+                    parsed.Count);
             })
             .OrderBy(m => m.MetricName)
             .ToList();

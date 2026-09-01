@@ -15,7 +15,8 @@ public record DeviceUptimeSummary(
     double UptimePercent,
     long TotalMinutesOnline,
     long TotalMinutesOffline,
-    DateTime? LastSeenAt
+    DateTime? LastSeenAt,
+    bool HasSamples
 );
 
 public record AlertTrendResponse(

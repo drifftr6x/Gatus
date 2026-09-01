@@ -641,6 +641,7 @@ export interface DeviceUptimeSummary {
   totalMinutesOnline: number
   totalMinutesOffline: number
   lastSeenAt?: string
+  hasSamples: boolean
 }
 
 export interface UptimeReportResponse {

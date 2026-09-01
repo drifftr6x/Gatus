@@ -1,34 +1,74 @@
 import { useQuery } from '@tanstack/react-query'
 import { analyticsApi } from '@/lib/api'
-import { useState } from 'react'
+import type { DeviceUptimeSummary, TelemetryMetricAggregate } from '@/lib/api'
+import { useMemo, useState } from 'react'
 import { Clock, TrendingUp, Activity, Monitor } from 'lucide-react'
 import { clsx } from 'clsx'
+
+const PRIMARY_METRICS = new Set([
+  'cpu_usage',
+  'memory_usage',
+  'disk_free_percent',
+  'disk_free_gb',
+])
+
+function fmt(n: number | null | undefined, digits = 1) {
+  if (n == null || Number.isNaN(n)) return '—'
+  return n.toFixed(digits)
+}
 
 export function AnalyticsPage() {
   const [uptimeDays, setUptimeDays] = useState(7)
   const [trendDays, setTrendDays] = useState(30)
   const [telemetryHours, setTelemetryHours] = useState(24)
 
-  const { data: uptime } = useQuery({
+  const uptimeQuery = useQuery({
     queryKey: ['analytics', 'uptime', uptimeDays],
     queryFn: () => analyticsApi.uptime(uptimeDays),
   })
 
-  const { data: trends } = useQuery({
+  const trendsQuery = useQuery({
     queryKey: ['analytics', 'trends', trendDays],
     queryFn: () => analyticsApi.alertTrends(trendDays),
   })
 
-  const { data: telemetry } = useQuery({
+  const telemetryQuery = useQuery({
     queryKey: ['analytics', 'telemetry', telemetryHours],
     queryFn: () => analyticsApi.telemetry(telemetryHours),
   })
 
-  const { data: health } = useQuery({
+  const healthQuery = useQuery({
     queryKey: ['analytics', 'health'],
     queryFn: analyticsApi.deviceHealth,
     refetchInterval: 30_000,
   })
+
+  const uptime = uptimeQuery.data
+  const trends = trendsQuery.data
+  const telemetry = telemetryQuery.data
+  const health = healthQuery.data
+
+  const sampledUptime = useMemo(
+    () => (uptime?.devices ?? []).filter((d) => d.hasSamples),
+    [uptime],
+  )
+  const unsampledCount = (uptime?.devices?.length ?? 0) - sampledUptime.length
+
+  const primaryMetrics = useMemo(
+    () => (telemetry?.metrics ?? []).filter((m) => PRIMARY_METRICS.has(m.metricName)),
+    [telemetry],
+  )
+  const otherMetrics = useMemo(
+    () => (telemetry?.metrics ?? []).filter((m) => !PRIMARY_METRICS.has(m.metricName)),
+    [telemetry],
+  )
+
+  const healthWithMetrics = useMemo(
+    () => (health ?? []).filter((d) => d.cpuAvg != null || d.memoryAvg != null || d.diskFreeAvg != null),
+    [health],
+  )
+
+  const queryFailed = uptimeQuery.isError || trendsQuery.isError || telemetryQuery.isError || healthQuery.isError
 
   return (
     <div>
@@ -36,6 +76,12 @@ export function AnalyticsPage() {
         <h1 className="text-xl font-semibold text-white">Analytics</h1>
         <p className="mt-1 text-sm text-slate-400">Fleet health reports and trends</p>
       </div>
+
+      {queryFailed && (
+        <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          Could not load one or more analytics reports. Confirm the API is running on port 5163.
+        </div>
+      )}
 
       {/* Uptime Report */}
       <section className="mt-8">
@@ -49,46 +95,24 @@ export function AnalyticsPage() {
             onChange={(e) => setUptimeDays(Number(e.target.value))}
             className="rounded-lg border border-surface-700 bg-surface-850 px-3 py-1.5 text-sm text-white outline-none focus:border-accent-500"
           >
-            {[7, 14, 30].map(d => <option key={d} value={d}>{d} days</option>)}
+            {[7, 14, 30].map((d) => <option key={d} value={d}>{d} days</option>)}
           </select>
         </div>
         <div className="rounded-xl border border-surface-800 bg-surface-900 p-5 shadow-lg">
           <div className="flex items-baseline gap-4">
-            <span className="text-3xl font-semibold text-white">{uptime?.overallUptimePercent ?? '—'}%</span>
-            <span className="text-sm text-slate-400">overall uptime across {uptime?.totalDevices ?? 0} devices</span>
+            <span className="text-3xl font-semibold text-white">{uptime ? `${uptime.overallUptimePercent}%` : '—'}</span>
+            <span className="text-sm text-slate-400">
+              overall across {sampledUptime.length} sampled device{sampledUptime.length === 1 ? '' : 's'}
+              {unsampledCount > 0 && ` · ${unsampledCount} with no samples`}
+            </span>
           </div>
-          <div className="mt-4 space-y-2">
-            {uptime?.devices.map((d) => (
-              <div key={d.deviceId} className="flex items-center gap-3">
-                <span className="w-32 truncate text-sm text-slate-300">{d.deviceName}</span>
-                <div className="flex-1">
-                  <div className="h-4 w-full rounded-full bg-surface-800">
-                    <div
-                      className={clsx(
-                        'h-4 rounded-full transition-all',
-                        d.uptimePercent >= 95 ? 'bg-emerald-500' :
-                        d.uptimePercent >= 80 ? 'bg-amber-500' : 'bg-red-500'
-                      )}
-                      style={{ width: `${Math.min(d.uptimePercent, 100)}%` }}
-                    />
-                  </div>
-                </div>
-                <span className={clsx(
-                  'w-14 text-right text-sm font-medium',
-                  d.uptimePercent >= 95 ? 'text-emerald-400' :
-                  d.uptimePercent >= 80 ? 'text-amber-400' : 'text-red-400'
-                )}>
-                  {d.uptimePercent}%
-                </span>
-                <span className={clsx(
-                  'w-20 text-right text-xs',
-                  d.status === 'Online' ? 'text-emerald-400' :
-                  d.status === 'Error' ? 'text-red-400' : 'text-slate-500'
-                )}>
-                  {d.status}
-                </span>
-              </div>
+          <div className="mt-4 max-h-[28rem] space-y-2 overflow-y-auto pr-1">
+            {sampledUptime.map((d) => (
+              <UptimeRow key={d.deviceId} d={d} />
             ))}
+            {sampledUptime.length === 0 && !uptimeQuery.isLoading && (
+              <p className="py-6 text-center text-sm text-slate-500">No connectivity or heartbeat samples in this window</p>
+            )}
           </div>
         </div>
       </section>
@@ -105,7 +129,7 @@ export function AnalyticsPage() {
             onChange={(e) => setTrendDays(Number(e.target.value))}
             className="rounded-lg border border-surface-700 bg-surface-850 px-3 py-1.5 text-sm text-white outline-none focus:border-accent-500"
           >
-            {[7, 14, 30].map(d => <option key={d} value={d}>{d} days</option>)}
+            {[7, 14, 30].map((d) => <option key={d} value={d}>{d} days</option>)}
           </select>
         </div>
         <div className="rounded-xl border border-surface-800 bg-surface-900 p-5 shadow-lg">
@@ -123,7 +147,6 @@ export function AnalyticsPage() {
               <p className="text-xs text-slate-500">Resolved</p>
             </div>
           </div>
-          {/* SVG bar chart */}
           {trends && trends.points.length > 0 && (
             <AlertTrendChart points={trends.points} />
           )}
@@ -142,33 +165,21 @@ export function AnalyticsPage() {
             onChange={(e) => setTelemetryHours(Number(e.target.value))}
             className="rounded-lg border border-surface-700 bg-surface-850 px-3 py-1.5 text-sm text-white outline-none focus:border-accent-500"
           >
-            {[1, 6, 24, 72].map(h => <option key={h} value={h}>{h}h</option>)}
+            {[1, 6, 24, 72].map((h) => <option key={h} value={h}>{h}h</option>)}
           </select>
         </div>
         <div className="overflow-hidden rounded-xl border border-surface-800 bg-surface-900 shadow-lg">
-          <table className="min-w-full divide-y divide-surface-800">
-            <thead>
-              <tr className="bg-surface-850">
-                {['Metric', 'Min', 'Avg', 'Max', 'Latest', 'Samples'].map(h => (
-                  <th key={h} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-800">
-              {telemetry?.metrics.map((m) => (
-                <tr key={m.metricName} className="hover:bg-surface-850">
-                  <td className="px-6 py-3 text-sm font-medium text-slate-200">{m.metricName}</td>
-                  <td className="px-6 py-3 text-sm text-slate-400">{m.min.toFixed(1)}{m.unit}</td>
-                  <td className="px-6 py-3 text-sm text-accent-400 font-medium">{m.avg.toFixed(1)}{m.unit}</td>
-                  <td className="px-6 py-3 text-sm text-slate-400">{m.max.toFixed(1)}{m.unit}</td>
-                  <td className="px-6 py-3 text-sm text-slate-300">{m.latest.toFixed(1)}{m.unit}</td>
-                  <td className="px-6 py-3 text-sm text-slate-500">{m.sampleCount}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {telemetry?.metrics.length === 0 && (
+          <MetricTable metrics={primaryMetrics.length > 0 ? primaryMetrics : telemetry?.metrics ?? []} />
+          {(primaryMetrics.length === 0 && (telemetry?.metrics.length ?? 0) === 0) && (
             <p className="px-6 py-8 text-center text-sm text-slate-500">No telemetry data in this window</p>
+          )}
+          {otherMetrics.length > 0 && primaryMetrics.length > 0 && (
+            <details className="border-t border-surface-800 px-6 py-3">
+              <summary className="cursor-pointer text-xs text-slate-500">Other metrics ({otherMetrics.length})</summary>
+              <div className="mt-2">
+                <MetricTable metrics={otherMetrics} compact />
+              </div>
+            </details>
           )}
         </div>
       </section>
@@ -178,9 +189,13 @@ export function AnalyticsPage() {
         <h2 className="flex items-center gap-2 text-base font-semibold text-white mb-4">
           <Monitor className="h-4 w-4 text-accent-400" />
           Device Health
+          <span className="text-xs font-normal text-slate-500">
+            {healthWithMetrics.length} with agent metrics
+            {health && health.length > healthWithMetrics.length && ` · ${health.length - healthWithMetrics.length} ping-only`}
+          </span>
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {health?.map((d) => (
+          {healthWithMetrics.map((d) => (
             <div key={d.deviceId} className="rounded-xl border border-surface-800 bg-surface-900 p-4 shadow-lg">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-white">{d.deviceName}</span>
@@ -188,7 +203,7 @@ export function AnalyticsPage() {
                   'rounded-full px-2 py-0.5 text-xs font-medium',
                   d.status === 'Online' ? 'bg-emerald-500/10 text-emerald-400' :
                   d.status === 'Error' ? 'bg-red-500/10 text-red-400' :
-                  'bg-slate-500/10 text-slate-400'
+                  'bg-slate-500/10 text-slate-400',
                 )}>
                   {d.status}
                 </span>
@@ -201,8 +216,75 @@ export function AnalyticsPage() {
             </div>
           ))}
         </div>
+        {healthWithMetrics.length === 0 && !healthQuery.isLoading && (
+          <p className="rounded-xl border border-surface-800 bg-surface-900 px-6 py-8 text-center text-sm text-slate-500">
+            No agent telemetry yet. Ping-only devices appear on the dashboard connectivity chart.
+          </p>
+        )}
       </section>
     </div>
+  )
+}
+
+function UptimeRow({ d }: { d: DeviceUptimeSummary }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-32 truncate text-sm text-slate-300">{d.deviceName}</span>
+      <div className="flex-1">
+        <div className="h-4 w-full rounded-full bg-surface-800">
+          <div
+            className={clsx(
+              'h-4 rounded-full transition-all',
+              d.uptimePercent >= 95 ? 'bg-emerald-500' :
+              d.uptimePercent >= 80 ? 'bg-amber-500' : 'bg-red-500',
+            )}
+            style={{ width: `${Math.min(d.uptimePercent, 100)}%` }}
+          />
+        </div>
+      </div>
+      <span className={clsx(
+        'w-14 text-right text-sm font-medium',
+        d.uptimePercent >= 95 ? 'text-emerald-400' :
+        d.uptimePercent >= 80 ? 'text-amber-400' : 'text-red-400',
+      )}>
+        {d.uptimePercent}%
+      </span>
+      <span className={clsx(
+        'w-20 text-right text-xs',
+        d.status === 'Online' ? 'text-emerald-400' :
+        d.status === 'Error' ? 'text-red-400' : 'text-slate-500',
+      )}>
+        {d.status}
+      </span>
+    </div>
+  )
+}
+
+function MetricTable({ metrics, compact }: { metrics: TelemetryMetricAggregate[]; compact?: boolean }) {
+  if (metrics.length === 0) return null
+  const cell = compact ? 'px-3 py-2 text-xs' : 'px-6 py-3 text-sm'
+  return (
+    <table className="min-w-full divide-y divide-surface-800">
+      <thead>
+        <tr className="bg-surface-850">
+          {['Metric', 'Min', 'Avg', 'Max', 'Latest', 'Samples'].map((h) => (
+            <th key={h} className={`${cell} text-left font-semibold uppercase tracking-wider text-slate-500`}>{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-surface-800">
+        {metrics.map((m) => (
+          <tr key={m.metricName} className="hover:bg-surface-850">
+            <td className={`${cell} font-medium text-slate-200`}>{m.metricName}</td>
+            <td className={`${cell} text-slate-400`}>{fmt(m.min)}{m.unit}</td>
+            <td className={`${cell} font-medium text-accent-400`}>{fmt(m.avg)}{m.unit}</td>
+            <td className={`${cell} text-slate-400`}>{fmt(m.max)}{m.unit}</td>
+            <td className={`${cell} text-slate-300`}>{fmt(m.latest)}{m.unit}</td>
+            <td className={`${cell} text-slate-500`}>{m.sampleCount}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }
 
@@ -229,7 +311,7 @@ function HealthMetric({ label, value, unit, warn, invert }: {
 }
 
 function AlertTrendChart({ points }: { points: { date: string; raised: number; resolved: number; critical: number }[] }) {
-  const maxVal = Math.max(...points.map(p => p.raised), 1)
+  const maxVal = Math.max(...points.map((p) => p.raised), 1)
   const height = 120
   const barWidth = Math.max(2, Math.floor(600 / points.length) - 2)
   const width = points.length * (barWidth + 2)
@@ -249,7 +331,7 @@ function AlertTrendChart({ points }: { points: { date: string; raised: number; r
               rx={2}
               className={clsx(
                 p.critical > 0 ? 'fill-red-500/60' :
-                p.raised > 0 ? 'fill-amber-500/60' : 'fill-surface-700'
+                p.raised > 0 ? 'fill-amber-500/60' : 'fill-surface-700',
               )}
             />
             {p.raised > 0 && (
@@ -265,7 +347,6 @@ function AlertTrendChart({ points }: { points: { date: string; raised: number; r
           </g>
         )
       })}
-      {/* X axis labels */}
       {points.filter((_, i) => i % Math.ceil(points.length / 7) === 0).map((p) => {
         const idx = points.indexOf(p)
         const x = idx * (barWidth + 2) + barWidth / 2
