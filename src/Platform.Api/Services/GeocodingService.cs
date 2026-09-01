@@ -49,6 +49,11 @@ public class GeocodingService
         var normalized = location.Trim().ToLowerInvariant();
         var knownLocations = new Dictionary<string, (double lat, double lng)>(StringComparer.OrdinalIgnoreCase)
         {
+            ["irvine, ca"] = (33.6762, -117.8307),
+            ["fremont dc, ca"] = (37.51255, -121.98999),
+            ["glendale, az"] = (33.63819, -112.20445),
+            ["grand prairie, tx"] = (32.70552, -97.02754),
+            ["humble outlet, tx"] = (30.0048, -95.2622),
             ["lenexa, ks"] = (38.9536, -94.7336),
             ["oklahoma city, ok"] = (35.47299, -97.51705),
         };
