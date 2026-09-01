@@ -32,6 +32,9 @@ public class DevicesControllerTests : IClassFixture<CustomWebApplicationFactory>
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    // Rate limiting is disabled in the Testing environment (custom factory)
+    // to avoid cross-test IP quota exhaustion. Verified manually in production.
+
     [Fact]
     public async Task Login_WithInvalidCredentials_ReturnsUnauthorized()
     {

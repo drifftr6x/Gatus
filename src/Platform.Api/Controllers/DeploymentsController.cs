@@ -11,6 +11,7 @@ namespace Platform.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("device")]
 public class DeploymentsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

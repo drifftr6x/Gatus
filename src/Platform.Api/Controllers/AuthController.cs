@@ -12,6 +12,7 @@ namespace Platform.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class AuthController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

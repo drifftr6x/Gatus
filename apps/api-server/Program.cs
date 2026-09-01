@@ -72,9 +72,66 @@ builder.Services.AddSingleton<ContentStorageService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<GeocodingService>();
 builder.Services.AddScoped<DeviceAuthenticationService>();
-builder.Services.AddScoped<DeviceAuthenticationService>();
 
+// Rate limiting — partitioned fixed-window policies per endpoint group
+// Skip in testing to avoid cross-test IP quota exhaustion
+if (!builder.Environment.IsEnvironment("Testing"))
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.Headers.RetryAfter = "60";
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new { error = "Too many requests. Please retry later." }, cancellationToken);
+    };
 
+    // Auth endpoints: login, register, refresh — strict limit per IP
+    options.AddPolicy("auth", context =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+
+    // Enrollment: one-time token exchange — strict limit per IP
+    options.AddPolicy("enroll", context =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+
+    // Device/agent endpoints: agents poll frequently, allow more
+    options.AddPolicy("device", context =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            context.Request.Query["deviceId"].ToString() is { Length: > 0 } deviceId ? deviceId
+                : context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 2
+            }));
+
+    // General authenticated API: generous per-user limit
+    options.AddPolicy("api", context =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 300,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 5
+            }));
+});
 
 // Add Security (JWT, Authorization)
 builder.Services.AddPlatformSecurity(builder.Configuration);
@@ -137,6 +194,8 @@ app.UseSerilogRequestLogging(options =>
     };
 });
 
+if (!app.Environment.IsEnvironment("Testing"))
+    app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
