@@ -99,10 +99,16 @@ export function DeviceMap({ devices }: { devices: DeviceDto[] }) {
         attributionControl: true,
       })
 
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      // Use Carto's HTTPS basemap instead of the public OSM tile endpoint,
+      // which can reject browser requests in enterprise/proxied networks.
+      const tiles = L.tileLayer('https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors',
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        subdomains: 'abcd',
       }).addTo(map)
+      tiles.on('tileerror', () => {
+        setError('Map tiles could not be loaded. Check network access to the basemap provider.')
+      })
 
       layerRef.current = L.layerGroup().addTo(map)
       mapRef.current = map
