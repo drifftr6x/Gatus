@@ -161,7 +161,7 @@ export function GroupsPage() {
         <div className="mt-4 space-y-3">
           {sortedGroups.map((group) => {
             const isExpanded = expandedGroupId === group.id
-            const groupDevices = allDevices?.devices.filter(d => d.groupId === group.id) ?? []
+            const groupDevices = allDevices?.filter(d => d.groupId === group.id) ?? []
 
             return (
               <div key={group.id} className="rounded-xl border border-surface-800 bg-surface-900 shadow-lg">
