@@ -27,6 +27,7 @@ public class Deployment
     public Guid ContentVersionId { get; set; }
     public DeploymentStatus Status { get; set; } = DeploymentStatus.Pending;
     public DateTime? ScheduledAt { get; set; }
+    public int? RolloutPercent { get; set; }
     public DateTime? StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
     public Guid CreatedById { get; set; }
@@ -41,6 +42,7 @@ public class Deployment
 public enum DeploymentStatus
 {
     Pending,
+    Scheduled,
     InProgress,
     Completed,
     PartiallyCompleted,

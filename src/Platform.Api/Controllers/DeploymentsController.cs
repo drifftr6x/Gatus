@@ -51,6 +51,7 @@ public class DeploymentsController : ControllerBase
             var results = await _context.DeploymentResults
                 .Include(r => r.Deployment)
                 .Where(r => r.DeviceId == deviceId.Value && r.Status == DeploymentResultStatus.Pending)
+                .Where(r => r.Deployment.ScheduledAt == null || r.Deployment.ScheduledAt <= DateTime.UtcNow)
                 .ToListAsync();
 
             var response = results.Select(r => new
@@ -162,7 +163,10 @@ public class DeploymentsController : ControllerBase
             Name = request.Name ?? $"Deploy {contentVersion.Content.Name} v{contentVersion.Version}",
             Description = request.Description,
             ContentVersionId = request.ContentVersionId,
-            Status = DeploymentStatus.Pending,
+            Status = request.ScheduledAt.HasValue && request.ScheduledAt > DateTime.UtcNow
+                ? DeploymentStatus.Scheduled : DeploymentStatus.Pending,
+            ScheduledAt = request.ScheduledAt,
+            RolloutPercent = request.RolloutPercent,
             CreatedById = userId,
             CreatedAt = DateTime.UtcNow
         };
@@ -306,7 +310,8 @@ public record CreateDeploymentRequest(
     Guid? GroupId,
     string? Name,
     string? Description,
-    DateTime? ScheduledAt
+    DateTime? ScheduledAt,
+    int? RolloutPercent
 );
 
 public record DeploymentStatusReport(

@@ -67,6 +67,9 @@ builder.Services.AddHostedService<AlertEvaluatorService>();
 // Add ping monitor for unmanaged devices
 builder.Services.AddHostedService<PingMonitorService>();
 
+// Deployment scheduler: activates scheduled deployments and manages rollout waves
+builder.Services.AddHostedService<DeploymentSchedulerService>();
+
 // Content file storage
 builder.Services.AddSingleton<ContentStorageService>();
 builder.Services.AddHttpClient();

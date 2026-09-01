@@ -440,6 +440,8 @@ export const contentApi = {
   groupId?: string
   name?: string
   description?: string
+  scheduledAt?: string
+  rolloutPercent?: number
   }
 
 export interface EnrollmentTokenDto {

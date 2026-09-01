@@ -222,6 +222,8 @@ function DeployModal({ content, onClose }: { content: ContentDto; onClose: () =>
   const [selectedGroupId, setSelectedGroupId] = useState('')
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set())
   const [deployName, setDeployName] = useState(`Deploy ${content.name}`)
+  const [scheduledAt, setScheduledAt] = useState('')
+  const [rolloutPercent, setRolloutPercent] = useState<number | ''>('')
 
   const { data: versions } = useQuery({
     queryKey: ['content-versions', content.id],
@@ -248,6 +250,8 @@ function DeployModal({ content, onClose }: { content: ContentDto; onClose: () =>
         name: deployName,
         groupId: targetMode === 'group' ? selectedGroupId || undefined : undefined,
         deviceIds: targetMode === 'devices' ? [...selectedDeviceIds] : undefined,
+        scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
+        rolloutPercent: rolloutPercent !== '' ? rolloutPercent : undefined,
       })
     },
     onSuccess: () => {
@@ -334,6 +338,32 @@ function DeployModal({ content, onClose }: { content: ContentDto; onClose: () =>
             )}
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-slate-300">Schedule</label>
+            <input
+              type="datetime-local"
+              value={scheduledAt}
+              onChange={(e) => setScheduledAt(e.target.value)}
+              className={`${inputClass} mt-1.5`}
+            />
+            <p className="mt-1 text-xs text-slate-500">Leave empty to deploy immediately</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300">Rollout Wave</label>
+            <select
+              value={rolloutPercent}
+              onChange={(e) => setRolloutPercent(e.target.value === '' ? '' : Number(e.target.value))}
+              className={`${inputClass} mt-1.5`}
+            >
+              <option value="">All devices at once</option>
+              <option value={25}>25% first wave</option>
+              <option value={50}>50% first wave</option>
+              <option value={10}>10% first wave (canary)</option>
+            </select>
+            <p className="mt-1 text-xs text-slate-500">Gradual rollout doubles each wave after success</p>
+          </div>
+
           <div className="mt-6 flex justify-end gap-3">
             <button type="button" onClick={onClose} className="rounded-lg border border-surface-700 px-4 py-2 text-sm text-slate-300 hover:bg-surface-800">Cancel</button>
             <button
@@ -341,7 +371,7 @@ function DeployModal({ content, onClose }: { content: ContentDto; onClose: () =>
               disabled={!canDeploy || deployMutation.isPending}
               className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 hover:bg-emerald-500 disabled:opacity-50"
             >
-              {deployMutation.isPending ? 'Deploying…' : 'Deploy'}
+              {deployMutation.isPending ? 'Deploying…' : scheduledAt ? 'Schedule Deploy' : 'Deploy'}
             </button>
           </div>
           {deployMutation.isError && <p className="text-sm text-red-400">{deployMutation.error.message}</p>}
