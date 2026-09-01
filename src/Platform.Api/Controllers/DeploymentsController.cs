@@ -195,6 +195,9 @@ public class DeploymentsController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> ReportStatus(Guid deploymentId, [FromBody] DeploymentStatusReport report)
     {
+        if (await _deviceAuth.AuthenticateAsync(HttpContext, report.DeviceId) is null)
+            return Unauthorized(new { error = "Valid device credentials are required" });
+
         var result = await _context.DeploymentResults
             .Include(r => r.Deployment)
             .Include(r => r.Device)
