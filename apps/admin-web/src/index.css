@@ -109,6 +109,33 @@ body {
 :root[data-mode="light"] .text-sky-400 { color: #0284c7; }
 :root[data-mode="light"] .text-violet-400 { color: #7c3aed; }
 
+/* Leaflet popups use a light surface so map details remain legible in both themes. */
+.dark-popup .leaflet-popup-content-wrapper,
+.dark-popup .leaflet-popup-tip {
+  background: #f8fafc;
+  color: #172033;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.28);
+}
+
+.dark-popup .leaflet-popup-content {
+  margin: 12px 14px;
+  color: #172033;
+}
+
+.dark-popup .leaflet-popup-close-button {
+  color: #475569 !important;
+  font-size: 18px;
+}
+
+.dark-popup .leaflet-popup-close-button:hover {
+  color: #0f172a !important;
+}
+
+.dark-popup a:hover {
+  color: #2563eb !important;
+  text-decoration: underline !important;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

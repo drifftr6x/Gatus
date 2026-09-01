@@ -138,18 +138,18 @@ export function DeviceMap({ devices }: { devices: DeviceDto[] }) {
       const marker = L.marker([store.lat, store.lng], { icon: createStoreIcon(store) })
 
       const deviceList = store.devices.map(d =>
-        `<div style="display:flex;align-items:center;gap:4px;margin-top:3px;">
-          <span style="width:5px;height:5px;border-radius:50%;background:${STATUS_COLORS[d.status] || STATUS_COLORS.Offline};"></span>
-          <a href="#/devices/${d.id}" style="font-size:11px;color:#cbd5e1;text-decoration:none;">${d.name}</a>
-          <span style="font-size:10px;color:#64748b;">${d.status}</span>
+        `<div style="display:flex;align-items:center;gap:5px;margin-top:4px;">
+          <span style="width:6px;height:6px;border-radius:50%;background:${STATUS_COLORS[d.status] || STATUS_COLORS.Offline};flex:0 0 auto;"></span>
+          <a href="#/devices/${d.id}" style="font-size:12px;font-weight:600;color:#172033;text-decoration:none;">${d.name}</a>
+          <span style="font-size:11px;font-weight:600;color:#334155;">${d.status}</span>
         </div>`
       ).join('')
 
       const div = document.createElement('div')
-      div.style.cssText = 'font-family:inherit;min-width:180px;'
+      div.style.cssText = 'font-family:inherit;min-width:210px;color:#172033;'
       div.innerHTML = `
-        <div style="font-weight:600;font-size:13px;color:#e2e8f0;">${store.name}</div>
-        <div style="font-size:10px;color:#64748b;margin-top:1px;">${store.devices.length} device${store.devices.length !== 1 ? 's' : ''}</div>
+        <div style="font-weight:700;font-size:14px;line-height:1.3;color:#0f172a;">${store.name}</div>
+        <div style="font-size:11px;font-weight:600;color:#475569;margin-top:3px;">${store.devices.length} device${store.devices.length !== 1 ? 's' : ''}</div>
         ${deviceList}`
 
       marker.bindPopup(div, { className: 'dark-popup', closeButton: false })
