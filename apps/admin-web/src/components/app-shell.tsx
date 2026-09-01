@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { devicesApi, groupsApi } from '@/lib/api'
+import { devicesApi, groupsApi, telemetryApi, alertsApi, deploymentsApi } from '@/lib/api'
 import {
   LayoutDashboard,
   Monitor,
@@ -52,6 +52,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   )
 
   const prefetchNavigation = (href: string) => {
+    if (href === '/dashboard') {
+      void queryClient.prefetchQuery({
+        queryKey: ['telemetry-summary'],
+        queryFn: telemetryApi.summary,
+        staleTime: 15_000,
+      })
+      void queryClient.prefetchQuery({
+        queryKey: ['devices', 'all'],
+        queryFn: devicesApi.listAll,
+        staleTime: 30_000,
+      })
+      void queryClient.prefetchQuery({
+        queryKey: ['alerts', 'count'],
+        queryFn: alertsApi.count,
+        staleTime: 15_000,
+      })
+      void queryClient.prefetchQuery({
+        queryKey: ['recent-deployments'],
+        queryFn: () => deploymentsApi.list({ limit: 5 }),
+        staleTime: 15_000,
+      })
+    }
     if (href === '/devices' || href === '/groups') {
       void queryClient.prefetchQuery({
         queryKey: ['devices'],
