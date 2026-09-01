@@ -194,6 +194,28 @@ export interface ContentListResponse {
 }
 
 // API Functions
+export interface ProductFeatureFlags {
+  groups: boolean
+  schedules: boolean
+  content: boolean
+  alerts: boolean
+  analytics: boolean
+  notifications: boolean
+  logs: boolean
+  advancedReports: boolean
+}
+
+export interface ProductConfigurationDto {
+  productName: string
+  edition: string
+  version: string
+  features: ProductFeatureFlags
+}
+
+export const productApi = {
+  get: () => api.get<ProductConfigurationDto>('/product'),
+}
+
 export const authApi = {
   login: (data: LoginRequest) => api.post<AuthResponse>('/auth/login', data),
   logout: () => api.post('/auth/logout'),

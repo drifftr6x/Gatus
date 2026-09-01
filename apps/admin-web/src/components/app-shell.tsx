@@ -19,6 +19,7 @@ import { clsx } from 'clsx'
 import { useAuth } from '@/hooks/useAuth'
 import { useSignalR } from '@/hooks/useSignalR'
 import { ThemePicker } from '@/components/theme-picker'
+import { useProductConfig } from '@/hooks/useProductConfig'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -38,6 +39,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
   const { user, logout } = useAuth()
   const { isConnected } = useSignalR()
+  const { data: product } = useProductConfig()
+
+  const liteItems = navItems.filter((item) =>
+    ['/dashboard', '/devices', '/settings'].includes(item.href),
+  )
+  const advancedItems = navItems.filter((item) =>
+    ['/groups', '/schedules', '/content', '/alerts', '/analytics', '/notifications', '/logs'].includes(item.href),
+  )
 
   const prefetchNavigation = (href: string) => {
     if (href === '/devices' || href === '/groups') {
@@ -69,10 +78,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <ShieldCheck className="h-5 w-5" />
             </div>
             <span className="text-lg font-semibold tracking-tight text-white">
-              Gatus Kiosk
+              {product?.productName ?? 'EdgeWatch Lite'}
             </span>
             <span className="rounded-md bg-surface-800 px-2 py-0.5 text-xs font-medium text-slate-400">
-              Admin
+              {product?.edition ?? 'Lite'}
             </span>
           </div>
           <div className="flex items-center gap-4">
@@ -109,7 +118,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Sidebar */}
         <aside className="sticky top-14 h-[calc(100vh-3.5rem)] w-56 shrink-0 border-r border-surface-800 p-3">
           <nav className="space-y-1">
-            {navItems.map((item) => {
+            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">Lite</p>
+            {liteItems.map((item) => {
               const isActive = location.pathname.startsWith(item.href)
               return (
                 <Link
@@ -119,9 +129,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   onFocus={() => prefetchNavigation(item.href)}
                   className={clsx(
                     'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-accent-500/15 text-accent-300'
-                      : 'text-slate-400 hover:bg-surface-800 hover:text-slate-200',
+                    isActive ? 'bg-accent-500/15 text-accent-300' : 'text-slate-400 hover:bg-surface-800 hover:text-slate-200',
+                  )}
+                >
+                  <item.icon className="h-4.5 w-4.5" />
+                  {item.label}
+                </Link>
+              )
+            })}
+            <p className="mt-5 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">Advanced Features</p>
+            {advancedItems.map((item) => {
+              const isActive = location.pathname.startsWith(item.href)
+              const enabled = product?.features?.[item.href.slice(1) as keyof typeof product.features] ?? true
+              if (!enabled) return null
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  onMouseEnter={() => prefetchNavigation(item.href)}
+                  onFocus={() => prefetchNavigation(item.href)}
+                  className={clsx(
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    isActive ? 'bg-accent-500/15 text-accent-300' : 'text-slate-400 hover:bg-surface-800 hover:text-slate-200',
                   )}
                 >
                   <item.icon className="h-4.5 w-4.5" />
