@@ -509,7 +509,38 @@ export interface AlertRuleDto {
   threshold: number
   severity: string
   isEnabled: boolean
+  cooldownMinutes: number
+  escalationPolicyId?: string
+  escalationPolicyName?: string
   createdAt: string
+}
+
+export interface EscalationStepDto {
+  id: string
+  order: number
+  delayMinutes: number
+  channelId: string
+  channelName: string
+  escalateSeverity?: string
+}
+
+export interface EscalationPolicyDto {
+  id: string
+  name: string
+  description?: string
+  isEnabled: boolean
+  createdAt: string
+  steps: EscalationStepDto[]
+}
+
+export interface NotificationChannelDto {
+  id: string
+  name: string
+  type: string
+  configJson: string
+  isEnabled: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 export const alertsApi = {
@@ -526,6 +557,31 @@ export const alertsApi = {
   acknowledge: (id: string) => api.post(`/alerts/${id}/acknowledge`),
   resolve: (id: string) => api.post(`/alerts/${id}/resolve`),
   rules: () => api.get<AlertRuleDto[]>('/alerts/rules'),
+  createRule: (data: { name: string; metric: string; operator: string; threshold: number; severity: string; cooldownMinutes?: number; escalationPolicyId?: string }) =>
+    api.post<AlertRuleDto>('/alerts/rules', data),
+  updateRule: (id: string, data: { name: string; threshold: number; severity: string; isEnabled: boolean; cooldownMinutes?: number; escalationPolicyId?: string }) =>
+    api.put(`/alerts/rules/${id}`, data),
+  deleteRule: (id: string) => api.delete(`/alerts/rules/${id}`),
+  }
+
+  export const escalationApi = {
+  list: () => api.get<EscalationPolicyDto[]>('/escalation-policies'),
+  get: (id: string) => api.get<EscalationPolicyDto>(`/escalation-policies/${id}`),
+  create: (data: { name: string; description?: string; steps?: { order: number; delayMinutes: number; channelId: string; escalateSeverity?: string }[] }) =>
+    api.post<EscalationPolicyDto>('/escalation-policies', data),
+  update: (id: string, data: { name: string; description?: string; isEnabled: boolean; steps?: { order: number; delayMinutes: number; channelId: string; escalateSeverity?: string }[] }) =>
+    api.put(`/escalation-policies/${id}`, data),
+  delete: (id: string) => api.delete(`/escalation-policies/${id}`),
+  }
+
+  export const notificationChannelsApi = {
+  list: () => api.get<NotificationChannelDto[]>('/notification-channels'),
+  create: (data: { name: string; type: string; configJson: string }) =>
+    api.post<NotificationChannelDto>('/notification-channels', data),
+  update: (id: string, data: { name: string; configJson: string; isEnabled: boolean }) =>
+    api.put<NotificationChannelDto>(`/notification-channels/${id}`, data),
+  delete: (id: string) => api.delete(`/notification-channels/${id}`),
+  test: (id: string) => api.post<{ success: boolean; message: string }>(`/notification-channels/${id}/test`),
   }
 
   export interface DomainHealthSettings {
@@ -808,29 +864,4 @@ export const analyticsApi = {
   devices: DeviceConnectivityDto[]
   hours: number
   bucketMinutes: number
-  }
-
-  export interface NotificationChannelDto {
-  id: string
-  name: string
-  type: string
-  configJson: string
-  isEnabled: boolean
-  createdAt: string
-  updatedAt?: string
-  }
-
-  export interface NotificationTestResult {
-  success: boolean
-  message?: string
-  }
-
-  export const notificationChannelsApi = {
-  list: () => api.get<NotificationChannelDto[]>('/notification-channels'),
-  create: (data: { name: string; type: string; configJson: string }) =>
-    api.post<NotificationChannelDto>('/notification-channels', data),
-  update: (id: string, data: { name: string; configJson: string; isEnabled: boolean }) =>
-    api.put<NotificationChannelDto>(`/notification-channels/${id}`, data),
-  delete: (id: string) => api.delete(`/notification-channels/${id}`),
-  test: (id: string) => api.post<NotificationTestResult>(`/notification-channels/${id}/test`),
   }

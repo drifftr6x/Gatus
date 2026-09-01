@@ -30,6 +30,7 @@ builder.Services.AddWindowsService(options =>
 // Register agent services
 builder.Services.AddSingleton<LocalStateManager>();
 builder.Services.AddSingleton<EnrollmentService>();
+builder.Services.AddSingleton<LockdownEngine>();
 builder.Services.AddHostedService<HeartbeatService>();
 builder.Services.AddHostedService<PolicySyncService>();
 builder.Services.AddHostedService<DeploymentService>();
@@ -40,7 +41,7 @@ builder.Services.AddHostedService<TelemetryCollector>();
 builder.Services.AddHttpClient("SentinelServer", client =>
 {
     var config = builder.Configuration.GetSection("Agent");
-    var serverUrl = config["ServerUrl"] ?? "https://localhost:7001";
+    var serverUrl = config["ServerUrl"] ?? "http://localhost:5163";
     client.BaseAddress = new Uri(serverUrl);
     client.DefaultRequestHeaders.Add("User-Agent", "SentinelKiosk-Agent/1.0");
     client.Timeout = TimeSpan.FromSeconds(30);

@@ -6,12 +6,16 @@ public record CreateAlertRuleRequest(
     string Operator,
     double Threshold,
     string Severity,
-    bool IsEnabled = true
+    bool IsEnabled = true,
+    int CooldownMinutes = 15,
+    Guid? EscalationPolicyId = null
 );
 
 public record UpdateAlertRuleRequest(
     string Name,
     double Threshold,
     string Severity,
-    bool IsEnabled
+    bool IsEnabled,
+    int CooldownMinutes = 15,
+    Guid? EscalationPolicyId = null
 );

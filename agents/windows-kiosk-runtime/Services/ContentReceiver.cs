@@ -46,12 +46,7 @@ public class ContentReceiver : IDisposable
         {
             try
             {
-                _pipeServer = new NamedPipeServerStream(
-                    PipeName,
-                    PipeDirection.In,
-                    maxNumberOfServerInstances: 1,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous);
+                _pipeServer = PipeAcl.CreateInbound(PipeName);
 
                 Log.Debug("Waiting for content notification on pipe {PipeName}...", PipeName);
                 await _pipeServer.WaitForConnectionAsync(ct);

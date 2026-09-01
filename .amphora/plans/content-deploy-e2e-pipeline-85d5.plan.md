@@ -35,14 +35,17 @@ todos:
     status: completed
   - id: c10
     content: 'Live E2E: upload content, deploy to laptop agent, verify Succeeded'
-    status: pending
+    status: completed
 isProject: false
 created_at: '2026-08-29T18:08:16'
 session_id: sess_60616e1870d76f6b
 tool_use_id: create_plan_365
 model: FW-Kimi-K3
 mode_at_creation: auto
+approved_mode: auto
+dismissed: true
 content_hash: 22ce82e6e6c3dee1
+approved_hash: 22ce82e6e6c3dee1
 files_referenced:
   - src/Platform.Api/Controllers/ContentController.cs
   - src/Platform.Api/Controllers/DeploymentsController.cs

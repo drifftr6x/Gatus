@@ -49,12 +49,7 @@ public class PolicyReceiver : IDisposable
         {
             try
             {
-                _pipeServer = new NamedPipeServerStream(
-                    PipeName,
-                    PipeDirection.In,
-                    1,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous);
+                _pipeServer = PipeAcl.CreateInbound(PipeName);
 
                 Log.Debug("Waiting for policy update connection...");
                 await _pipeServer.WaitForConnectionAsync(cancellationToken);

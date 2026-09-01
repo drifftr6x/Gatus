@@ -209,8 +209,15 @@ public partial class MainWindow : Window
 
         // Update configuration
         _config.HomeUrl = newConfig.HomeUrl;
+        _config.AllowedUrls = newConfig.AllowedUrls;
+        _config.BlockedUrls = newConfig.BlockedUrls;
         _config.SessionTimeoutSeconds = newConfig.SessionTimeoutSeconds;
         _config.InactivityTimeoutSeconds = newConfig.InactivityTimeoutSeconds;
+        _config.ClearSessionOnReset = newConfig.ClearSessionOnReset;
+        _config.MaxRestartAttempts = newConfig.MaxRestartAttempts;
+        _config.RestartDelaySeconds = newConfig.RestartDelaySeconds;
+        _config.PolicyVersion = newConfig.PolicyVersion;
+        _config.Save();
 
         // Apply navigation guard changes
         _navigationGuard.UpdateConfiguration(newConfig);

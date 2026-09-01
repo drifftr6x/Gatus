@@ -33,6 +33,28 @@ public record DeviceDto(
     bool? DomainSecureChannelHealthy
     );
 
+    public record DevicePolicyDto(
+    string Version,
+    string? HomeUrl,
+    int SessionTimeoutSeconds,
+    int InactivityResetSeconds,
+    bool ClearSessionOnReset,
+    IReadOnlyList<string> AllowedUrls,
+    IReadOnlyList<string> BlockedUrls,
+    bool RestartOnExit,
+    int MaxRestartAttempts,
+    int RestartDelaySeconds,
+    bool KioskEnabled,
+    DeviceLockdownDto Lockdown
+    );
+
+    public record DeviceLockdownDto(
+    string Profile,
+    bool HideDesktop,
+    bool HideTaskbar,
+    bool MaintenanceModeAllowed
+    );
+
 public record DeviceListResponse(
     IEnumerable<DeviceDto> Devices,
     int TotalCount,

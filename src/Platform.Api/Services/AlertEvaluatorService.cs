@@ -167,7 +167,10 @@ public class AlertEvaluatorService : BackgroundService
                     Message = detail,
                     Status = AlertStatus.Active,
                     RaisedAt = now,
-                    AutoResolved = false
+                    LastNotifiedAt = now,
+                    AutoResolved = false,
+                    EscalationStep = 0,
+                    EscalationPolicyId = rule.EscalationPolicyId
                 };
                 context.Alerts.Add(alert);
                 _logger.LogWarning("ALERT raised: {Title} [{Severity}]", alert.Title, alert.Severity);
@@ -178,7 +181,18 @@ public class AlertEvaluatorService : BackgroundService
                 // Fire-and-forget notification (don't block evaluation)
                 _ = Task.Run(() => _notificationService.NotifyAlertAsync(alert, device.Name));
             }
-            // else: already active/acknowledged — keep it, no duplicate
+            else
+            {
+                // Alert already active — check if we should re-notify (cooldown elapsed)
+                var cooldown = rule.CooldownMinutes > 0 ? rule.CooldownMinutes : 15;
+                var sinceLastNotify = now - (existing.LastNotifiedAt ?? existing.RaisedAt);
+                if (sinceLastNotify.TotalMinutes >= cooldown)
+                {
+                    existing.LastNotifiedAt = now;
+                    _logger.LogInformation("Re-notifying alert {Id} after {Minutes}m cooldown", existing.Id, cooldown);
+                    _ = Task.Run(() => _notificationService.NotifyAlertAsync(existing, device.Name));
+                }
+            }
         }
         else
         {

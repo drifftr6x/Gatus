@@ -14,6 +14,20 @@ public record CreateDeviceRequest(
     Guid? GroupId
 );
 
+public record UpdateDevicePolicyRequest(
+    string? HomeUrl,
+    int? SessionTimeoutSeconds,
+    int? InactivityResetSeconds,
+    bool? ClearSessionOnReset,
+    string[]? AllowedUrls,
+    string[]? BlockedUrls,
+    bool? RestartOnExit,
+    int? MaxRestartAttempts,
+    int? RestartDelaySeconds,
+    bool? KioskEnabled,
+    string? LockdownProfile
+);
+
 public record UpdateDeviceRequest(
     string Name,
     string? Description,

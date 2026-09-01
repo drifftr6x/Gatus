@@ -113,8 +113,9 @@ public class AlertsController : ControllerBase
     public async Task<ActionResult<IEnumerable<AlertRuleDto>>> GetRules()
     {
         var rules = await _context.AlertRules
+            .Include(r => r.EscalationPolicy)
             .OrderBy(r => r.Name)
-            .Select(r => new AlertRuleDto(r.Id, r.Name, r.Metric, r.Operator, r.Threshold, r.Severity.ToString(), r.IsEnabled, r.CreatedAt))
+            .Select(r => new AlertRuleDto(r.Id, r.Name, r.Metric, r.Operator, r.Threshold, r.Severity.ToString(), r.IsEnabled, r.CooldownMinutes, r.EscalationPolicyId, r.EscalationPolicy != null ? r.EscalationPolicy.Name : null, r.CreatedAt))
             .ToListAsync();
         return Ok(rules);
     }
@@ -135,19 +136,21 @@ public class AlertsController : ControllerBase
             Threshold = request.Threshold,
             Severity = severity,
             IsEnabled = request.IsEnabled,
+            CooldownMinutes = request.CooldownMinutes > 0 ? request.CooldownMinutes : 15,
+            EscalationPolicyId = request.EscalationPolicyId,
             CreatedAt = DateTime.UtcNow
         };
 
         _context.AlertRules.Add(rule);
         await _context.SaveChangesAsync();
 
-        return Ok(new AlertRuleDto(rule.Id, rule.Name, rule.Metric, rule.Operator, rule.Threshold, rule.Severity.ToString(), rule.IsEnabled, rule.CreatedAt));
-    }
+        return Ok(new AlertRuleDto(rule.Id, rule.Name, rule.Metric, rule.Operator, rule.Threshold, rule.Severity.ToString(), rule.IsEnabled, rule.CooldownMinutes, rule.EscalationPolicyId, null, rule.CreatedAt));
+        }
 
-    [HttpPut("rules/{id:guid}")]
-    [Authorize(Policy = "RequireEditor")]
-    public async Task<IActionResult> UpdateRule(Guid id, [FromBody] UpdateAlertRuleRequest request)
-    {
+        [HttpPut("rules/{id:guid}")]
+        [Authorize(Policy = "RequireEditor")]
+        public async Task<IActionResult> UpdateRule(Guid id, [FromBody] UpdateAlertRuleRequest request)
+        {
         var rule = await _context.AlertRules.FindAsync(id);
         if (rule == null) return NotFound(new { error = "Rule not found" });
 
@@ -158,6 +161,8 @@ public class AlertsController : ControllerBase
         rule.Threshold = request.Threshold;
         rule.Severity = severity;
         rule.IsEnabled = request.IsEnabled;
+        rule.CooldownMinutes = request.CooldownMinutes > 0 ? request.CooldownMinutes : 15;
+        rule.EscalationPolicyId = request.EscalationPolicyId;
         await _context.SaveChangesAsync();
 
         return NoContent();

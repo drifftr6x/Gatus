@@ -5,7 +5,7 @@ namespace SentinelKiosk.Runtime.Models;
 
 public class KioskConfiguration
 {
-    public string HomeUrl { get; set; } = "https://example.com";
+    public string HomeUrl { get; set; } = "";
     public List<string> AllowedUrls { get; set; } = new();
     public List<string> BlockedUrls { get; set; } = new();
     public int SessionTimeoutSeconds { get; set; } = 3600; // 1 hour

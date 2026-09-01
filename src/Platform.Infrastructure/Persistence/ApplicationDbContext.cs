@@ -24,6 +24,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<DeviceGroup> DeviceGroups => Set<DeviceGroup>();
     public DbSet<DeviceConfigTemplate> DeviceConfigTemplates => Set<DeviceConfigTemplate>();
     public DbSet<NotificationChannel> NotificationChannels => Set<NotificationChannel>();
+    public DbSet<EscalationPolicy> EscalationPolicies => Set<EscalationPolicy>();
+    public DbSet<EscalationStep> EscalationSteps => Set<EscalationStep>();
     public DbSet<ContentVersion> ContentVersions => Set<ContentVersion>();
     public DbSet<Deployment> Deployments => Set<Deployment>();
     public DbSet<DeploymentResult> DeploymentResults => Set<DeploymentResult>();
