@@ -222,7 +222,29 @@ export const authApi = {
   getCurrentUser: () => api.get<UserDto>('/auth/me'),
 }
 
+export interface DevicePolicyDto {
+  version: string
+  homeUrl?: string
+  sessionTimeoutSeconds: number
+  inactivityResetSeconds: number
+  clearSessionOnReset: boolean
+  allowedUrls: string[]
+  blockedUrls: string[]
+  restartOnExit: boolean
+  maxRestartAttempts: number
+  restartDelaySeconds: number
+  kioskEnabled: boolean
+  lockdown: { profile: string; hideDesktop: boolean; hideTaskbar: boolean; maintenanceModeAllowed: boolean }
+}
+
 export const devicesApi = {
+  getPolicy: (id: string) => api.get<DevicePolicyDto>(`/devices/${id}/policy`),
+  updatePolicy: (id: string, data: {
+    homeUrl?: string; sessionTimeoutSeconds?: number; inactivityResetSeconds?: number;
+    clearSessionOnReset?: boolean; allowedUrls?: string[]; blockedUrls?: string[];
+    restartOnExit?: boolean; maxRestartAttempts?: number; restartDelaySeconds?: number;
+    kioskEnabled?: boolean; lockdownProfile?: string
+  }) => api.put<DevicePolicyDto>(`/devices/${id}/policy`, data),
   list: (params?: { page?: number; pageSize?: number; status?: string; search?: string }) => {
     const searchParams = new URLSearchParams()
     if (params?.page) searchParams.set('page', params.page.toString())
