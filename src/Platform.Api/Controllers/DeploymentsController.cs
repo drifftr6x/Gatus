@@ -227,6 +227,10 @@ public class DeploymentsController : ControllerBase
             {
                 result.CompletedAt = DateTime.UtcNow;
                 result.ErrorMessage = report.Error;
+                if (!string.IsNullOrEmpty(report.PreviousVersionId) && Guid.TryParse(report.PreviousVersionId, out var prevId))
+                {
+                    result.PreviousVersionId = prevId;
+                }
             }
         }
 
@@ -301,8 +305,94 @@ public class DeploymentsController : ControllerBase
 
         await _context.SaveChangesAsync();
         return Ok();
-    }
-}
+        }
+
+        /// <summary>
+        /// Admin: rollback a completed deployment — deploys the previous content version
+        /// to the same devices.
+        /// </summary>
+        [HttpPost("{id}/rollback")]
+        [Authorize(Policy = "RequireEditor")]
+        public async Task<IActionResult> RollbackDeployment(Guid id)
+        {
+        var deployment = await _context.Deployments
+            .Include(d => d.ContentVersion)
+            .Include(d => d.Results)
+            .FirstOrDefaultAsync(d => d.Id == id);
+
+        if (deployment == null)
+            return NotFound();
+
+        if (deployment.Status != DeploymentStatus.Completed && deployment.Status != DeploymentStatus.PartiallyCompleted)
+            return BadRequest(new { error = "Can only rollback completed deployments" });
+
+        // Find the previous version for this content
+        var previousVersion = await _context.ContentVersions
+            .Where(v => v.ContentId == deployment.ContentVersion.ContentId &&
+                        v.Version < deployment.ContentVersion.Version)
+            .OrderByDescending(v => v.Version)
+            .FirstOrDefaultAsync();
+
+        if (previousVersion == null)
+            return BadRequest(new { error = "No previous version available for rollback" });
+
+        var deviceIds = deployment.Results
+            .Where(r => r.Status == DeploymentResultStatus.Succeeded)
+            .Select(r => r.DeviceId)
+            .ToArray();
+
+        if (deviceIds.Length == 0)
+            return BadRequest(new { error = "No successfully deployed devices to rollback" });
+
+        var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+
+        var rollback = new Deployment
+        {
+            Id = Guid.NewGuid(),
+            Name = $"Rollback: {deployment.Name} → v{previousVersion.Version}",
+            Description = $"Rollback of deployment {deployment.Id} to content version {previousVersion.Version}",
+            ContentVersionId = previousVersion.Id,
+            Status = DeploymentStatus.Pending,
+            CreatedById = userId,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.Deployments.Add(rollback);
+
+        foreach (var deviceId in deviceIds)
+        {
+            _context.DeploymentResults.Add(new DeploymentResult
+            {
+                Id = Guid.NewGuid(),
+                DeploymentId = rollback.Id,
+                DeviceId = deviceId,
+                Status = DeploymentResultStatus.Pending
+            });
+        }
+
+        // Mark original results as rolled back
+        foreach (var result in deployment.Results.Where(r => r.Status == DeploymentResultStatus.Succeeded))
+        {
+            result.RollbackPerformed = true;
+        }
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Rollback deployment {RollbackId} created for {OriginalId}: {DeviceCount} devices → v{Version}",
+            rollback.Id, deployment.Id, deviceIds.Length, previousVersion.Version);
+
+        await _broadcaster.DeviceStatusChanged(Guid.Empty, "DeploymentCreated", DateTime.UtcNow);
+
+        return Ok(new
+        {
+            id = rollback.Id,
+            name = rollback.Name,
+            deviceCount = deviceIds.Length,
+            previousVersion = previousVersion.Version
+        });
+        }
+        }
 
 public record CreateDeploymentRequest(
     Guid ContentVersionId,
@@ -317,5 +407,6 @@ public record CreateDeploymentRequest(
 public record DeploymentStatusReport(
     Guid DeviceId,
     string Status,
-    string? Error
+    string? Error,
+    string? PreviousVersionId
 );

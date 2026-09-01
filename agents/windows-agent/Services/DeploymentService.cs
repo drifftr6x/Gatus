@@ -177,13 +177,14 @@ public class DeploymentService : BackgroundService
             // Move staging to active
             Directory.Move(stagingPath, activePath);
 
-            // 5. Update state
+            // 5. Update state — capture previous version for rollback
             var state = await _stateManager.LoadStateAsync();
+            var previousVersionId = state.CurrentContentVersion;
             state.CurrentContentVersion = contentId;
             await _stateManager.SaveStateAsync(state);
 
-            // 6. Report success
-            await ReportDeploymentStatusAsync(deploymentId, "Succeeded", null, credentials, cancellationToken);
+            // 6. Report success with previous version for rollback tracking
+            await ReportDeploymentStatusAsync(deploymentId, "Succeeded", null, credentials, cancellationToken, previousVersionId);
 
             _logger.LogInformation("Deployment {DeploymentId} completed successfully", deploymentId);
 
@@ -331,7 +332,7 @@ public class DeploymentService : BackgroundService
         }
     }
 
-    private async Task ReportDeploymentStatusAsync(string deploymentId, string status, string? error, DeviceCredentials credentials, CancellationToken cancellationToken)
+    private async Task ReportDeploymentStatusAsync(string deploymentId, string status, string? error, DeviceCredentials credentials, CancellationToken cancellationToken, string? previousVersionId = null)
     {
         try
         {
@@ -343,7 +344,8 @@ public class DeploymentService : BackgroundService
             {
                 deviceId = credentials.DeviceId,
                 status,
-                error
+                error,
+                previousVersionId
             };
 
             await client.PostAsJsonAsync($"/api/deployments/{deploymentId}/status", report, cancellationToken);

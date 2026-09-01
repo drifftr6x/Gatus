@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { telemetryApi, devicesApi, alertsApi, deploymentsApi } from '@/lib/api'
 import { Monitor, CalendarClock, FolderOpen, AlertTriangle, BellRing } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { DeviceMap } from '@/components/device-map'
 import { ConnectivityChart } from '@/components/connectivity-chart'
 
@@ -23,6 +24,16 @@ export function DashboardPage() {
     queryKey: ['alerts', 'count'],
     queryFn: alertsApi.count,
     refetchInterval: 15_000,
+  })
+
+  const queryClient = useQueryClient()
+
+  const rollbackMutation = useMutation({
+    mutationFn: (deploymentId: string) => deploymentsApi.rollback(deploymentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recent-deployments'] })
+      queryClient.invalidateQueries({ queryKey: ['deployments'] })
+    },
   })
 
   const { data: recentAlerts } = useQuery({
@@ -176,12 +187,24 @@ export function DashboardPage() {
                           ? 'bg-red-500/10 text-red-400 ring-red-500/30'
                           : dep.status === 'InProgress'
                             ? 'bg-blue-500/10 text-blue-400 ring-blue-500/30'
-                            : 'bg-slate-500/10 text-slate-400 ring-slate-500/30'
+                            : dep.status === 'Scheduled'
+                              ? 'bg-amber-500/10 text-amber-400 ring-amber-500/30'
+                              : 'bg-slate-500/10 text-slate-400 ring-slate-500/30'
                     }`}
                   >
                     {dep.status}
                   </span>
-                </div>
+                  {(dep.status === 'Completed' || dep.status === 'PartiallyCompleted') && (
+                    <button
+                      onClick={() => rollbackMutation.mutate(dep.id)}
+                      disabled={rollbackMutation.isPending}
+                      className="shrink-0 rounded-lg border border-surface-700 px-2 py-1 text-xs text-slate-400 hover:bg-surface-800 hover:text-white transition-colors"
+                      title="Rollback to previous version"
+                    >
+                      ↩ Rollback
+                    </button>
+                  )}
+                  </div>
               )
             })}
           </div>

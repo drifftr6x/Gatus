@@ -406,6 +406,7 @@ export const contentApi = {
   },
   create: (data: CreateDeploymentRequest) => api.post<{ id: string; name: string; deviceCount: number }>('/deployments', data),
   cancel: (id: string) => api.post(`/deployments/${id}/cancel`),
+  rollback: (id: string) => api.post<{ id: string; name: string; deviceCount: number; previousVersion: number }>(`/deployments/${id}/rollback`),
   }
 
   export interface DeploymentDto {
