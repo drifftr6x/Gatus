@@ -68,7 +68,7 @@ public class DevicesControllerTests : IClassFixture<CustomWebApplicationFactory>
 
         // Create
         var createResponse = await _client.PostAsJsonAsync("/api/devices",
-            new CreateDeviceRequest("Test Kiosk", "SN-TEST-001", "Test device", "Lobby", null, null, null, null));
+            new CreateDeviceRequest("Test Kiosk", "SN-TEST-001", "Test device", "Lobby", null, null, null, null, null, null, null));
 
         // Note: Viewer role can't create, need Editor. Registered users are Viewer by default.
         // This test verifies authorization works
