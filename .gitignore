@@ -106,6 +106,10 @@ pnpm-debug.log*
 **/data/
 *.tar
 
+# ── Local backups ──────────────────────────────────────────────────
+# Backups can contain production data; store them outside Git.
+backups/
+
 # ── Misc ──────────────────────────────────────────────────────────
 *.tmp
 *.bak
