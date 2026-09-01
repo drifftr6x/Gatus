@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { devicesApi, commandsApi } from '@/lib/api'
-import { Send, RefreshCw, RotateCcw, Power, FileText, Terminal } from 'lucide-react'
+import { RefreshCw, RotateCcw, Power, FileText, Terminal } from 'lucide-react'
 import { useState } from 'react'
 
 const actions = [
