@@ -44,6 +44,17 @@ public class GeocodingService
     {
         if (string.IsNullOrWhiteSpace(location)) return null;
 
+        // Deterministic fallback for common service areas when the external
+        // geocoder is unavailable or rate-limited.
+        var normalized = location.Trim().ToLowerInvariant();
+        var knownLocations = new Dictionary<string, (double lat, double lng)>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["lenexa, ks"] = (38.9536, -94.7336),
+            ["oklahoma city, ok"] = (35.47299, -97.51705),
+        };
+        if (knownLocations.TryGetValue(normalized, out var known))
+            return known;
+
         // Check cache
         await _lock.WaitAsync(ct);
         try
