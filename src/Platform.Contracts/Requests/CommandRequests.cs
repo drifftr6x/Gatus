@@ -10,6 +10,7 @@ public record IssueCommandRequest(
 /// <summary>Reported by the agent after executing a command.</summary>
 public record CommandResultReport(
     Guid CommandId,
+    Guid DeviceId,
     string Status,
     string? Message,
     DateTime Timestamp

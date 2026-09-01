@@ -21,17 +21,20 @@ public class DevicesController : ControllerBase
     private readonly ILogger<DevicesController> _logger;
     private readonly IDeviceEventBroadcaster _broadcaster;
     private readonly GeocodingService _geocoding;
+    private readonly DeviceAuthenticationService _deviceAuth;
 
     public DevicesController(
         ApplicationDbContext context,
         ILogger<DevicesController> logger,
         IDeviceEventBroadcaster broadcaster,
-        GeocodingService geocoding)
+        GeocodingService geocoding,
+        DeviceAuthenticationService deviceAuth)
     {
         _context = context;
         _logger = logger;
         _broadcaster = broadcaster;
         _geocoding = geocoding;
+        _deviceAuth = deviceAuth;
     }
 
     /// <summary>
@@ -489,6 +492,8 @@ public class DevicesController : ControllerBase
         [AllowAnonymous]
         public async Task<ActionResult<DevicePolicyDto>> GetPolicy(Guid id)
         {
+        if (await _deviceAuth.AuthenticateAsync(HttpContext, id) is null)
+            return Unauthorized(new { error = "Valid device credentials are required" });
         var device = await _context.Devices.FindAsync(id);
         if (device == null) return NotFound();
         return Ok(BuildPolicyDto(device));
@@ -583,10 +588,13 @@ public class DevicesController : ControllerBase
         }
 
         [HttpPost("{id}/heartbeat")]
-    [AllowAnonymous] // Devices may not have full auth
-    public async Task<IActionResult> Heartbeat(Guid id, [FromBody] System.Text.Json.JsonElement? payload)
-    {
-        var device = await _context.Devices.FindAsync(id);
+        [AllowAnonymous]
+        public async Task<IActionResult> Heartbeat(Guid id, [FromBody] System.Text.Json.JsonElement? payload)
+        {
+            if (await _deviceAuth.AuthenticateAsync(HttpContext, id) is null)
+                return Unauthorized(new { error = "Valid device credentials are required" });
+
+            var device = await _context.Devices.FindAsync(id);
         if (device == null)
         {
             return NotFound();

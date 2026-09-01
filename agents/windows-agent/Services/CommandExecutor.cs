@@ -294,6 +294,8 @@ public class CommandExecutor : BackgroundService
     {
         try
         {
+            var credentials = await _stateManager.LoadCredentialsAsync();
+            if (credentials == null) return;
             var client = _httpClientFactory.CreateClient("SentinelServer");
             client.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", deviceSecret);
@@ -301,6 +303,7 @@ public class CommandExecutor : BackgroundService
             var report = new
             {
                 commandId,
+                deviceId = credentials.DeviceId,
                 status,
                 message,
                 timestamp = DateTime.UtcNow

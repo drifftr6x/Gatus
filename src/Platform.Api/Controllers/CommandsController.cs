@@ -94,6 +94,9 @@ public class CommandsController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> ReportResult(Guid id, [FromBody] CommandResultReport report)
     {
+        if (await _deviceAuth.AuthenticateAsync(HttpContext, report.DeviceId) is null)
+            return Unauthorized(new { error = "Valid device credentials are required" });
+
         var command = await _context.Commands.FindAsync(id);
         if (command == null)
         {
