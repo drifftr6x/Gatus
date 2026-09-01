@@ -492,8 +492,12 @@ public class DevicesController : ControllerBase
         [AllowAnonymous]
         public async Task<ActionResult<DevicePolicyDto>> GetPolicy(Guid id)
         {
-        if (await _deviceAuth.AuthenticateAsync(HttpContext, id) is null)
-            return Unauthorized(new { error = "Valid device credentials are required" });
+        // Agents authenticate with the per-device secret; admins/editors use JWT
+        if (User.Identity?.IsAuthenticated != true)
+        {
+            if (await _deviceAuth.AuthenticateAsync(HttpContext, id) is null)
+                return Unauthorized(new { error = "Valid device credentials are required" });
+        }
         var device = await _context.Devices.FindAsync(id);
         if (device == null) return NotFound();
         return Ok(BuildPolicyDto(device));

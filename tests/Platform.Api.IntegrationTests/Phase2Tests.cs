@@ -254,6 +254,31 @@ public class TelemetryControllerTests : IClassFixture<CustomWebApplicationFactor
     }
 
     [Fact]
+    public async Task GetPolicy_WithValidDeviceSecret_ReturnsPolicyDocument()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var device = new Device
+        {
+            Id = Guid.NewGuid(), Name = "Policy Device", SerialNumber = $"SN-{Guid.NewGuid():N}",
+            Status = DeviceStatus.Online, IsActive = true,
+            DeviceSecretHash = Platform.Api.Services.DeviceAuthenticationService.HashSecret("policy-secret")
+        };
+        db.Devices.Add(device);
+        await db.SaveChangesAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/devices/{device.Id}/policy");
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "policy-secret");
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var doc = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>();
+        Assert.NotNull(doc);
+        Assert.True(doc.ContainsKey("version"));
+        Assert.True(doc.ContainsKey("lockdown"));
+    }
+
+    [Fact]
     public async Task Ingest_WithAnotherDevicesSecret_ReturnsUnauthorized()
     {
         using var scope = _factory.Services.CreateScope();
