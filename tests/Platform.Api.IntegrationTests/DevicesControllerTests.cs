@@ -26,6 +26,13 @@ public class DevicesControllerTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
+    public async Task Product_WithoutAuth_ReturnsUnauthorized()
+    {
+        var response = await _client.GetAsync("/api/product");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Login_WithInvalidCredentials_ReturnsUnauthorized()
     {
         var response = await _client.PostAsJsonAsync("/api/auth/login",
