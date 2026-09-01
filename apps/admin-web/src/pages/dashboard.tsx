@@ -242,7 +242,7 @@ export function DashboardPage() {
           </Link>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          {devicesData?.devices.map((device: any) => (
+          {allDevices?.map((device) => (
             <Link
               key={device.id}
               to={`/devices/${device.id}`}
@@ -269,7 +269,7 @@ export function DashboardPage() {
             </Link>
           ))}
         </div>
-        {devicesData?.devices.length === 0 && (
+        {allDevices?.length === 0 && (
           <div className="py-12 text-center text-sm text-slate-500">No devices registered yet.</div>
         )}
       </div>
@@ -279,8 +279,8 @@ export function DashboardPage() {
         <div className="mt-8">
           <h2 className="mb-3 text-base font-semibold text-white">Fleet Telemetry (24h)</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            {devicesData?.devices
-              .filter((d) => d.status === 'Online')
+            {allDevices
+              ?.filter((d) => d.status === 'Online')
               .slice(0, 2)
               .map((device) => (
                 <TelemetrySparkline key={device.id} deviceId={device.id} deviceName={device.name} />
