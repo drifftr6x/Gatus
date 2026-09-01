@@ -11,6 +11,7 @@
 - **Lockdown**: intended to be reversible; recovery scripts under ProgramData (do not ship a policy that cannot be undone)
 - **Audit-ish logs**: Serilog file logs + optional `user-actions-*.json` viewed in the Logs page
 - **CI**: `.github/workflows/security.yml` plus `ci.yml` / `deploy.yml`
+- **Teams alerts**: See [TEAMS-ALERTS.md](TEAMS-ALERTS.md); webhook URLs are bearer secrets and must be rotated if exposed
 
 ## Not implemented (do not assume)
 

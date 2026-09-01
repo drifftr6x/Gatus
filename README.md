@@ -92,6 +92,7 @@ Solution file: `KioskPlatform.slnx`.
 | [Windows agent](docs/WINDOWS-AGENT.md) | Enroll, heartbeat, install |
 | [Kiosk runtime](docs/KIOSK-RUNTIME.md) | WebView2 process and policy pipe |
 | [Security](docs/SECURITY.md) | Auth, secrets, threat notes |
+| [Teams alerts](docs/TEAMS-ALERTS.md) | Create Teams Workflow webhooks and test alerts |
 | [Deployment](docs/DEPLOYMENT.md) | Compose, CI, production caveats |
 | [Roadmap](docs/ROADMAP.md) | Done vs remaining |
 | [Changelog](docs/CHANGELOG.md) | Notable changes |
