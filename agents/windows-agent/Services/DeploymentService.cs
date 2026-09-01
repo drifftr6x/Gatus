@@ -114,6 +114,17 @@ public class DeploymentService : BackgroundService
 
         try
         {
+            // Disk-space guard: require at least 500 MB free before downloading
+            var drive = new DriveInfo(_stateManager.ContentPath);
+            const long minFreeBytes = 500L * 1024 * 1024;
+            if (drive.AvailableFreeSpace < minFreeBytes)
+            {
+                _logger.LogError("Insufficient disk space: {FreeMB} MB free, minimum {MinMB} MB required",
+                    drive.AvailableFreeSpace / (1024 * 1024), minFreeBytes / (1024 * 1024));
+                await ReportDeploymentStatusAsync(deploymentId, "Failed", "Insufficient disk space", credentials, cancellationToken);
+                return;
+            }
+
             // 1. Download content
             var stagingPath = _stateManager.GetStagingPath(deploymentId);
             Directory.CreateDirectory(stagingPath);
@@ -178,6 +189,9 @@ public class DeploymentService : BackgroundService
 
             // Notify kiosk runtime that new content is available
             await NotifyKioskContentActivatedAsync(contentId, activePath, cancellationToken);
+
+            // Clean up old content versions
+            await _stateManager.CleanupOldContentAsync();
             }
         catch (Exception ex)
         {

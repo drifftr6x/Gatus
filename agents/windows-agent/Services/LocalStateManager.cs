@@ -133,6 +133,52 @@ public class LocalStateManager
     public string GetBackupPath(string contentId) =>
         Path.Combine(ContentPath, $"{contentId}.backup");
 
+    /// <summary>
+    /// Remove old content directories, keeping the active and backup versions.
+    /// Deletes directories older than maxAgeDays or when total size exceeds maxTotalBytes.
+    /// </summary>
+    public async Task CleanupOldContentAsync(int maxAgeDays = 30, long maxTotalBytes = 2L * 1024 * 1024 * 1024)
+    {
+        if (!Directory.Exists(ContentPath)) return;
+
+        var state = await LoadStateAsync();
+        var activeContentId = state.CurrentContentVersion;
+
+        var dirs = Directory.GetDirectories(ContentPath)
+            .Select(d => new DirectoryInfo(d))
+            .Where(d => !d.Name.EndsWith(".backup") && !d.Name.Contains("staging"))
+            .Where(d => activeContentId == null || !d.Name.StartsWith(activeContentId))
+            .OrderBy(d => d.LastWriteTimeUtc)
+            .ToList();
+
+        var totalSize = dirs.Sum(d => d.EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length));
+        var removed = 0;
+
+        foreach (var dir in dirs)
+        {
+            var age = DateTime.UtcNow - dir.LastWriteTimeUtc;
+            if (age.TotalDays < maxAgeDays && totalSize < maxTotalBytes)
+                break;
+
+            try
+            {
+                var dirSize = dir.EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length);
+                dir.Delete(recursive: true);
+                totalSize -= dirSize;
+                removed++;
+                _logger.LogInformation("Cleaned up old content: {Path} ({Size} MB, {Age:F0} days old)",
+                    dir.Name, dirSize / (1024 * 1024), age.TotalDays);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to clean up content directory: {Path}", dir.Name);
+            }
+        }
+
+        if (removed > 0)
+            _logger.LogInformation("Content cleanup complete: removed {Count} directories", removed);
+    }
+
     public async Task RotateLogsAsync()
     {
         var logFiles = Directory.GetFiles(LogsPath, "*.log")
