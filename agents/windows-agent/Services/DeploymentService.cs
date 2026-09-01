@@ -193,7 +193,7 @@ public class DeploymentService : BackgroundService
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", deviceSecret);
 
             var response = await client.GetAsync(
-                $"/api/content/{deployment.ContentVersionId}/download",
+                $"/api/content/{deployment.ContentVersionId}/download?deviceId={Uri.EscapeDataString((await _stateManager.LoadCredentialsAsync())?.DeviceId ?? string.Empty)}",
                 cancellationToken);
 
             if (!response.IsSuccessStatusCode)

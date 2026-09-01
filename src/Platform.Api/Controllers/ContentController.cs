@@ -19,12 +19,14 @@ public class ContentController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly ILogger<ContentController> _logger;
     private readonly ContentStorageService _storage;
+    private readonly DeviceAuthenticationService _deviceAuth;
 
-    public ContentController(ApplicationDbContext context, ILogger<ContentController> logger, ContentStorageService storage)
+    public ContentController(ApplicationDbContext context, ILogger<ContentController> logger, ContentStorageService storage, DeviceAuthenticationService deviceAuth)
     {
         _context = context;
         _logger = logger;
         _storage = storage;
+        _deviceAuth = deviceAuth;
     }
 
     [HttpGet]
@@ -309,6 +311,15 @@ public class ContentController : ControllerBase
     [AllowAnonymous] // Device-secret validation handled below; admin JWT also works
     public async Task<IActionResult> DownloadVersion(Guid contentId, int? version = null, Guid? versionId = null)
     {
+        // Device downloads identify the target device through the bearer credential.
+        // Admin JWT callers remain supported for operator downloads.
+        if (User.Identity?.IsAuthenticated != true)
+        {
+            var deviceIdValue = Request.Query["deviceId"].FirstOrDefault();
+            if (!Guid.TryParse(deviceIdValue, out var deviceId) || await _deviceAuth.AuthenticateAsync(HttpContext, deviceId) is null)
+                return Unauthorized(new { error = "Valid device credentials and deviceId are required" });
+        }
+
         ContentVersion? contentVersion = null;
 
         // Try version GUID first (agent pattern: /api/content/{versionId}/download)
