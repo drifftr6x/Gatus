@@ -1,8 +1,8 @@
 # Gatus Kiosk Platform
 
-**EdgeWatch Lite** is a lightweight Windows kiosk-management console: enroll PCs, assign kiosk profiles, monitor health, and run essential remote actions. Advanced capabilities remain available in the same platform.
+**Gatus** is a Windows kiosk-management console: enroll PCs, assign kiosk profiles, monitor health, deploy content, and run remote actions. Optional advanced capabilities remain available in the same platform.
 
-The Windows agent and kiosk runtime still use the `SentinelKiosk` assembly and service names (`SentinelKioskAgent`, `C:\ProgramData\SentinelKiosk\`) for compatibility.
+The Windows agent and kiosk runtime currently use the `SentinelKiosk` assembly and service names (`SentinelKioskAgent`, `C:\ProgramData\SentinelKiosk\`) for compatibility.
 
 ## What it does today
 

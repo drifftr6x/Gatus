@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { isConnected } = useSignalR()
   const { data: product } = useProductConfig()
 
-  const liteItems = navItems.filter((item) =>
+  const coreItems = navItems.filter((item) =>
     ['/dashboard', '/devices', '/kiosk-profiles', '/remote-actions', '/settings'].includes(item.href),
   )
   const advancedItems = navItems.filter((item) =>
@@ -81,10 +81,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <ShieldCheck className="h-5 w-5" />
             </div>
             <span className="text-lg font-semibold tracking-tight text-white">
-              {product?.productName ?? 'EdgeWatch Lite'}
+              {product?.productName ?? 'Gatus'}
             </span>
             <span className="rounded-md bg-surface-800 px-2 py-0.5 text-xs font-medium text-slate-400">
-              {product?.edition ?? 'Lite'}
+              {product?.edition ?? 'Core'}
             </span>
           </div>
           <div className="flex items-center gap-4">
@@ -121,8 +121,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Sidebar */}
         <aside className="sticky top-14 h-[calc(100vh-3.5rem)] w-56 shrink-0 border-r border-surface-800 p-3">
           <nav className="space-y-1">
-            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">Lite</p>
-            {liteItems.map((item) => {
+            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">Core</p>
+            {coreItems.map((item) => {
               const isActive = location.pathname.startsWith(item.href)
               return (
                 <Link

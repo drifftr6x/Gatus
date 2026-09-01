@@ -22,8 +22,8 @@ public sealed class ProductController : ControllerBase
     {
         var features = _configuration.GetSection("Product:Features");
         return Ok(new ProductConfigurationDto(
-            _configuration["Product:Name"] ?? "EdgeWatch Lite",
-            _configuration["Product:Edition"] ?? "Lite",
+            _configuration["Product:Name"] ?? "Gatus",
+            _configuration["Product:Edition"] ?? "Core",
             _configuration["Product:Version"] ?? "0.1.0",
             new ProductFeatureFlags(
                 GetFeature(features, "Groups", true),
