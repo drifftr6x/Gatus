@@ -6,6 +6,7 @@
 - **Sessions**: JWT access tokens + rotating refresh tokens (DB-backed)
 - **RBAC policies**: `RequireViewer`, `RequireEditor`, `RequireAdmin` (roles Viewer, Editor, Admin, SuperAdmin)
 - **Enrollment tokens**: cryptographically random, SHA-256 at rest, expiry, single-use, revoke
+- **Device authentication**: per-device bearer secret, SHA-256 at rest, active-device and device-ID binding on agent routes
 - **Content**: SHA-256 on packages; agent refuses mismatch
 - **Agent secrets**: DPAPI (`ProtectedData`) on disk
 - **Lockdown**: intended to be reversible; recovery scripts under ProgramData (do not ship a policy that cannot be undone)
@@ -22,7 +23,7 @@
 - Production TLS termination in this repo’s Compose file (local API is HTTP :5163)
 - Digitally signed agent installers
 
-Treat agent-facing anonymous endpoints as **LAN/dev only** until they authenticate with the issued `deviceSecret` or a client certificate.
+Enrollment is the only anonymous agent operation. Heartbeat, telemetry, commands, policy, deployments, and content downloads validate the issued per-device `deviceSecret` and requested device ID. Client certificates/mTLS remain future hardening.
 
 ## Secrets
 
@@ -35,7 +36,7 @@ Treat agent-facing anonymous endpoints as **LAN/dev only** until they authentica
 | Threat | Current mitigation | Gap |
 |--------|--------------------|-----|
 | Stolen enrollment token | Hash, TTL, one-time | Token shown in UI clipboard |
-| Agent impersonation | Per-device secret issued | Heartbeat/telemetry often unauthenticated |
+| Agent impersonation | Per-device secret hash and device-ID binding | Client certificates/mTLS remain future hardening |
 | Privilege escalation | Server-side role policies | UI hiding is not enough; always enforce on API |
 | Malicious content | Checksum + staging | Package signing later |
 | Kiosk escape | WebView2 guards + optional OS lockdown | Depends on Windows edition and policy |

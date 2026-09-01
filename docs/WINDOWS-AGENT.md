@@ -35,6 +35,18 @@ SentinelKiosk.Agent.exe --enroll <token>
 
 A used or expired token returns 4xx. Tokens are single-use.
 
+## Authentication
+
+After enrollment, the agent sends its unique bearer device secret on device-facing requests:
+
+```http
+Authorization: Bearer <device-secret>
+```
+
+The server stores only a SHA-256 hash of the secret and binds the credential to the device ID. Heartbeats, telemetry, command polling/results, deployment polling/status, policy retrieval, and content downloads must use the enrolled device credential. Enrollment remains the only anonymous agent operation and requires a valid one-time token.
+
+If the device receives `401` or `403`, stop the agent and re-enroll it with a newly generated token after confirming the device has not been revoked.
+
 ## Configuration
 
 `agents/windows-agent/appsettings.json`:
