@@ -2,25 +2,27 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 class ApiClient {
   private accessToken: string | null = null
-  private refreshToken: string | null = null
 
-  setTokens(accessToken: string, refreshToken: string) {
+  setTokens(accessToken: string, _refreshToken: string) {
+    // Access token in memory only; refresh token is httpOnly cookie set by server
     this.accessToken = accessToken
-    this.refreshToken = refreshToken
-    localStorage.setItem('accessToken', accessToken)
-    localStorage.setItem('refreshToken', refreshToken)
+    // Keep a session marker so we know the user was logged in (for page refresh)
+    localStorage.setItem('gatus-session', 'active')
   }
 
   loadTokens() {
-    this.accessToken = localStorage.getItem('accessToken')
-    this.refreshToken = localStorage.getItem('refreshToken')
+    // Access token is in-memory only; on page refresh it will be null
+    // The refresh token cookie is sent automatically with credentials: 'include'
+    this.accessToken = null
   }
 
   clearTokens() {
     this.accessToken = null
-    this.refreshToken = null
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
+    localStorage.removeItem('gatus-session')
+  }
+
+  get hasSession(): boolean {
+    return localStorage.getItem('gatus-session') === 'active'
   }
 
   private async request<T>(
@@ -37,9 +39,9 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.accessToken}`
     }
 
-    const response = await fetch(url, { ...options, headers })
+    const response = await fetch(url, { ...options, headers, credentials: 'include' })
 
-    if (response.status === 401 && this.refreshToken) {
+    if (response.status === 401 && this.hasSession) {
       // Try to refresh token
       const refreshed = await this.refreshAccessToken()
       if (refreshed) {
@@ -62,10 +64,12 @@ class ApiClient {
 
   private async refreshAccessToken(): Promise<boolean> {
     try {
+      // Refresh token is in httpOnly cookie — sent automatically with credentials: 'include'
       const response = await fetch(`${API_BASE}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: this.refreshToken }),
+        credentials: 'include',
+        body: '{}',
       })
 
       if (!response.ok) {

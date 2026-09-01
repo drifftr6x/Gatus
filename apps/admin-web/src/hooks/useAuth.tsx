@@ -19,9 +19,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('accessToken')
-      if (token) {
+      // Check session marker; refresh token cookie is sent automatically
+      if (api.hasSession) {
         try {
+          // First attempt will 401 (no access token in memory) then auto-refresh via cookie
           const userData = await authApi.getCurrentUser()
           setUser(userData)
         } catch {
