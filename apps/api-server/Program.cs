@@ -7,6 +7,11 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Use the API content root explicitly so the Logs page reads the same files
+// regardless of whether the app was started from the project or bin directory.
+var logDirectory = Path.Combine(builder.Environment.ContentRootPath, "logs");
+Directory.CreateDirectory(logDirectory);
+
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
@@ -16,7 +21,7 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new Serilog.Formatting.Compact.CompactJsonFormatter())
     .WriteTo.File(
         new Serilog.Formatting.Compact.CompactJsonFormatter(),
-        "logs/log-.json",
+        Path.Combine(logDirectory, "log-.json"),
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 30,
         fileSizeLimitBytes: 50_000_000) // 50MB per file
@@ -28,7 +33,7 @@ var auditLogger = new LoggerConfiguration()
     .Enrich.WithProperty("LogType", "UserAction")
     .WriteTo.File(
         new Serilog.Formatting.Compact.CompactJsonFormatter(),
-        "logs/user-actions-.json",
+        Path.Combine(logDirectory, "user-actions-.json"),
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 90, // Keep audit logs longer
         fileSizeLimitBytes: 50_000_000)

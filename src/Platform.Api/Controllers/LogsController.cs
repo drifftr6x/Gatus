@@ -25,15 +25,22 @@ public class LogsController : ControllerBase
         [FromQuery] int? lastMinutes = null,
         [FromQuery] string? source = null)
     {
-        var logsDir = Path.Combine(_env.ContentRootPath, "logs");
-        if (!Directory.Exists(logsDir))
-            return Ok(new LogResponse([], 0));
+        var candidateDirectories = new[]
+        {
+            Path.Combine(_env.ContentRootPath, "logs"),
+            Path.Combine(AppContext.BaseDirectory, "logs")
+        }
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Where(Directory.Exists)
+        .ToArray();
 
-        // Find the most recent log file (or user actions log)
-          var pattern = source == "audit" ? "user-actions-*.json" : "log-*.json";
-          var logFile = Directory.GetFiles(logsDir, pattern)
-              .OrderByDescending(f => new FileInfo(f).LastWriteTimeUtc)
-              .FirstOrDefault();
+        // Find the most recent log file (or user actions log). This fallback
+        // supports logs created by older builds before the absolute path fix.
+        var pattern = source == "audit" ? "user-actions-*.json" : "log-*.json";
+        var logFile = candidateDirectories
+            .SelectMany(dir => Directory.GetFiles(dir, pattern))
+            .OrderByDescending(f => new FileInfo(f).LastWriteTimeUtc)
+            .FirstOrDefault();
 
         if (logFile == null)
             return Ok(new LogResponse([], 0));
