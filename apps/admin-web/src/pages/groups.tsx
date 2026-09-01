@@ -56,7 +56,7 @@ export function GroupsPage() {
   const sortedGroups = useMemo(() => {
     if (!groups) return []
 
-    const devices = allDevices?.devices ?? []
+    const devices = allDevices ?? []
     const alerts = alertsData?.alerts ?? []
 
     const enriched = groups.map(g => {
