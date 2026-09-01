@@ -4,6 +4,8 @@ import { AuthProvider } from '@/hooks/useAuth'
 import { ProtectedRoute } from '@/components/protected-route'
 import { DashboardPage } from '@/pages/dashboard'
 import { DevicesPage } from '@/pages/devices'
+import { KioskProfilesPage } from '@/pages/kiosk-profiles'
+import { RemoteActionsPage } from '@/pages/remote-actions'
 import { DeviceDetailPage } from '@/pages/device-detail'
 import { GroupsPage } from '@/pages/groups'
 import { SchedulesPage } from '@/pages/schedules'
@@ -29,6 +31,8 @@ export default function App() {
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/devices" element={<DevicesPage />} />
+                  <Route path="/kiosk-profiles" element={<KioskProfilesPage />} />
+                  <Route path="/remote-actions" element={<RemoteActionsPage />} />
                   <Route path="/devices/:id" element={<DeviceDetailPage />} />
                   <Route path="/groups" element={<GroupsPage />} />
                   <Route path="/schedules" element={<SchedulesPage />} />

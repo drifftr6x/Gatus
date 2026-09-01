@@ -14,6 +14,7 @@ import {
   LogOut,
   ShieldCheck,
   ScrollText,
+  Send,
   } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuth } from '@/hooks/useAuth'
@@ -24,6 +25,8 @@ import { useProductConfig } from '@/hooks/useProductConfig'
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/devices', label: 'Devices', icon: Monitor },
+  { href: '/kiosk-profiles', label: 'Kiosk Profiles', icon: ShieldCheck },
+  { href: '/remote-actions', label: 'Remote Actions', icon: Send },
   { href: '/groups', label: 'Groups', icon: FolderTree },
   { href: '/schedules', label: 'Schedules', icon: CalendarClock },
   { href: '/content', label: 'Content', icon: FolderOpen },
@@ -42,7 +45,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: product } = useProductConfig()
 
   const liteItems = navItems.filter((item) =>
-    ['/dashboard', '/devices', '/settings'].includes(item.href),
+    ['/dashboard', '/devices', '/kiosk-profiles', '/remote-actions', '/settings'].includes(item.href),
   )
   const advancedItems = navItems.filter((item) =>
     ['/groups', '/schedules', '/content', '/alerts', '/analytics', '/notifications', '/logs'].includes(item.href),

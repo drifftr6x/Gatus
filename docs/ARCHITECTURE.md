@@ -1,6 +1,6 @@
 # Architecture
 
-Gatus is a **modular monolith**: one ASP.NET Core host, feature controllers, and shared EF Core schema. Windows endpoints run a **service agent** plus an optional **interactive kiosk runtime**.
+**EdgeWatch Lite** is the focused default experience over the existing modular monolith. One ASP.NET Core host, feature controllers, and shared EF Core schema preserve the full advanced platform without forcing Lite users through every module. Windows endpoints run a **service agent** plus an optional **interactive kiosk runtime**.
 
 ## System view
 
