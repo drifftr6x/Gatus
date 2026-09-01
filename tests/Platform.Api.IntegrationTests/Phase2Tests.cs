@@ -162,8 +162,9 @@ public class TelemetryControllerTests : IClassFixture<CustomWebApplicationFactor
             SerialNumber = $"SN-{Guid.NewGuid():N}",
             Status = DeviceStatus.Online,
             IsActive = true,
+            DeviceSecretHash = Platform.Api.Services.DeviceAuthenticationService.HashSecret("test-device-secret"),
             CreatedAt = DateTime.UtcNow
-        };
+            };
         db.Devices.Add(device);
         await db.SaveChangesAsync();
 
@@ -173,13 +174,18 @@ public class TelemetryControllerTests : IClassFixture<CustomWebApplicationFactor
             new("memory_percent", "55", "%")
         });
 
-        var response = await _client.PostAsJsonAsync("/api/telemetry", batch);
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/telemetry")
+        {
+            Content = JsonContent.Create(batch)
+        };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "test-device-secret");
+        var response = await _client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
     }
 
     [Fact]
-    public async Task Ingest_UnknownDevice_ReturnsNotFound()
+    public async Task Ingest_WithoutDeviceCredentials_ReturnsUnauthorized()
     {
         var batch = new TelemetryBatchRequest(Guid.NewGuid(), new List<TelemetryMetricRequest>
         {
@@ -188,7 +194,7 @@ public class TelemetryControllerTests : IClassFixture<CustomWebApplicationFactor
 
         var response = await _client.PostAsJsonAsync("/api/telemetry", batch);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
