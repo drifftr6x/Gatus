@@ -24,7 +24,7 @@ export function LogsPage() {
   const [level, setLevel] = useState<string>('')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [timeRange, setTimeRange] = useState<number | undefined>(60)
+  const [timeRange, setTimeRange] = useState<number | undefined>(undefined)
   const [autoRefresh, setAutoRefresh] = useState(false)
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null)
   const [source, setSource] = useState<'server' | 'audit'>('server')

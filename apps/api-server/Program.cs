@@ -24,7 +24,8 @@ Log.Logger = new LoggerConfiguration()
         Path.Combine(logDirectory, "log-.json"),
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 30,
-        fileSizeLimitBytes: 50_000_000) // 50MB per file
+        fileSizeLimitBytes: 50_000_000,
+        rollOnFileSizeLimit: true) // 50MB per file
     .CreateLogger();
 
 // Separate audit logger for user actions
@@ -36,7 +37,8 @@ var auditLogger = new LoggerConfiguration()
         Path.Combine(logDirectory, "user-actions-.json"),
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 90, // Keep audit logs longer
-        fileSizeLimitBytes: 50_000_000)
+        fileSizeLimitBytes: 50_000_000,
+        rollOnFileSizeLimit: true)
     .CreateLogger();
 builder.Services.AddSingleton<Serilog.ILogger>(auditLogger);
 
