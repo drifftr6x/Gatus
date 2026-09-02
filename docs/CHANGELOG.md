@@ -31,6 +31,7 @@
 - Backup scripts hardened for PowerShell 5.1 (binary-safe `docker cp` instead of PS redirection; quote-safe SQL via stdin)
 - `apply-update.ps1` encoding: UTF-8 BOM required for PowerShell 5.1 ANSI parsing of BOM-less files with multibyte chars; direct `CreateProcess` launcher (`UseShellExecute=false`) for Session 0 reliability
 - Program.cs + appsettings.json reconstructed and committed (previously compiled-only artifacts)
+- Device screenshots: kiosk runtime `ScreenshotResponder` (bidirectional named pipe), agent `ScreenshotService`, `POST/GET /api/devices/{id}/screenshot`, device detail thumbnail
 
 ### Security
 

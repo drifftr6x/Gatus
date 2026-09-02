@@ -21,6 +21,8 @@
 - [x] **Agent self-updater**: server-signed binary packages, eligibility gating (version/minVersion/rollout %), verified self-swap with automatic rollback
 - [x] **Content scheduling**: time-windowed content assignment per device, conflict detection, priority ordering, agent policy integration (`activeSchedules` in device policy)
 - [x] **Live SignalR updates**: device status + telemetry push on heartbeat, offline sweep with broadcast, admin UI real-time cache invalidation
+- [x] **Device screenshots**: kiosk `CapturePreviewAsync` via named pipe IPC, periodic agent upload, device detail thumbnail in admin UI
+- [x] **Audit log viewer**: Server/User Actions tab toggle with search, filters, Excel/PDF export
 - [x] **Backup/restore procedures**: scripted `pg_dump` + AppData (incl. signing keys) with retention, verified restore drill, Task Scheduler registration, runbook
 
 ## In progress / hardening

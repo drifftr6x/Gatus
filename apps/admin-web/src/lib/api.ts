@@ -274,6 +274,9 @@ export const devicesApi = {
     api.post<BulkOperationResponse>('/devices/bulk-tag', data),
   import: (data: ImportDevicesRequest) =>
     api.post<ImportDevicesResponse>('/devices/import', data),
+  screenshotInfo: (id: string) =>
+    api.get<{ available: boolean; bytes?: number; capturedAt?: string }>(`/devices/${id}/screenshot/info`),
+  screenshotUrl: (id: string) => `${API_BASE}/devices/${id}/screenshot`,
   listAll: async () => {
     // Single request; the device list page already uses pageSize 500
     const result = await devicesApi.list({ page: 1, pageSize: 1000 })

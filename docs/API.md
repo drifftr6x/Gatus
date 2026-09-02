@@ -35,6 +35,9 @@ Exceptions: `POST /api/auth/login`, `POST /api/auth/refresh`, and the **device-f
 | GET/PUT | `/api/devices/{id}/policy` |
 | POST | `/api/devices/{id}/commands` |
 | POST | `/api/devices/import` |
+| POST | `/api/devices/{id}/screenshot` | Upload PNG (device-secret, multipart, max 10MB) |
+| GET | `/api/devices/{id}/screenshot` | Latest screenshot image (Viewer+) |
+| GET | `/api/devices/{id}/screenshot/info` | Metadata: available, bytes, capturedAt (Viewer+) |
 
 Enrollment body (agent): `{ enrollmentToken, hostname, hardwareId, osInfo, publicKey }`.
 

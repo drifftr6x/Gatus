@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     private readonly CrashMonitor _crashMonitor;
     private readonly PolicyReceiver _policyReceiver;
     private readonly ContentReceiver _contentReceiver;
+    private readonly ScreenshotResponder _screenshotResponder;
     private bool _isInitialized;
 
     public MainWindow(KioskConfiguration config)
@@ -26,6 +27,7 @@ public partial class MainWindow : Window
         _crashMonitor = new CrashMonitor(config, RestartApplication);
         _policyReceiver = new PolicyReceiver(config, OnPolicyUpdated);
         _contentReceiver = new ContentReceiver(OnContentActivated);
+        _screenshotResponder = new ScreenshotResponder(CaptureScreenshotAsync);
 
         InitializeComponent();
         InitializeWebView();
@@ -86,6 +88,9 @@ public partial class MainWindow : Window
 
             // Start content receiver
             _contentReceiver.Start();
+
+            // Start screenshot responder (agent → kiosk IPC)
+            _screenshotResponder.Start();
 
             Log.Information("WebView2 initialized successfully");
         }
@@ -268,19 +273,74 @@ public partial class MainWindow : Window
             _config.HomeUrl = url;
 
             // Navigate WebView2
-            if (_isInitialized)
-            {
-                WebView.Source = new Uri(url);
-                Log.Information("Navigated to deployed content: {Url}", url);
+                if (_isInitialized)
+                {
+                    WebView.Source = new Uri(url);
+                    Log.Information("Navigated to deployed content: {Url}", url);
+                }
+            });
             }
-        });
-        }
 
-        protected override void OnClosed(EventArgs e)
+            /// <summary>
+            /// Captures the current WebView2 content as PNG bytes.
+            /// Must be called on the UI thread (dispatched from ScreenshotResponder).
+            /// </summary>
+            private async Task<byte[]?> CaptureScreenshotAsync()
+            {
+            try
+            {
+                if (!_isInitialized || WebView.CoreWebView2 == null)
+                {
+                    Log.Warning("Screenshot requested but WebView2 is not initialized");
+                    return null;
+                }
+
+                // CapturePreviewAsync must run on the UI thread
+                var tcs = new TaskCompletionSource<byte[]?>();
+                Dispatcher.Invoke(() =>
+                {
+                    try
+                    {
+                        using var stream = new MemoryStream();
+                        var task = WebView.CoreWebView2.CapturePreviewAsync(
+                            CoreWebView2CapturePreviewImageFormat.Png, stream);
+                        task.ContinueWith(t =>
+                        {
+                            if (t.IsFaulted)
+                            {
+                                Log.Error(t.Exception, "WebView2 CapturePreview failed");
+                                tcs.TrySetResult(null);
+                            }
+                            else
+                            {
+                                tcs.TrySetResult(stream.ToArray());
+                            }
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "WebView2 CapturePreview failed");
+                        tcs.SetResult(null);
+                    }
+                });
+
+                // 10-second timeout for the capture
+                var result = await Task.WhenAny(tcs.Task, Task.Delay(10000));
+                return result == tcs.Task ? tcs.Task.Result : null;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Screenshot capture failed");
+                return null;
+            }
+            }
+
+            protected override void OnClosed(EventArgs e)
         {
         _sessionManager.Stop();
         _policyReceiver.Stop();
         _contentReceiver.Stop();
+        _screenshotResponder.Stop();
         base.OnClosed(e);
         }
         }

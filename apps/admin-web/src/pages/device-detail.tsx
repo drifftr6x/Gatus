@@ -37,6 +37,13 @@ export function DeviceDetailPage() {
     enabled: !!id,
   })
 
+  const { data: screenshotInfo } = useQuery({
+    queryKey: ['device-screenshot', id],
+    queryFn: () => devicesApi.screenshotInfo(id!),
+    enabled: !!id,
+    refetchInterval: 60_000,
+  })
+
   const deleteMutation = useMutation({
     mutationFn: () => devicesApi.delete(id!),
     onSuccess: () => {
@@ -106,6 +113,26 @@ export function DeviceDetailPage() {
         <MetricCard icon={<Activity size={18} />} label="Telemetry" value={telemetry?.length ?? 0} unit=" metrics" />
         <MetricCard icon={<AlertTriangle size={18} />} label="Alerts" value={deviceAlerts?.totalCount ?? 0} unit="" warn={1} />
       </div>
+
+      {/* Screenshot */}
+      {screenshotInfo?.available && (
+        <div className="mt-6 rounded-xl border border-surface-800 bg-surface-900 p-5 shadow-lg">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-white">Screen</h2>
+            <span className="text-xs text-slate-500">
+              Captured {new Date(screenshotInfo.capturedAt!).toLocaleString()}
+            </span>
+          </div>
+          <div className="mt-3 overflow-hidden rounded-lg border border-surface-700">
+            <img
+              src={`${devicesApi.screenshotUrl(id!)}?t=${screenshotInfo.capturedAt}`}
+              alt={`Screenshot of ${device.name}`}
+              className="w-full object-contain bg-black"
+              loading="lazy"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Details + Telemetry side by side */}
       <div className="mt-8 grid gap-8 lg:grid-cols-3">

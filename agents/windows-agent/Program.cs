@@ -38,6 +38,7 @@ builder.Services.AddHostedService<DeploymentService>();
 builder.Services.AddHostedService<CommandExecutor>();
 builder.Services.AddHostedService<TelemetryCollector>();
 builder.Services.AddHostedService<UpdateService>();
+builder.Services.AddHostedService<ScreenshotService>();
 
 // Configure HTTP client for server communication
 builder.Services.AddHttpClient("SentinelServer", client =>

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -1035,5 +1036,80 @@ public class DevicesController : ControllerBase
                 results.Count(r => r.Status == "skipped"),
                 results.Count(r => r.Status == "error"),
                 results));
+        }
+
+        // ── Screenshots ─────────────────────────────────────────────────────
+
+        private string ScreenshotDir =>
+            Path.Combine(AppContext.BaseDirectory, "screenshots");
+
+        /// <summary>
+        /// Upload a screenshot from the agent. Device-secret auth.
+        /// </summary>
+        [HttpPost("{id}/screenshot")]
+        [AllowAnonymous]
+        [RequestSizeLimit(10_485_760)] // 10MB
+        public async Task<IActionResult> UploadScreenshot(Guid id, IFormFile file)
+        {
+            if (await _deviceAuth.AuthenticateAsync(HttpContext, id) is null)
+                return Unauthorized(new { error = "Valid device credentials are required" });
+
+            var device = await _context.Devices.FindAsync(id);
+            if (device == null) return NotFound();
+
+            if (file == null || file.Length == 0)
+                return BadRequest(new { error = "No file provided" });
+
+            if (file.Length > 10 * 1024 * 1024)
+                return BadRequest(new { error = "File too large (max 10MB)" });
+
+            var dir = ScreenshotDir;
+            Directory.CreateDirectory(dir);
+            var path = Path.Combine(dir, $"{id}.png");
+
+            await using (var stream = new FileStream(path, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            _logger.LogInformation("Screenshot uploaded for device {DeviceId}: {Bytes} bytes", id, file.Length);
+            return Ok(new { message = "Screenshot saved", bytes = file.Length, timestamp = DateTime.UtcNow });
+        }
+
+        /// <summary>
+        /// Get the latest screenshot for a device. Admin/viewer auth.
+        /// </summary>
+        [HttpGet("{id}/screenshot")]
+        [Authorize(Policy = "RequireViewer")]
+        public IActionResult GetScreenshot(Guid id)
+        {
+            var path = Path.Combine(ScreenshotDir, $"{id}.png");
+            if (!System.IO.File.Exists(path))
+                return NotFound(new { error = "No screenshot available" });
+
+            var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var lastModified = System.IO.File.GetLastWriteTimeUtc(path);
+            Response.Headers["X-Screenshot-Timestamp"] = lastModified.ToString("O");
+            return File(stream, "image/png");
+        }
+
+        /// <summary>
+        /// Screenshot metadata (timestamp, size) without downloading the image.
+        /// </summary>
+        [HttpGet("{id}/screenshot/info")]
+        [Authorize(Policy = "RequireViewer")]
+        public IActionResult GetScreenshotInfo(Guid id)
+        {
+            var path = Path.Combine(ScreenshotDir, $"{id}.png");
+            if (!System.IO.File.Exists(path))
+                return Ok(new { available = false });
+
+            var info = new FileInfo(path);
+            return Ok(new
+            {
+                available = true,
+                bytes = info.Length,
+                capturedAt = info.LastWriteTimeUtc
+            });
         }
         }

@@ -12,6 +12,7 @@ The Windows agent and kiosk runtime currently use the `SentinelKiosk` assembly a
 - **Content scheduling**: time-windowed content assignment per device with priority ordering, conflict detection, and agent policy integration (active schedules flow to the kiosk via the policy endpoint)
 - Alerts with cooldown + escalation policies, analytics, notification channels (test button), server log viewer
 - **Live SignalR updates**: heartbeat → `TelemetryReceived`, status transitions → `DeviceStatusChanged`, offline sweep (5-min threshold), alert broadcasts — admin UI updates without polling
+- **Device screenshots**: kiosk runtime captures WebView2 via `CapturePreviewAsync` on agent request (named pipe IPC), agent uploads PNG to server, admin UI shows latest capture on device detail page
 - Windows agent: enroll, heartbeat, policy sync, signed content deploy, command poll, telemetry, **signed self-updates**
 - WPF + WebView2 kiosk runtime (fullscreen, URL guards, session timeout, lockdown engine)
 - Scripted Postgres + AppData backups with verified restores ([runbook](docs/BACKUP-RESTORE.md))
