@@ -114,3 +114,4 @@ backups/
 *.tmp
 *.bak
 *.orig
+apps/api-server/AppData/
