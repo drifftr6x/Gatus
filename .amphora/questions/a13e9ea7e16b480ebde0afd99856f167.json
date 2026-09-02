@@ -1,0 +1,36 @@
+{
+  "request_id": "a13e9ea7e16b480ebde0afd99856f167",
+  "tool_use_id": "ask_user_question_155",
+  "session_id": "sess_60616e1870d76f6b",
+  "created_at": "2026-09-01T20:41:53",
+  "questions": [
+    {
+      "question": "Which backlog item should I pick up next?",
+      "options": [
+        {
+          "label": "Content deploy E2E (c10)",
+          "description": "Live end-to-end: upload content, deploy to the enrolled LAPITG001116 agent, verify status flips to Succeeded in the UI."
+        },
+        {
+          "label": "Gatus Lite experience (lite-t2\u2013t6)",
+          "description": "Typed product API client + React Query hook, Lite branding/nav in AppShell, Lite routes, docs update, endpoint tests."
+        },
+        {
+          "label": "Something else",
+          "description": "Describe a new task or feature you'd like worked on instead."
+        }
+      ],
+      "header": "Next work"
+    }
+  ],
+  "outcome": "answered",
+  "answers": [
+    {
+      "freeform": null,
+      "selected": [
+        "Content deploy E2E (c10)"
+      ]
+    }
+  ],
+  "answered_at": "2026-09-01T20:44:09"
+}

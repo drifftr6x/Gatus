@@ -27,7 +27,7 @@ public class AlertConfiguration : IEntityTypeConfiguration<Alert>
 
         builder.HasOne(a => a.EscalationPolicy)
             .WithMany()
-            .HasForeignKey("EscalationPolicyId")
+            .HasForeignKey(a => a.EscalationPolicyId)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(a => a.Device)
@@ -70,7 +70,7 @@ public class AlertRuleConfiguration : IEntityTypeConfiguration<AlertRule>
         builder.Property(r => r.EscalationPolicyId).HasColumnName("escalation_policy_id");
         builder.Property(r => r.CreatedAt).HasColumnName("created_at");
 
-        builder.HasOne<EscalationPolicy>()
+        builder.HasOne(r => r.EscalationPolicy)
             .WithMany(p => p.Rules)
             .HasForeignKey(r => r.EscalationPolicyId)
             .OnDelete(DeleteBehavior.SetNull);

@@ -35,7 +35,7 @@ todos:
     status: completed
   - id: c10
     content: 'Live E2E: upload content, deploy to laptop agent, verify Succeeded'
-    status: completed
+    status: in_progress
 isProject: false
 created_at: '2026-08-29T18:08:16'
 session_id: sess_60616e1870d76f6b
