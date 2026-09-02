@@ -1,7 +1,7 @@
 # GatUs Kiosk Platform — Technical Specification
 
-**Version:** 0.9.0-dev
-**Last Updated:** 2026-08-31
+**Version:** 0.10.0-dev
+**Last Updated:** 2026-09-02
 **Repository:** `GatUs` — Living Spaces Enterprise Kiosk Management
 
 ---
@@ -75,6 +75,9 @@ Represents a physical kiosk machine.
 | Tags | string? | JSON array of tag strings |
 | Latitude | double? | Geo coordinate (auto-geocoded) |
 | Longitude | double? | Geo coordinate (auto-geocoded) |
+| DomainName | string? | AD domain (from heartbeat) |
+| DomainJoinStatus | string? | Domain join status |
+| DomainSecureChannelHealthy | bool? | Secure channel health |
 | CreatedAt | DateTime | Creation timestamp |
 | UpdatedAt | DateTime? | Last update timestamp |
 | IsActive | bool | Soft delete flag |
@@ -89,6 +92,9 @@ Logical grouping of devices (typically per store location).
 | Id | Guid | Primary key |
 | Name | string (200) | Group name (e.g., "Store 42 - Buford, GA") |
 | Description | string? (1000) | Optional description |
+| MaintenanceWindowStart | TimeSpan? | Daily deploy window start (UTC) |
+| MaintenanceWindowDurationMinutes | int? | Window length |
+| MaintenanceWindowDays | string? | Comma-separated days (null = daily) |
 | CreatedAt | DateTime | Creation timestamp |
 | UpdatedAt | DateTime? | Last update |
 | IsActive | bool | Soft delete flag |
@@ -167,7 +173,18 @@ Configurable alert rules evaluated against telemetry.
 | GroupId | Guid? (FK) | Scope to group (null = all) |
 | DeviceId | Guid? (FK) | Scope to device (null = all) |
 | CooldownMinutes | int | Cooldown before re-triggering |
+| EscalationPolicyId | Guid? (FK) | Escalation policy for unacknowledged alerts |
 | IsActive | bool | Enable/disable |
+
+#### EscalationPolicy / EscalationStep
+Ordered escalation steps for unacknowledged alerts (e.g., notify channel → escalate severity → page).
+
+| Property | Type | Description |
+|----------|------|-------------|
+| EscalationPolicy: Id, Name, Description, IsActive | — | Policy container |
+| EscalationStep: PolicyId, Order, DelayMinutes, ChannelId, EscalateSeverity | — | Step definition |
+
+Processed by **AlertEscalationService** (60s cycle): checks Active alerts against their rule's policy, fires steps whose delay has elapsed since raise/last step.
 
 #### AlertNotification
 Tracks which alerts were sent to which channels.
@@ -221,6 +238,7 @@ Admin console users.
 | PasswordHash | string (500) | BCrypt password hash |
 | Role | UserRole | Viewer, Editor, Admin, SuperAdmin |
 | IsActive | bool | Account enabled |
+| MustChangePassword | bool | Forces change-password screen on next login (set on seed/provision) |
 | LastLoginAt | DateTime? | Last login |
 | CreatedAt | DateTime | Creation time |
 
@@ -281,6 +299,10 @@ Content deployment to devices/groups.
 | ContentVersionId | Guid (FK) | Version to deploy |
 | Status | DeploymentStatus | Pending, InProgress, Completed, PartiallyCompleted, Failed, Cancelled |
 | ScheduledAt | DateTime? | Scheduled time |
+| RolloutPercent | int? | Gradual rollout wave size (doubles after success) |
+| RingOrder | int? | Ring chain position (1-based, null = not chained) |
+| ParentDeploymentId | Guid? | Ring chain: parent must complete + soak before activation |
+| SoakMinutes | int? | Ring chain: wait after parent completes |
 | StartedAt | DateTime? | Start time |
 | CompletedAt | DateTime? | Completion time |
 | CreatedById | Guid? (FK) | Creator user |
@@ -299,6 +321,22 @@ Per-device result within a deployment.
 | ErrorMessage | string? (2000) | Failure reason |
 | RetryCount | int | Retry attempts |
 | RollbackPerformed | bool | Rollback flag |
+
+#### AgentUpdate
+Signed, self-contained agent self-update packages uploaded by admins.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| Id | Guid | Primary key |
+| Version | string (32) | Semver-ish version (System.Version-comparable) |
+| Sha256Checksum | string (64) | SHA-256 of the zip package |
+| FileSizeBytes | long | Package size |
+| StoragePath | string (500) | Path under `AppData/agent-updates/` |
+| RolloutPercent | int | Deterministic per-device bucket gate (100 = all) |
+| MinVersion | string? | Minimum agent version eligible for direct jump |
+| Notes | string? (2000) | Release notes |
+| IsActive | bool | Only one active update is offered at a time |
+| CreatedAt / CreatedById | DateTime / Guid? | Upload metadata |
 
 ### 2.3 Enrollment Entity
 
@@ -329,6 +367,7 @@ All routes are prefixed with `/api`. Auth policies: `RequireAdmin` (Admin+SuperA
 | POST | `/refresh` | Anonymous | Refresh JWT using refresh token |
 | POST | `/logout` | Authenticated | Revoke refresh token |
 | GET | `/me` | Authenticated | Get current user profile |
+| POST | `/change-password` | Authenticated | Change own password (verifies current, invalidates all sessions, clears MustChangePassword) |
 
 ### 3.2 Devices (`/api/devices`)
 
@@ -343,6 +382,8 @@ All routes are prefixed with `/api`. Auth policies: `RequireAdmin` (Admin+SuperA
 | POST | `/bulk/group` | Editor | Bulk assign devices to group (auto-geocodes) |
 | POST | `/import` | Editor | Excel/CSV bulk import (auto-geocodes, auto-creates groups) |
 | POST | `/enroll` | Anonymous | Enroll device with token, returns device secret |
+| GET | `/{id}/policy` | Device auth | Agent policy document (kiosk config for this device) |
+| PUT | `/{id}/policy` | Editor | Update device policy |
 | GET | `/enrollment-tokens` | Editor | List enrollment tokens |
 | POST | `/enrollment-tokens` | Editor | Generate new enrollment token |
 | DELETE | `/enrollment-tokens/{id}` | Editor | Revoke enrollment token |
@@ -445,7 +486,25 @@ All routes are prefixed with `/api`. Auth policies: `RequireAdmin` (Admin+SuperA
 | GET | `/` | Viewer | Query log entries (level, search, time range, source) |
 | GET | `/levels` | Viewer | Available log levels |
 
-### 3.13 Users (`/api/users`)
+### 3.14 Agent Updates (`/api/agent-updates`)
+
+Signed agent self-update distribution. Upload zip is re-packaged server-side with an RSA-SHA256-PSS signed manifest (same SigningService as content).
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| GET | `/` | Editor | List updates |
+| POST | `/` | Editor | Upload agent zip → sign + package (deactivates older) |
+| POST | `/{id}/activate` | Editor | Make this the offered update |
+| POST | `/{id}/deactivate` | Editor | Stop offering |
+| DELETE | `/{id}` | Admin | Delete update + files |
+| GET | `/latest?deviceId=&currentVersion=` | Device auth | Update info if eligible (newer + minVersion + rollout bucket), else 204 |
+| GET | `/{id}/download` | Device auth | Download signed update package |
+
+**Eligibility gates:** strictly newer version, optional `minVersion` floor, deterministic per-(device, update) rollout bucket `(SHA256(deviceId ‖ updateId) % 100) < rolloutPercent`.
+
+---
+
+### 3.15 Users (`/api/users`)
 
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
@@ -466,6 +525,8 @@ All routes are prefixed with `/api`. Auth policies: `RequireAdmin` (Admin+SuperA
 - `DeviceStatusChanged` — device online/offline/status change
 - `AlertTriggered` — new alert fired
 - `TelemetryReceived` — new telemetry data point
+- `ContentUpdated` — content library changed
+- `ScheduleChanged` — schedule created/updated/deleted
 
 **Authentication:** JWT token via query string or header.
 
@@ -478,10 +539,13 @@ All routes are prefixed with `/api`. Auth policies: `RequireAdmin` (Admin+SuperA
 | Service | Type | Description |
 |---------|------|-------------|
 | **PingMonitorService** | Background (60s cycle) | Pings all non-agent devices, updates status, records connectivity snapshots, requires 2 consecutive failures before marking offline |
-| **AlertEvaluatorService** | Background (30s cycle) | Evaluates alert rules against telemetry, creates/resolves alerts, broadcasts via SignalR |
-| **NotificationService** | Singleton | Sends alert notifications to configured channels (webhook, Slack, Teams) |
-| **CommandService** | Scoped | Issues commands to devices, tracks status |
+| **AlertEvaluatorService** | Background (30s cycle) | Evaluates alert rules against telemetry, creates/resolves alerts, per-alert notification cooldown, broadcasts via SignalR |
+| **AlertEscalationService** | Background (60s cycle) | Executes escalation policy steps on unacknowledged alerts (delay → notify/escalate severity) |
+| **DeploymentSchedulerService** | Background | Activates scheduled deployments, fires ring chains after parent completes + soak, 80% success gate |
+| **NotificationService** | Singleton | Sends alert notifications to configured channels (email, webhook, Teams), test dispatches |
 | **ContentStorageService** | Singleton | Zip packaging, SHA-256 checksums, manifest.json generation, path-traversal guard |
+| **SigningService** | Singleton | RSA-4096 manifest signing (key under `AppData/content/keys/`), public key exposed to agents |
+| **DeviceAuthenticationService** | Scoped | Device-secret validation + device/resource binding for agent endpoints |
 | **GeocodingService** | Singleton | Nominatim geocoding with in-memory cache, auto-assigns lat/lng from group names |
 | **DeviceEventBroadcaster** | Scoped | SignalR broadcast wrapper for device events |
 
@@ -492,10 +556,13 @@ All routes are prefixed with `/api`. Auth policies: `RequireAdmin` (Admin+SuperA
 | **EnrollmentService** | On-demand | Token exchange, DPAPI credential storage |
 | **HeartbeatService** | 30s | Collects system metrics (CPU, memory, disk, uptime), sends to server |
 | **PolicySyncService** | 300s | Syncs policies from server, local cache, drift detection |
-| **DeploymentService** | 60s | Polls for pending deployments, downloads/verifies/stages/activates content, reports status |
+| **DeploymentService** | 60s | Polls for pending deployments (maintenance-window filtered), downloads/signature-verifies/stages/activates content, reports status, tracks PreviousVersionId for rollback |
 | **CommandExecutor** | 15s | Polls for pending commands, executes allowlisted commands |
 | **TelemetryCollector** | 300s | Batches telemetry locally, uploads in bulk |
-| **LocalStateManager** | — | Manages config, content, logs on local filesystem |
+| **UpdateService** | 3600s (configurable) | Polls `/api/agent-updates/latest`, downloads signed package, verifies manifest signature + per-file SHA-256, self-swaps binaries via apply-update.ps1 with backup/rollback |
+| **SignatureVerifier** | — | Verifies RSA-SHA256-PSS manifest signatures against DPAPI-pinned server public key |
+| **LockdownEngine** | — | Windows kiosk lockdown (Shell Launcher / Assigned Access / registry policies / keyboard filter), maintenance mode |
+| **LocalStateManager** | — | Manages config, content, logs, credentials on local filesystem |
 
 ### 5.3 Kiosk Runtime Services (WPF)
 
@@ -516,11 +583,11 @@ All routes are prefixed with `/api`. Auth policies: `RequireAdmin` (Admin+SuperA
 | **Devices** | `/devices` | Device table with filters (group, status, search), CRUD, bulk actions, enrollment token modal, import modal |
 | **Device Detail** | `/devices/:id` | Device info, telemetry charts, command history, alert history |
 | **Groups** | `/groups` | Group cards with sort/filter, expandable device lists, device picker modal |
-| **Content** | `/content` | Content cards, file upload, deploy modal (by group or device) |
+| **Content** | `/content` | Content cards, file upload, deploy modal (group/device, rings with soak presets, scheduled, rollout %) |
 | **Schedules** | `/schedules` | Schedule CRUD with time/day pickers |
-| **Alerts** | `/alerts` | Alert list with acknowledge/resolve, alert rules management |
+| **Alerts** | `/alerts` | Alert list with acknowledge/resolve, escalation badges, alert rules with cooldown + escalation policy selector |
 | **Analytics** | `/analytics` | Uptime reports, alert trends, telemetry aggregation charts |
-| **Notifications** | `/notifications` | Notification channel management |
+| **Notifications** | `/notifications` | Notification channel management with per-channel test button, escalation policy CRUD |
 | **Logs** | `/logs` | Server logs + user action audit trail, filterable |
 | **Settings** | `/settings` | Application settings |
 
@@ -532,16 +599,20 @@ All routes are prefixed with `/api`. Auth policies: `RequireAdmin` (Admin+SuperA
 | `ConnectivityChart` | Per-group expandable uptime bar charts (green/red/gray time slots) |
 | `AppShell` | Layout with sidebar nav, top bar (SignalR status, user, theme, sign out) |
 | `ThemePicker` | Dark/light mode + accent color selection |
-| `ProtectedRoute` | Auth guard wrapper |
+| `ProtectedRoute` | Auth guard wrapper; forces `/change-password` when `mustChangePassword` is set |
+
+Also: `/change-password` page (forced first-login flow, invalidates all sessions server-side).
 
 ---
 
 ## 7. Security
 
 ### Authentication
-- **JWT** (HS256) with 60-minute expiry
-- **Refresh tokens** with rotation (7-day expiry, stored hashed)
+- **JWT** (HS256) with 60-minute expiry — secret validated at startup (missing/short/placeholder = fail fast outside Development)
+- **Refresh tokens** with rotation (7-day expiry, stored hashed), httpOnly cookie, reuse detection
 - **Device secrets** — DPAPI-encrypted on agent, SHA-256 hashed on server
+- **Forced password change** — `MustChangePassword` flag; seeded admin password comes from config or is randomly generated (never hardcoded)
+- **Content/binary signing** — RSA-4096 (PSS) signed manifests for content packages and agent updates; agents pin the server public key via DPAPI
 
 ### Authorization Policies
 | Policy | Roles |
@@ -551,7 +622,7 @@ All routes are prefixed with `/api`. Auth policies: `RequireAdmin` (Admin+SuperA
 | RequireAdmin | Admin, SuperAdmin |
 
 ### Device Authentication
-- Agent endpoints accept `X-Device-Id` + `X-Device-Secret` headers (AllowAnonymous with custom validation)
+- Agent endpoints accept `Authorization: Bearer <deviceSecret>` with `deviceId` query/body binding (AllowAnonymous with `DeviceAuthenticationService` validation — rejects revoked/mismatched credentials, 401/403 → agent re-enrollment flow)
 - Device secrets are 32-byte random strings, SHA-256 hashed in DB
 
 ### Logging & Audit
@@ -568,8 +639,16 @@ All routes are prefixed with `/api`. Auth policies: `RequireAdmin` (Admin+SuperA
 **ORM:** EF Core 10 with Npgsql
 **Naming:** snake_case columns, plural table names
 
-### Tables (17)
-`alert_notifications`, `alert_rules`, `alerts`, `commands`, `content`, `content_versions`, `deployment_results`, `deployments`, `device_connectivity`, `device_groups`, `device_telemetry`, `devices`, `enrollment_tokens`, `notification_channels`, `refresh_tokens`, `schedules`, `users`
+### Tables (22)
+`agent_updates`, `alert_rules`, `alerts`, `commands`, `content_tags`, `content_versions`, `contents`, `deployment_results`, `deployments`, `device_config_templates`, `device_connectivity`, `device_groups`, `device_telemetry`, `devices`, `enrollment_tokens`, `escalation_policies`, `escalation_steps`, `notification_channels`, `platform_settings`, `schedules`, `users`
+
+(Refresh tokens are stored as a hashed column on `users`; alert notifications are tracked via `alerts.last_notified_at` + escalation state.)
+
+### Migrations (12)
+Latest: `20260908000000_AddAgentUpdates`. Raw-SQL idempotent migrations (`CREATE/ALTER ... IF NOT EXISTS`), applied at API startup.
+
+### Backup & Restore
+Scripted `pg_dump -Fc` with integrity check + retention, pre-restore snapshots, AppData backup (content/packages/signing key) — see `docs/BACKUP-RESTORE.md`. Scripts: `infrastructure/scripts/{backup-postgres,restore-postgres,backup-appdata,register-backup-task}.ps1`.
 
 ---
 
@@ -589,19 +668,41 @@ Devices automatically receive latitude/longitude coordinates based on their grou
 ## 10. Content Deployment Flow
 
 ```
-Admin uploads file → Zip package created → SHA-256 checksum → ContentVersion stored
-      ↓
-Admin creates Deployment (devices or group) → Status: Pending
-      ↓
-Agent polls GET /api/deployments?deviceId=X&status=Pending (every 60s)
-      ↓
-Agent downloads package → verifies SHA-256 → extracts to Content/{versionId}/
-      ↓
-Agent reports status POST /api/deployments/{id}/status
-      ↓
+Admin uploads file → Zip package created → SHA-256 checksum + RSA-signed manifest → ContentVersion stored
+       ↓
+Admin creates Deployment (devices or group; optional rings w/ soak, rollout %, schedule) → Status: Pending
+       ↓
+DeploymentSchedulerService activates due deployments (ring chain: parent complete + soak, 80% success gate)
+       ↓
+Agent polls GET /api/deployments?deviceId=X&status=Pending (every 60s; maintenance-window filtered)
+       ↓
+Agent downloads package → verifies signature (pinned key) + SHA-256 → extracts to Content/{versionId}/
+       ↓
+Agent reports status POST /api/deployments/{id}/status (sets PreviousVersionId for rollback)
+       ↓
 Server rolls up per-device results → Deployment status: Completed/Failed
-      ↓
-Dashboard shows progress bars + status badges
+       ↓
+Dashboard shows progress bars + status badges + ring badges
+```
+
+## 10.1 Agent Self-Update Flow
+
+```
+infrastructure/scripts/publish-agent-update.ps1 -Version X.Y.Z → dist/agent-update-X.Y.Z.zip
+       ↓
+Admin uploads via POST /api/agent-updates → server hashes files, signs manifest, repackages
+       ↓
+Agent UpdateService polls /api/agent-updates/latest?currentVersion=... (hourly)
+   gated by: newer version, minVersion floor, deterministic rollout bucket
+       ↓
+Download → verify zip SHA-256 → verify signed manifest → verify per-file SHA-256 → stage
+       ↓
+Generate apply-update.ps1 → launch detached → agent exits
+       ↓
+Script: stop service → backup binaries → copy new files → start service
+   on failure: restore backup → start old version
+       ↓
+Next heartbeat reports new agentVersion
 ```
 
 ---
