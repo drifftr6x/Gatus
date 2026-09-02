@@ -96,6 +96,7 @@ Solution file: `KioskPlatform.slnx`.
 | [Teams alerts](docs/TEAMS-ALERTS.md) | Create Teams Workflow webhooks and test alerts |
 | [Deployment](docs/DEPLOYMENT.md) | Compose, agent updates, production caveats |
 | [Backup & restore](docs/BACKUP-RESTORE.md) | Scheduled backups, verified restores, recovery drill |
+| [Client deployment](docs/CLIENT-DEPLOYMENT.md) | Win 11 Pro kiosk installer bundle, domain-join notes, recovery |
 | [Roadmap](docs/ROADMAP.md) | Done vs remaining |
 | [Changelog](docs/CHANGELOG.md) | Notable changes |
 | [Technical spec](spec.md) | Longer product/engineering specification |
