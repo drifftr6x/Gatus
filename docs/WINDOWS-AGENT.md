@@ -63,12 +63,26 @@ Enrollment replaces the DPAPI-protected credential only after the server accepts
 {
   "Agent": {
     "ServerUrl": "http://localhost:5163",
-    "HeartbeatIntervalSeconds": 30
+    "HeartbeatIntervalSeconds": 30,
+    "UpdateCheckIntervalSeconds": 3600
   }
 }
 ```
 
 Installer `-ServerUrl` should be the **public API origin** in production (HTTPS).
+
+## Self-updates
+
+`UpdateService` polls `GET /api/agent-updates/latest?deviceId=&currentVersion=` on the configured interval. When the server offers a newer, eligible update (strictly newer version, optional `minVersion` floor, deterministic rollout bucket):
+
+1. Download package to `Updates\staging\{version}\` and verify the zip SHA-256
+2. Verify `manifest.json` RSA signature against the **DPAPI-pinned server public key** (`SignatureVerifier`), then per-file SHA-256
+3. Generate `apply-update.ps1` (stop service → back up binaries to `Updates\backup\` → copy new files → start service → **restore backup if the service fails to start**) and launch it detached
+4. Agent exits; the script performs the swap. Log: `Logs\apply-update.log`
+
+The running agent's version is the assembly informational version (csproj `<Version>`), reported in every heartbeat as `agentVersion`.
+
+Publish flow (operator): `infrastructure\scripts\publish-agent-update.ps1 -Version 1.1.0` → upload `dist\agent-update-1.1.0.zip` via `POST /api/agent-updates` (admin JWT). The **server signs the manifest at upload time** — build machines never hold the signing private key.
 
 ## State on disk
 
@@ -86,7 +100,7 @@ FROM devices
 ORDER BY last_seen_at DESC NULLS LAST;
 ```
 
-This laptop is registered as **LAPITG001116** in the lab database. When the API and agent run on the same laptop, keep the agent URL as `http://localhost:5163`. Because this device predates stored device-secret hashes, it must be re-enrolled once with a token linked to the existing device before authenticated heartbeat and deployment verification can pass.
+This laptop is registered as **LAPITG001116** in the lab database (re-enrolled with a device-secret-linked token; authenticated heartbeats verified). When the API and agent run on the same laptop, keep the agent URL as `http://localhost:5163`.
 
 ## Lockdown
 

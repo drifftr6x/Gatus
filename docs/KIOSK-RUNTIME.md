@@ -11,6 +11,7 @@ WPF app hosting **WebView2** in a borderless fullscreen window. It is a **separa
 - Session timeout and inactivity reset (`SessionManager`); optional cache clear
 - Crash monitor with capped restarts
 - Policy updates over named pipe `SentinelKioskPolicyPipe`
+- Content activation notices over `SentinelKioskContentPipe` (ACL'd inbound): after a signed deployment succeeds, the agent sends `{ type: "content-activated", contentId, contentPath, mainFile, timestamp }` and WebView2 navigates to the new package root
 - Blocks typical chrome (context menu, DevTools, downloads, popups) unless policy allows them
 - Best-effort hotkey filter in-process (not a replacement for OS kiosk / Keyboard Filter)
 

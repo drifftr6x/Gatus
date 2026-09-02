@@ -49,22 +49,30 @@ EF Core maps snake_case tables (`devices`, `enrollment_tokens`, `commands`, …)
 | Policy | `GET /api/devices/{id}/policy` | Agent caches locally |
 | Commands | `GET /api/commands?deviceId=&status=Queued` | Agent poll |
 | Command result | `POST /api/commands/{id}/result` | State machine |
-| Deployments | `GET /api/deployments`, `POST …/status` | Download + SHA-256 + activate |
-| Telemetry batch | `POST /api/telemetry` | AllowAnonymous today (device secret later) |
+| Deployments | `GET /api/deployments`, `POST …/status` | Signed download + verify + activate; maintenance-window filtered |
+| Telemetry batch | `POST /api/telemetry` | Device-secret authenticated |
+| Agent updates | `GET /api/agent-updates/latest`, `…/{id}/download` | Signed self-update packages, eligibility gating |
 | Live UI | SignalR `/hubs/devices` | Device/content/schedule events |
+
+All agent routes above (except enroll) require the per-device secret: `Authorization: Bearer <deviceSecret>` + device-ID binding via `DeviceAuthenticationService`. On 401/403 the agent enters its re-enrollment flow.
 
 The agent continues with last-known-good policy and content if the API is unreachable. Telemetry and command results are best-effort while offline.
 
 ## Policy model
 
-Device `policyJson` (camelCase) drives the kiosk runtime: home URL, allow/deny lists, session/inactivity timeouts, restart limits, lockdown profile. Assignment is per-device today; groups exist for targeting deployments and bulk actions.
+Device `policyJson` (camelCase) drives the kiosk runtime: home URL, allow/deny lists, session/inactivity timeouts, restart limits, lockdown profile. Assignment is per-device today; groups exist for targeting deployments and bulk actions, and carry **maintenance windows** (start/duration/days, overnight-safe) that gate when agents may pick up deployments.
 
 ## Content deployment
 
-1. Admin uploads a file → `Content` + `ContentVersion` (checksum, storage path)
-2. Admin creates a `Deployment` for devices or a group
-3. Agent polls, downloads the version zip, verifies SHA-256, stages, activates
-4. Agent reports `DeploymentResult` (Succeeded / Failed / rollback)
+1. Admin uploads a file → `Content` + `ContentVersion` (checksum, storage path, **RSA-signed manifest**)
+2. Admin creates a `Deployment` for devices or a group — optionally with **rings** (chained deployments with soak delays, 80% success gate), rollout %, or a schedule
+3. `DeploymentSchedulerService` activates due deployments; ring N+1 fires after ring N completes + soak
+4. Agent polls (window-filtered), downloads the version zip, verifies the **signature against the DPAPI-pinned server key** + per-file SHA-256, stages, activates, tells the kiosk runtime via named pipe
+5. Agent reports `DeploymentResult` (Succeeded / Failed); `PreviousVersionId` enables one-click rollback
+
+## Agent self-update
+
+`publish-agent-update.ps1` builds a Release package; an admin uploads it via `POST /api/agent-updates` and the **server signs the manifest** (the build machine never holds the private key). Agents poll `/latest` hourly, verify signature + hashes, stage, then a detached `apply-update.ps1` stops the service, backs up binaries, swaps files, restarts — restoring the backup if the new version fails to start. Eligibility: strictly newer version, optional `minVersion` floor, deterministic rollout bucket.
 
 ## Command model
 

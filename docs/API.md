@@ -8,17 +8,18 @@ OpenAPI is served by the ASP.NET Core host (no Swashbuckle). Most routes require
 Authorization: Bearer <accessToken>
 ```
 
-Exceptions: `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/devices/enroll`, heartbeat, telemetry ingest, agent command poll/result, and some deployment poll/status routes (device-facing; tighten before internet exposure).
+Exceptions: `POST /api/auth/login`, `POST /api/auth/refresh`, and the **device-facing** routes — enroll, heartbeat, telemetry ingest, command poll/result, deployment poll/status, policy GET, content + agent-update downloads, and `GET /api/signing/public-key`. These are `AllowAnonymous` but authenticated by `DeviceAuthenticationService`: `Authorization: Bearer <deviceSecret>` + device-ID binding; revoked/mismatched credentials get 401/403 and the agent re-enrolls. `POST /api/devices/enroll` is the only fully anonymous agent operation.
 
 ## Auth
 
 | Method | Path | Notes |
 |--------|------|--------|
-| POST | `/api/auth/login` | `{ email, password }` → access + refresh |
+| POST | `/api/auth/login` | `{ email, password }` → access + refresh; response `user.mustChangePassword` |
 | POST | `/api/auth/refresh` | Rotate refresh token |
 | POST | `/api/auth/logout` | |
 | POST | `/api/auth/register` | Admin-gated in practice |
 | GET | `/api/auth/me` | Current user |
+| POST | `/api/auth/change-password` | `{ currentPassword, newPassword }` (min 8) — clears `MustChangePassword`, invalidates all sessions |
 
 ## Devices
 
@@ -69,9 +70,12 @@ Create returns the **plaintext token once**. The database stores SHA-256 only. T
 | GET | `/api/content/{contentId}/versions` |
 | GET | `/api/content/{contentId}/versions/{version}/download` |
 | GET | `/api/deployments` |
-| POST | `/api/deployments` |
+| POST | `/api/deployments` | Optional `rings[]` (groupId + soakMinutes), `rolloutPercent`, `scheduledAt` |
 | POST | `/api/deployments/{id}/cancel` |
-| POST | `/api/deployments/{deploymentId}/status` |
+| POST | `/api/deployments/{id}/rollback` | Redeploy previous content version |
+| POST | `/api/deployments/{deploymentId}/status` | Agent result report (device-auth) |
+
+Agent poll `GET /api/deployments?deviceId=&status=Pending` filters out deployments outside the target group's **maintenance window** (overnight-safe) and returns `blockedByWindow` info. Ring chains activate only after the parent completes + soak minutes with ≥80% success.
 
 ## Commands
 
@@ -98,7 +102,19 @@ Create returns the **plaintext token once**. The database stores SHA-256 only. T
 | GET | `/api/alerts` |
 | POST | `/api/alerts/{id}/acknowledge` |
 | POST | `/api/alerts/{id}/resolve` |
-| CRUD | `/api/alerts/rules` |
+| CRUD | `/api/alerts/rules` | Includes `cooldownMinutes` + `escalationPolicyId` |
+
+## Agent updates
+
+| Method | Path | Who | Notes |
+|--------|------|-----|-------|
+| GET | `/api/agent-updates` | Editor | List |
+| POST | `/api/agent-updates` | Editor | Multipart zip (`file`, `version`, `rolloutPercent`, `minVersion?`, `notes?`) → server hashes files, signs manifest, repackages; deactivates older |
+| POST | `/api/agent-updates/{id}/activate` | Editor | Make this the offered update |
+| POST | `/api/agent-updates/{id}/deactivate` | Editor | |
+| DELETE | `/api/agent-updates/{id}` | Admin | Removes files too |
+| GET | `/api/agent-updates/latest?deviceId=&currentVersion=` | Device | 204 if up to date; gated by newer version, `minVersion` floor, deterministic rollout bucket |
+| GET | `/api/agent-updates/{id}/download?deviceId=` | Device | Signed package zip |
 
 ## Other
 
@@ -108,6 +124,9 @@ Create returns the **plaintext token once**. The database stores SHA-256 only. T
 | CRUD | `/api/users` |
 | GET | `/api/logs` |
 | CRUD | `/api/notification-channels` |
+| POST | `/api/notification-channels/{id}/test` | Send a test message (Editor) |
+| CRUD | `/api/escalation-policies` | Alert escalation policies + ordered steps |
+| GET | `/api/signing/public-key` | Device/admin — RSA public key for manifest verification |
 | GET/PUT | `/api/settings` |
 
 ## SignalR

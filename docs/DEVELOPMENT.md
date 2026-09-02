@@ -43,7 +43,7 @@ npm install
 npm run dev
 ```
 
-Login: `admin@gatus.local` / `Admin123!`
+Login: `admin@gatus.local` / password from `Seed:AdminPassword` in `appsettings.Development.json` (default `Admin123!`; randomly generated + logged if unset). The seeded admin is forced to change password on first login.
 
 ## Migrations
 

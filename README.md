@@ -6,12 +6,13 @@ The Windows agent and kiosk runtime currently use the `SentinelKiosk` assembly a
 
 ## What it does today
 
-- JWT login with refresh-token rotation and RBAC (Viewer / Editor / Admin / SuperAdmin)
+- JWT login with refresh-token rotation and RBAC (Viewer / Editor / Admin / SuperAdmin), forced password change for seeded users
 - Device inventory, groups, tags, enrollment tokens, heartbeats, and live dashboard
-- Content library with versioned packages, SHA-256, and deployments
-- Schedules, alerts, analytics, notification channels, and server log viewer
-- Windows agent: enroll, heartbeat, policy sync, content deploy, command poll, telemetry
-- WPF + WebView2 kiosk runtime (fullscreen, URL guards, session timeout)
+- Content library with versioned, **RSA-signed** packages and deployments (rings, rollout %, maintenance windows, rollback)
+- Alerts with cooldown + escalation policies, analytics, notification channels (test button), server log viewer
+- Windows agent: enroll, heartbeat, policy sync, signed content deploy, command poll, telemetry, **signed self-updates**
+- WPF + WebView2 kiosk runtime (fullscreen, URL guards, session timeout, lockdown engine)
+- Scripted Postgres + AppData backups with verified restores ([runbook](docs/BACKUP-RESTORE.md))
 
 ## Stack
 
@@ -57,10 +58,10 @@ Vite proxies `/api` and `/hubs` to `http://localhost:5163`. If login fails with 
 
 | Email | Password | Role |
 |-------|----------|------|
-| `admin@gatus.local` | `Admin123!` | SuperAdmin |
+| `admin@gatus.local` | from `Seed:AdminPassword` in `appsettings.Development.json` (default `Admin123!`); if unset, a random one is generated and **logged as a warning** | SuperAdmin |
 | `editor@gatus.local` | `Editor123!` | Editor |
 
-Seeder runs only when the `users` table is empty.
+Seeder runs only in Development when the `users` table is empty. The seeded admin is flagged `MustChangePassword` — the UI forces a password change on first login.
 
 ## Repository layout
 
@@ -93,7 +94,8 @@ Solution file: `KioskPlatform.slnx`.
 | [Kiosk runtime](docs/KIOSK-RUNTIME.md) | WebView2 process and policy pipe |
 | [Security](docs/SECURITY.md) | Auth, secrets, threat notes |
 | [Teams alerts](docs/TEAMS-ALERTS.md) | Create Teams Workflow webhooks and test alerts |
-| [Deployment](docs/DEPLOYMENT.md) | Compose, CI, production caveats |
+| [Deployment](docs/DEPLOYMENT.md) | Compose, agent updates, production caveats |
+| [Backup & restore](docs/BACKUP-RESTORE.md) | Scheduled backups, verified restores, recovery drill |
 | [Roadmap](docs/ROADMAP.md) | Done vs remaining |
 | [Changelog](docs/CHANGELOG.md) | Notable changes |
 | [Technical spec](spec.md) | Longer product/engineering specification |

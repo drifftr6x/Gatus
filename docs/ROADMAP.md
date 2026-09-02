@@ -11,24 +11,33 @@
 - [x] Lockdown engine (reversible providers + maintenance mode)
 - [x] Groups, alerts, analytics, notification channels, log viewer
 - [x] Enrollment tokens + live enroll of a real Windows PC (heartbeat Online)
+- [x] **Device-secret authentication on all agent endpoints** (heartbeat, telemetry, commands, deployments, policy, content downloads) with device-ID binding + re-enrollment on 401/403
+- [x] **Content deploy E2E** on a real device (upload → deploy → agent Succeeded → runtime navigate via named pipe)
+- [x] **RSA-4096 signed content manifests** (agent verifies against pinned server key before activation)
+- [x] **Deployment rings + maintenance windows** (chained deployments with soak + 80% success gate; per-group deploy windows, overnight-safe)
+- [x] **Alert lifecycle maturity**: per-alert notification cooldown, escalation policies (delay → notify/escalate), test-notification button
+- [x] **Production compose stack**: API + web + Postgres + nginx TLS, internal networking
+- [x] **JWT secret startup validation** + no hardcoded seed passwords; forced password change (`MustChangePassword`) for seeded/provisioned users
+- [x] **Agent self-updater**: server-signed binary packages, eligibility gating (version/minVersion/rollout %), verified self-swap with automatic rollback
+- [x] **Backup/restore procedures**: scripted `pg_dump` + AppData (incl. signing keys) with retention, verified restore drill, Task Scheduler registration, runbook
 
 ## In progress / hardening
 
-- [ ] Authenticate all agent endpoints with `deviceSecret` (heartbeat, telemetry, command poll)
-- [ ] Content deploy E2E on a kiosk (upload → deploy → agent Succeeded → runtime navigate)
 - [ ] Fix remaining `NU1903` package advisories
 - [ ] `dotnet` on PATH / documented SDK path for all operators
-- [ ] Production compose: API + web + TLS, not just data stores
+- [ ] Admin UI for agent-update upload/list/activate (currently curl/API only)
 
 ## Later
 
 - [ ] MFA, Entra ID / OIDC
-- [ ] Signed agent updates and content manifests
-- [ ] Deployment rings / maintenance windows
+- [ ] Off-site backup sync (S3/B2) — scripts already take `-OutDir` for synced folders
+- [ ] Kiosk runtime (WPF) self-update channel
+- [ ] Delta updates for agent/content packages
 - [ ] Multi-tenancy
 - [ ] Android / other OS agents
 - [ ] Arbitrary remote desktop (explicitly out of MVP)
+- [ ] WAL archiving / PITR for sub-daily RPO
 
 ## Definition of done (product)
 
-An operator can: install the server, log in, generate a token, enroll a PC, see it online, assign policy, lock it to a site/app, push content, send an allowlisted command, see health/alerts, and recover the PC if the kiosk software fails.
+An operator can: install the server, log in, generate a token, enroll a PC, see it online, assign policy, lock it to a site/app, push content, send an allowlisted command, see health/alerts, update the agent remotely, restore the server from backup, and recover the PC if the kiosk software fails.

@@ -98,10 +98,10 @@ Self-contained publish (`win-x64`) is configured on the agent csproj so the kios
 ## Production checklist (not all done)
 
 - [x] HTTPS reverse proxy and HSTS (nginx in `compose.production.yaml`)
-- [ ] Rotate JWT signing key; store in a secret manager (currently `.env.production`)
+- [x] JWT secret never committed; startup validation rejects missing/short/placeholder secrets (still `.env.production` — a real secret manager is a nice-to-have)
 - [x] Authenticate every agent endpoint with device credentials
-- [ ] Postgres backups + tested restore
+- [x] Postgres backups + tested restore — see [BACKUP-RESTORE.md](BACKUP-RESTORE.md) (daily scheduled dump + AppData incl. signing keys; verified restore drill)
 - [x] Signed content manifests (RSA-4096; agent verifies before activation; key persisted under content root `keys/`, served via `GET /api/signing/public-key`)
-- [ ] Signed agent/runtime binaries (requires agent self-update mechanism — not yet built)
+- [x] Signed agent self-update packages (same signing path; see "Agent self-updates" above; Authenticode code-signing still open)
 - [ ] Restrict CORS to the real admin origin (same-origin behind nginx mitigates)
-- [ ] Replace seed users; disable `Admin123!`
+- [x] No hardcoded seed credentials; seeded admin forced to change password on first login (`MustChangePassword`)

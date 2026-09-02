@@ -12,7 +12,7 @@ Do not invent a `src/Hosts/Kiosk.Api` or `src/Modules/` tree — those paths are
 - API: **http://localhost:5163** (`apps/api-server/Properties/launchSettings.json`)
 - Vite proxy: `apps/admin-web/vite.config.ts` → 5163
 - Postgres: Docker `kiosk-postgres`, db/user `kiosk`, password `kiosk-dev-password`
-- Seed: `admin@gatus.local` / `Admin123!`
+- Seed: `admin@gatus.local` / `Seed:AdminPassword` from `appsettings.Development.json` (default `Admin123!`, or random + logged); first login forces password change
 - Node: system Node or `C:\Users\001adm_am\node\node-v22.14.0-win-x64`
 - PowerShell may block `npm.ps1` — use `npm.cmd`
 
