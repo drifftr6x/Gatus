@@ -288,7 +288,7 @@ public class UpdateService : BackgroundService
                 Set-Location $env:TEMP
                 Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
             } catch {
-                Log "UPDATE FAILED: $($_.Exception.Message) — restoring backup"
+                Log "UPDATE FAILED: $($_.Exception.Message) -- restoring backup"
                 try {
                     Get-ChildItem $backup -File | ForEach-Object {
                         Copy-Item $_.FullName (Join-Path $installDir $_.Name) -Force
@@ -301,19 +301,26 @@ public class UpdateService : BackgroundService
             }
             """;
 
-        File.WriteAllText(scriptPath, script);
+        // UTF-8 with BOM so Windows PowerShell 5.1 (which defaults to ANSI for
+        // BOM-less files) reads it correctly regardless of system codepage.
+        File.WriteAllText(scriptPath, script, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         return scriptPath;
     }
 
     private void LaunchApplyScript(string scriptPath)
     {
+        // UseShellExecute=false: CreateProcess directly. From a Windows Service (Session 0),
+        // shell-executing a process targets the interactive session and silently no-ops when
+        // no interactive user is present. A direct CreateProcess with no console attachment
+        // runs in Session 0 and survives our exit.
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
             Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{scriptPath}\"",
-            UseShellExecute = true, // detached from our process tree
-            WindowStyle = ProcessWindowStyle.Hidden,
-            CreateNoWindow = true
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = false,
+            RedirectStandardError = false
         };
         Process.Start(psi);
         _logger.LogInformation("Launched apply-update script: {Script}", scriptPath);
