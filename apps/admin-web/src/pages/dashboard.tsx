@@ -161,7 +161,14 @@ export function DashboardPage() {
                     }`}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-100">{dep.name}</p>
+                    <p className="truncate text-sm font-medium text-slate-100">
+                      {dep.name}
+                      {dep.ringOrder != null && dep.ringOrder > 0 && (
+                        <span className="ml-2 rounded-full bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-medium text-violet-400 ring-1 ring-violet-500/30">
+                          Ring {dep.ringOrder}
+                        </span>
+                      )}
+                    </p>
                     <p className="truncate text-xs text-slate-500">
                       {dep.contentName} v{dep.contentVersion} · {completed}/{total} done
                       {failed > 0 && ` · ${failed} failed`}

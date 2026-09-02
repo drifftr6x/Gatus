@@ -48,6 +48,17 @@ public class DeploymentsController : ControllerBase
             if (await _deviceAuth.AuthenticateAsync(HttpContext, deviceId.Value) is null)
                 return Unauthorized(new { error = "Valid device credentials are required" });
 
+            // Maintenance window: only serve pending deployments when the device's
+            // group window is currently open (groups without a window are unrestricted)
+            var device = await _context.Devices
+                .Include(d => d.Group)
+                .FirstOrDefaultAsync(d => d.Id == deviceId.Value);
+
+            if (device?.Group != null && !MaintenanceWindow.IsOpen(device.Group, DateTime.Now))
+            {
+                return Ok(Array.Empty<object>()); // window closed — nothing served
+            }
+
             var results = await _context.DeploymentResults
                 .Include(r => r.Deployment)
                 .Where(r => r.DeviceId == deviceId.Value && r.Status == DeploymentResultStatus.Pending)
@@ -73,7 +84,7 @@ public class DeploymentsController : ControllerBase
 
         var query = _context.Deployments
             .Include(d => d.ContentVersion).ThenInclude(v => v.Content)
-            .Include(d => d.Results).ThenInclude(r => r.Device)
+            .Include(d => d.Results).ThenInclude(r => r.Device).ThenInclude(dev => dev!.Group)
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(status) && Enum.TryParse<DeploymentStatus>(status, true, out var s))
@@ -94,6 +105,9 @@ public class DeploymentsController : ControllerBase
                 contentVersionId = d.ContentVersionId,
                 status = d.Status.ToString(),
                 d.ScheduledAt,
+                d.RingOrder,
+                d.ParentDeploymentId,
+                d.SoakMinutes,
                 d.StartedAt,
                 d.CompletedAt,
                 d.CreatedAt,
@@ -106,7 +120,10 @@ public class DeploymentsController : ControllerBase
                     r.StartedAt,
                     r.CompletedAt,
                     r.ErrorMessage,
-                    r.RollbackPerformed
+                    r.RollbackPerformed,
+                    blockedByWindow = r.Status == DeploymentResultStatus.Pending
+                        && r.Device.Group != null
+                        && !MaintenanceWindow.IsOpen(r.Device.Group, DateTime.Now)
                 }).ToList()
             })
             .ToListAsync();
@@ -128,6 +145,12 @@ public class DeploymentsController : ControllerBase
         if (contentVersion == null)
         {
             return BadRequest(new { error = "Content version not found" });
+        }
+
+        // Ring-chain path: create one chained deployment per ring
+        if (request.Rings is { Length: > 0 })
+        {
+            return await CreateRingChainAsync(request, contentVersion);
         }
 
         // Resolve target devices
@@ -191,11 +214,85 @@ public class DeploymentsController : ControllerBase
             deployment.Id, devices.Count, contentVersion.Content.Name, contentVersion.Version);
 
         return Ok(new { deployment.Id, deployment.Name, deviceCount = devices.Count });
-    }
+        }
 
-    /// <summary>
-    /// Agent: report deployment status for a device.
-    /// </summary>
+        /// <summary>
+        /// Create a chained set of deployments — one per ring. Ring 1 activates
+        /// immediately (or at ScheduledAt); subsequent rings stay Scheduled and are
+        /// activated by DeploymentSchedulerService after the parent completes + soak.
+        /// </summary>
+        private async Task<IActionResult> CreateRingChainAsync(CreateDeploymentRequest request, ContentVersion contentVersion)
+        {
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        var userId = userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var uid) ? uid : Guid.Empty;
+
+        var created = new List<object>();
+        Guid? parentId = null;
+        var ringOrder = 0;
+
+        foreach (var ring in request.Rings!)
+        {
+            ringOrder++;
+
+            var devices = await _context.Devices
+                .Where(d => d.GroupId == ring.GroupId && d.IsActive)
+                .ToListAsync();
+
+            if (devices.Count == 0)
+            {
+                return BadRequest(new { error = $"Ring {ringOrder} (group {ring.GroupId}) has no active devices" });
+            }
+
+            var isFirst = parentId is null;
+
+            var deployment = new Deployment
+            {
+                Id = Guid.NewGuid(),
+                Name = $"{request.Name ?? $"Deploy {contentVersion.Content.Name} v{contentVersion.Version}"} — Ring {ringOrder}",
+                Description = request.Description,
+                ContentVersionId = request.ContentVersionId,
+                // First ring honors ScheduledAt; later rings wait on the parent
+                Status = isFirst
+                    ? (request.ScheduledAt.HasValue && request.ScheduledAt > DateTime.UtcNow
+                        ? DeploymentStatus.Scheduled : DeploymentStatus.Pending)
+                    : DeploymentStatus.Scheduled,
+                ScheduledAt = isFirst ? request.ScheduledAt : null,
+                RingOrder = ringOrder,
+                ParentDeploymentId = parentId,
+                SoakMinutes = isFirst ? null : ring.SoakMinutes,
+                CreatedById = userId,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Deployments.Add(deployment);
+
+            foreach (var device in devices)
+            {
+                _context.DeploymentResults.Add(new DeploymentResult
+                {
+                    Id = Guid.NewGuid(),
+                    DeploymentId = deployment.Id,
+                    DeviceId = device.Id,
+                    Status = DeploymentResultStatus.Pending,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            created.Add(new { deployment.Id, deployment.Name, ringOrder, deviceCount = devices.Count });
+            parentId = deployment.Id;
+        }
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Ring deployment chain created: {RingCount} rings for content {ContentName} v{Version}",
+            created.Count, contentVersion.Content.Name, contentVersion.Version);
+
+        return Ok(new { rings = created });
+        }
+
+        /// <summary>
+        /// Agent: report deployment status for a device.
+        /// </summary>
     [HttpPost("{deploymentId}/status")]
     [AllowAnonymous]
     public async Task<IActionResult> ReportStatus(Guid deploymentId, [FromBody] DeploymentStatusReport report)
@@ -401,7 +498,17 @@ public record CreateDeploymentRequest(
     string? Name,
     string? Description,
     DateTime? ScheduledAt,
-    int? RolloutPercent
+    int? RolloutPercent,
+    DeploymentRingRequest[]? Rings
+);
+
+/// <summary>
+/// One ring in a staged rollout chain. Rings deploy in order; each ring
+/// activates after the previous ring completes plus SoakMinutes.
+/// </summary>
+public record DeploymentRingRequest(
+    Guid GroupId,
+    int SoakMinutes
 );
 
 public record DeploymentStatusReport(

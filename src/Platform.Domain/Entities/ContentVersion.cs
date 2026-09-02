@@ -28,6 +28,12 @@ public class Deployment
     public DeploymentStatus Status { get; set; } = DeploymentStatus.Pending;
     public DateTime? ScheduledAt { get; set; }
     public int? RolloutPercent { get; set; }
+    /// <summary>Ring chain: which ring this deployment is (1-based). Null = not part of a ring chain.</summary>
+    public int? RingOrder { get; set; }
+    /// <summary>Ring chain: the deployment that must complete (plus soak) before this one activates.</summary>
+    public Guid? ParentDeploymentId { get; set; }
+    /// <summary>Ring chain: minutes to wait after the parent ring completes before activating.</summary>
+    public int? SoakMinutes { get; set; }
     public DateTime? StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
     public Guid CreatedById { get; set; }

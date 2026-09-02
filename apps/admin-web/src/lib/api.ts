@@ -329,6 +329,9 @@ export interface DeviceGroupDto {
   deviceCount: number
   createdAt: string
   updatedAt?: string
+  maintenanceWindowStart?: string
+  maintenanceWindowDurationMinutes?: number
+  maintenanceWindowDays?: string
 }
 
 export interface DeviceConfigTemplateDto {
@@ -343,9 +346,9 @@ export interface DeviceConfigTemplateDto {
 export const groupsApi = {
   list: () => api.get<DeviceGroupDto[]>('/deviceGroups'),
   get: (id: string) => api.get<DeviceGroupDto>(`/deviceGroups/${id}`),
-  create: (data: { name: string; description?: string }) =>
+  create: (data: { name: string; description?: string; maintenanceWindowStart?: string; maintenanceWindowDurationMinutes?: number; maintenanceWindowDays?: string }) =>
     api.post<DeviceGroupDto>('/deviceGroups', data),
-  update: (id: string, data: { name: string; description?: string }) =>
+  update: (id: string, data: { name: string; description?: string; maintenanceWindowStart?: string; maintenanceWindowDurationMinutes?: number; maintenanceWindowDays?: string }) =>
     api.put<DeviceGroupDto>(`/deviceGroups/${id}`, data),
   delete: (id: string) => api.delete(`/deviceGroups/${id}`),
 }
@@ -418,6 +421,9 @@ export const contentApi = {
   contentVersionId: string
   status: string
   scheduledAt?: string
+  ringOrder?: number
+  parentDeploymentId?: string
+  soakMinutes?: number
   startedAt?: string
   completedAt?: string
   createdAt: string
@@ -433,6 +439,7 @@ export const contentApi = {
   completedAt?: string
   errorMessage?: string
   rollbackPerformed: boolean
+  blockedByWindow?: boolean
   }
 
   export interface CreateDeploymentRequest {
@@ -443,6 +450,12 @@ export const contentApi = {
   description?: string
   scheduledAt?: string
   rolloutPercent?: number
+  rings?: DeploymentRingRequest[]
+  }
+
+  export interface DeploymentRingRequest {
+  groupId: string
+  soakMinutes: number
   }
 
 export interface EnrollmentTokenDto {

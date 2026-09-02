@@ -224,6 +224,7 @@ function DeployModal({ content, onClose }: { content: ContentDto; onClose: () =>
   const [deployName, setDeployName] = useState(`Deploy ${content.name}`)
   const [scheduledAt, setScheduledAt] = useState('')
   const [rolloutPercent, setRolloutPercent] = useState<number | ''>('')
+  const [ringPreset, setRingPreset] = useState<string>('') // '', or preset key
 
   const { data: versions } = useQuery({
     queryKey: ['content-versions', content.id],
@@ -245,6 +246,23 @@ function DeployModal({ content, onClose }: { content: ContentDto; onClose: () =>
   const deployMutation = useMutation({
     mutationFn: () => {
       if (!latestVersion) throw new Error('No content version available')
+
+      // Ring chains deploy to the same group progressively with soak delays
+      let rings: { groupId: string; soakMinutes: number }[] | undefined
+      const groupForRings = targetMode === 'group' ? selectedGroupId : undefined
+      if (ringPreset === 'soak30' && groupForRings) {
+        rings = [
+          { groupId: groupForRings, soakMinutes: 0 },
+          { groupId: groupForRings, soakMinutes: 30 },
+        ]
+      } else if (ringPreset === 'soak60' && groupForRings) {
+        rings = [
+          { groupId: groupForRings, soakMinutes: 0 },
+          { groupId: groupForRings, soakMinutes: 30 },
+          { groupId: groupForRings, soakMinutes: 60 },
+        ]
+      }
+
       return deploymentsApi.create({
         contentVersionId: latestVersion.id,
         name: deployName,
@@ -252,6 +270,7 @@ function DeployModal({ content, onClose }: { content: ContentDto; onClose: () =>
         deviceIds: targetMode === 'devices' ? [...selectedDeviceIds] : undefined,
         scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
         rolloutPercent: rolloutPercent !== '' ? rolloutPercent : undefined,
+        rings,
       })
     },
     onSuccess: () => {
@@ -362,9 +381,28 @@ function DeployModal({ content, onClose }: { content: ContentDto; onClose: () =>
               <option value={10}>10% first wave (canary)</option>
             </select>
             <p className="mt-1 text-xs text-slate-500">Gradual rollout doubles each wave after success</p>
-          </div>
+            </div>
 
-          <div className="mt-6 flex justify-end gap-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Deployment Rings</label>
+              <select
+                value={ringPreset}
+                onChange={(e) => setRingPreset(e.target.value)}
+                className={`${inputClass} mt-1.5`}
+                disabled={targetMode !== 'group'}
+              >
+                <option value="">No rings — deploy all at once</option>
+                <option value="soak30">Two-stage: now → +30m soak</option>
+                <option value="soak60">Three-stage: now → +30m → +60m</option>
+              </select>
+              <p className="mt-1 text-xs text-slate-500">
+                {targetMode !== 'group'
+                  ? 'Rings require a group target'
+                  : 'Ring chain pauses if any ring has <80% success rate'}
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
             <button type="button" onClick={onClose} className="rounded-lg border border-surface-700 px-4 py-2 text-sm text-slate-300 hover:bg-surface-800">Cancel</button>
             <button
               onClick={() => deployMutation.mutate()}

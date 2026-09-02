@@ -35,7 +35,10 @@ public class DeviceGroupsController : ControllerBase
         return groups.Select(g => new DeviceGroupResponse(
             g.Id, g.Name, g.Description,
             g.Devices.Count,
-            g.CreatedAt, g.UpdatedAt
+            g.CreatedAt, g.UpdatedAt,
+            g.MaintenanceWindowStart?.ToString("HH:mm"),
+            g.MaintenanceWindowDurationMinutes,
+            g.MaintenanceWindowDays
         )).ToList();
     }
 
@@ -55,7 +58,10 @@ public class DeviceGroupsController : ControllerBase
             group.Devices.Select(d => new DeviceGroupDeviceSummary(
                 d.Id, d.Name, d.Status.ToString(), d.LastSeenAt
             )).ToList(),
-            group.CreatedAt, group.UpdatedAt
+            group.CreatedAt, group.UpdatedAt,
+            group.MaintenanceWindowStart?.ToString("HH:mm"),
+            group.MaintenanceWindowDurationMinutes,
+            group.MaintenanceWindowDays
         );
     }
 
@@ -67,11 +73,17 @@ public class DeviceGroupsController : ControllerBase
         if (exists)
             return Conflict(new { error = "A group with this name already exists" });
 
+        if (!TryParseWindowStart(request.MaintenanceWindowStart, out var windowStart))
+            return BadRequest(new { error = "MaintenanceWindowStart must be HH:mm (24h)" });
+
         var group = new DeviceGroup
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            Description = request.Description
+            Description = request.Description,
+            MaintenanceWindowStart = windowStart,
+            MaintenanceWindowDurationMinutes = request.MaintenanceWindowDurationMinutes,
+            MaintenanceWindowDays = request.MaintenanceWindowDays
         };
 
         _context.DeviceGroups.Add(group);
@@ -80,8 +92,11 @@ public class DeviceGroupsController : ControllerBase
         _logger.LogInformation("Device group created: {GroupId} '{Name}'", group.Id, group.Name);
 
         return CreatedAtAction(nameof(GetGroup), new { id = group.Id },
-            new DeviceGroupResponse(group.Id, group.Name, group.Description, 0, group.CreatedAt, group.UpdatedAt));
-    }
+            new DeviceGroupResponse(group.Id, group.Name, group.Description, 0, group.CreatedAt, group.UpdatedAt,
+                group.MaintenanceWindowStart?.ToString("HH:mm"),
+                group.MaintenanceWindowDurationMinutes,
+                group.MaintenanceWindowDays));
+        }
 
     [HttpPut("{id:guid}")]
     [Authorize(Policy = "RequireEditor")]
@@ -97,13 +112,35 @@ public class DeviceGroupsController : ControllerBase
         if (nameTaken)
             return Conflict(new { error = "A group with this name already exists" });
 
+        if (!TryParseWindowStart(request.MaintenanceWindowStart, out var windowStart))
+            return BadRequest(new { error = "MaintenanceWindowStart must be HH:mm (24h)" });
+
         group.Name = request.Name;
         group.Description = request.Description;
+        group.MaintenanceWindowStart = windowStart;
+        group.MaintenanceWindowDurationMinutes = request.MaintenanceWindowDurationMinutes;
+        group.MaintenanceWindowDays = request.MaintenanceWindowDays;
         await _context.SaveChangesAsync();
 
         return new DeviceGroupResponse(group.Id, group.Name, group.Description,
-            group.Devices.Count, group.CreatedAt, group.UpdatedAt);
-    }
+            group.Devices.Count, group.CreatedAt, group.UpdatedAt,
+            group.MaintenanceWindowStart?.ToString("HH:mm"),
+            group.MaintenanceWindowDurationMinutes,
+            group.MaintenanceWindowDays);
+        }
+
+        private static bool TryParseWindowStart(string? value, out TimeOnly? result)
+        {
+        result = null;
+        if (string.IsNullOrWhiteSpace(value))
+            return true;
+        if (TimeOnly.TryParseExact(value, "HH:mm", out var parsed))
+        {
+            result = parsed;
+            return true;
+        }
+        return false;
+        }
 
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = "RequireAdmin")]

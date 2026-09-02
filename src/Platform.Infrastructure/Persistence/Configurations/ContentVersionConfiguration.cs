@@ -43,6 +43,9 @@ public class DeploymentConfiguration : IEntityTypeConfiguration<Deployment>
         builder.Property(d => d.ContentVersionId).HasColumnName("content_version_id");
         builder.Property(d => d.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
         builder.Property(d => d.ScheduledAt).HasColumnName("scheduled_at");
+        builder.Property(d => d.RingOrder).HasColumnName("ring_order");
+        builder.Property(d => d.ParentDeploymentId).HasColumnName("parent_deployment_id");
+        builder.Property(d => d.SoakMinutes).HasColumnName("soak_minutes");
         builder.Property(d => d.StartedAt).HasColumnName("started_at");
         builder.Property(d => d.CompletedAt).HasColumnName("completed_at");
         builder.Property(d => d.CreatedById).HasColumnName("created_by_id");

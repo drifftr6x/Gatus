@@ -2,12 +2,18 @@ namespace Platform.Contracts.Requests;
 
 public record CreateDeviceGroupRequest(
     string Name,
-    string? Description
+    string? Description,
+    string? MaintenanceWindowStart = null,
+    int? MaintenanceWindowDurationMinutes = null,
+    string? MaintenanceWindowDays = null
 );
 
 public record UpdateDeviceGroupRequest(
     string Name,
-    string? Description
+    string? Description,
+    string? MaintenanceWindowStart = null,
+    int? MaintenanceWindowDurationMinutes = null,
+    string? MaintenanceWindowDays = null
 );
 
 public record CreateDeviceConfigTemplateRequest(

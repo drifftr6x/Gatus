@@ -32,6 +32,7 @@ public sealed class DeploymentSchedulerService : BackgroundService
             try
             {
                 await ProcessScheduledDeploymentsAsync(stoppingToken);
+                await ProcessRingChainsAsync(stoppingToken);
                 await ProcessRolloutWavesAsync(stoppingToken);
             }
             catch (Exception ex)
@@ -67,6 +68,70 @@ public sealed class DeploymentSchedulerService : BackgroundService
         }
 
         if (due.Count > 0)
+            await context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Activate child ring deployments once the parent ring has completed and
+    /// the soak period has elapsed. Pauses the chain if the parent's success
+    /// rate is below 80%.
+    /// </summary>
+    private async Task ProcessRingChainsAsync(CancellationToken ct)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var now = DateTime.UtcNow;
+
+        var waiting = await context.Deployments
+            .Where(d => d.Status == DeploymentStatus.Scheduled && d.ParentDeploymentId != null)
+            .ToListAsync(ct);
+
+        if (waiting.Count == 0) return;
+
+        var parentIds = waiting.Select(d => d.ParentDeploymentId!.Value).Distinct().ToList();
+        var parents = await context.Deployments
+            .Include(d => d.Results)
+            .Where(d => parentIds.Contains(d.Id))
+            .ToDictionaryAsync(d => d.Id, ct);
+
+        var changed = false;
+
+        foreach (var child in waiting)
+        {
+            if (!parents.TryGetValue(child.ParentDeploymentId!.Value, out var parent))
+                continue;
+
+            // Parent must be finished
+            if (parent.Status is not (DeploymentStatus.Completed or DeploymentStatus.PartiallyCompleted))
+                continue;
+
+            // Success gate: pause the chain if the parent ring had too many failures
+            var total = parent.Results.Count;
+            var succeeded = parent.Results.Count(r => r.Status == DeploymentResultStatus.Succeeded);
+            if (total > 0 && succeeded * 100 / total < 80)
+            {
+                _logger.LogWarning(
+                    "Ring chain paused: parent {ParentId} success rate {Rate}% below 80% — child {ChildId} stays Scheduled",
+                    parent.Id, succeeded * 100 / total, child.Id);
+                continue;
+            }
+
+            // Soak period
+            var soakUntil = (parent.CompletedAt ?? now).AddMinutes(child.SoakMinutes ?? 0);
+            if (now < soakUntil)
+                continue;
+
+            child.Status = DeploymentStatus.Pending;
+            child.StartedAt = now;
+            changed = true;
+
+            _logger.LogInformation(
+                "Activating ring {RingOrder} deployment {DeploymentId} ({Name}) — parent {ParentId} completed, soak elapsed",
+                child.RingOrder, child.Id, child.Name, parent.Id);
+        }
+
+        if (changed)
             await context.SaveChangesAsync(ct);
     }
 

@@ -3,6 +3,7 @@ import { groupsApi, devicesApi, alertsApi } from '@/lib/api'
 import { useState, useMemo } from 'react'
 import { Plus, Pencil, Trash2, FolderTree, ChevronDown, ChevronRight, Monitor, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { clsx } from 'clsx'
 
 type SortField = 'name' | 'devices' | 'alerts' | 'online'
 type SortDir = 'asc' | 'desc'
@@ -186,6 +187,12 @@ export function GroupsPage() {
                     <span className="rounded-full bg-surface-800 px-2.5 py-0.5 text-xs font-medium text-slate-300">
                       {group.deviceCount} device{group.deviceCount !== 1 ? 's' : ''}
                     </span>
+                    {group.maintenanceWindowStart && (
+                      <span className="rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-medium text-blue-400 ring-1 ring-blue-500/30"
+                        title={`Deploys only ${group.maintenanceWindowStart} + ${group.maintenanceWindowDurationMinutes}m${group.maintenanceWindowDays ? ` on ${group.maintenanceWindowDays}` : ' daily'}`}>
+                        ⏱ {group.maintenanceWindowStart}
+                      </span>
+                    )}
                     {(group as any)._online > 0 && (
                       <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-500/30">
                         {(group as any)._online} online
@@ -293,12 +300,16 @@ function GroupModal({
   group,
   onClose,
 }: {
-  group: { id: string; name: string; description?: string } | null
+  group: { id: string; name: string; description?: string; maintenanceWindowStart?: string; maintenanceWindowDurationMinutes?: number; maintenanceWindowDays?: string } | null
   onClose: () => void
 }) {
   const queryClient = useQueryClient()
   const [name, setName] = useState(group?.name ?? '')
   const [description, setDescription] = useState(group?.description ?? '')
+  const [windowEnabled, setWindowEnabled] = useState(!!group?.maintenanceWindowStart)
+  const [windowStart, setWindowStart] = useState(group?.maintenanceWindowStart ?? '02:00')
+  const [windowDuration, setWindowDuration] = useState(group?.maintenanceWindowDurationMinutes ?? 120)
+  const [windowDays, setWindowDays] = useState<string[]>(group?.maintenanceWindowDays?.split(',').filter(Boolean) ?? [])
   const [deviceSearch, setDeviceSearch] = useState('')
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set())
   const [originalDeviceIds, setOriginalDeviceIds] = useState<Set<string>>(new Set())
@@ -327,7 +338,7 @@ function GroupModal({
   }
 
   const mutation = useMutation({
-    mutationFn: async (data: { name: string; description?: string }) => {
+    mutationFn: async (data: { name: string; description?: string; maintenanceWindowStart?: string; maintenanceWindowDurationMinutes?: number; maintenanceWindowDays?: string }) => {
       // Save group info
       const result = group
         ? await groupsApi.update(group.id, data)
@@ -384,7 +395,16 @@ function GroupModal({
           {group ? 'Edit Group' : 'Create Group'}
         </h2>
         <form
-          onSubmit={(e) => { e.preventDefault(); mutation.mutate({ name, description }) }}
+          onSubmit={(e) => {
+            e.preventDefault()
+            mutation.mutate({
+              name,
+              description,
+              maintenanceWindowStart: windowEnabled ? windowStart : undefined,
+              maintenanceWindowDurationMinutes: windowEnabled ? windowDuration : undefined,
+              maintenanceWindowDays: windowEnabled && windowDays.length > 0 ? windowDays.join(',') : undefined,
+            })
+          }}
           className="mt-4 space-y-4"
         >
           <div>
@@ -407,6 +427,73 @@ function GroupModal({
               className="mt-1 w-full rounded-lg border border-surface-700 bg-surface-850 px-3 py-2 text-sm text-white outline-none focus:border-accent-500"
               placeholder="Optional description"
             />
+          </div>
+
+          {/* Maintenance window */}
+          <div className="rounded-lg border border-surface-700 bg-surface-850 p-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="windowEnabled"
+                checked={windowEnabled}
+                onChange={(e) => setWindowEnabled(e.target.checked)}
+                className="h-4 w-4 rounded border-surface-600 bg-surface-800 text-accent-500 focus:ring-accent-500"
+              />
+              <label htmlFor="windowEnabled" className="text-sm font-medium text-slate-300">
+                Maintenance window
+              </label>
+              <span className="text-xs text-slate-500">— only deploy during this window (server-local time)</span>
+            </div>
+            {windowEnabled && (
+              <div className="mt-3 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div>
+                    <label className="block text-xs text-slate-500">Starts at</label>
+                    <input
+                      type="time"
+                      value={windowStart}
+                      onChange={(e) => setWindowStart(e.target.value)}
+                      className="mt-1 rounded border border-surface-600 bg-surface-800 px-2 py-1 text-sm text-white outline-none focus:border-accent-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-500">Duration (minutes)</label>
+                    <input
+                      type="number"
+                      min={5}
+                      step={5}
+                      value={windowDuration}
+                      onChange={(e) => setWindowDuration(parseInt(e.target.value) || 120)}
+                      className="mt-1 w-24 rounded border border-surface-600 bg-surface-800 px-2 py-1 text-sm text-white outline-none focus:border-accent-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500">Days (none selected = every day)</label>
+                  <div className="mt-1 flex gap-1">
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() =>
+                          setWindowDays((prev) =>
+                            prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+                          )
+                        }
+                        className={clsx(
+                          'rounded px-2 py-1 text-xs font-medium transition-colors',
+                          windowDays.includes(day)
+                            ? 'bg-accent-500/20 text-accent-300'
+                            : 'bg-surface-800 text-slate-500 hover:text-slate-300'
+                        )}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Device picker */}

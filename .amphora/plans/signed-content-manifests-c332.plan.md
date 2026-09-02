@@ -25,7 +25,7 @@ todos:
     status: completed
   - id: sg-t7
     content: 'Docs: SECURITY.md + DEPLOYMENT.md checklist; build + commit'
-    status: in_progress
+    status: completed
 isProject: false
 created_at: '2026-09-01T22:23:02'
 session_id: sess_60616e1870d76f6b
@@ -33,6 +33,7 @@ tool_use_id: create_plan_426
 model: FW-Kimi-K3
 mode_at_creation: auto
 approved_mode: auto
+dismissed: true
 content_hash: e091fb497c3a6afb
 approved_hash: e091fb497c3a6afb
 files_referenced:

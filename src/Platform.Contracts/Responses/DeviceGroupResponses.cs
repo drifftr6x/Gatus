@@ -6,7 +6,10 @@ public record DeviceGroupResponse(
     string? Description,
     int DeviceCount,
     DateTime CreatedAt,
-    DateTime? UpdatedAt
+    DateTime? UpdatedAt,
+    string? MaintenanceWindowStart = null,
+    int? MaintenanceWindowDurationMinutes = null,
+    string? MaintenanceWindowDays = null
 );
 
 public record DeviceGroupDetailResponse(
@@ -16,7 +19,10 @@ public record DeviceGroupDetailResponse(
     int DeviceCount,
     List<DeviceGroupDeviceSummary> Devices,
     DateTime CreatedAt,
-    DateTime? UpdatedAt
+    DateTime? UpdatedAt,
+    string? MaintenanceWindowStart = null,
+    int? MaintenanceWindowDurationMinutes = null,
+    string? MaintenanceWindowDays = null
 );
 
 public record DeviceGroupDeviceSummary(
