@@ -23,9 +23,9 @@
 
 ## In progress / hardening
 
-- [ ] Fix remaining `NU1903` package advisories
+- [x] Package advisories clean (`dotnet list package --vulnerable` = 0 across all 12 projects)
 - [ ] `dotnet` on PATH / documented SDK path for all operators
-- [ ] Admin UI for agent-update upload/list/activate (currently curl/API only)
+- [x] Admin UI for agent updates (Settings → Agent Updates: upload/sign, activate, rollout %, delete)
 
 ## Later
 

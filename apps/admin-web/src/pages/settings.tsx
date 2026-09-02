@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, X } from 'lucide-react'
-import { usersApi, settingsApi } from '@/lib/api'
+import { usersApi, settingsApi, agentUpdatesApi } from '@/lib/api'
+import type { AgentUpdateDto } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 
 export function SettingsPage() {
@@ -90,6 +91,8 @@ export function SettingsPage() {
       </div>
 
       <DomainHealthSection showToast={showToast} />
+
+      {user?.role !== 'Viewer' && <AgentUpdatesSection showToast={showToast} />}
 
       {/* Users table */}
       <div className="mt-8">
@@ -484,3 +487,286 @@ function UserFormModal({
               </div>
               )
               }
+
+function AgentUpdatesSection({ showToast }: { showToast: (type: 'success' | 'error', message: string) => void }) {
+  const queryClient = useQueryClient()
+  const [showUpload, setShowUpload] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+
+  const { data: updates } = useQuery({
+    queryKey: ['agent-updates'],
+    queryFn: agentUpdatesApi.list,
+  })
+
+  const activateMutation = useMutation({
+    mutationFn: (id: string) => agentUpdatesApi.activate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent-updates'] })
+      showToast('success', 'Update activated — agents will pick it up on their next hourly check')
+    },
+    onError: (e: Error) => showToast('error', e.message),
+  })
+
+  const deactivateMutation = useMutation({
+    mutationFn: (id: string) => agentUpdatesApi.deactivate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent-updates'] })
+      showToast('success', 'Update deactivated')
+    },
+    onError: (e: Error) => showToast('error', e.message),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => agentUpdatesApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent-updates'] })
+      setConfirmDelete(null)
+      showToast('success', 'Update deleted')
+    },
+    onError: (e: Error) => showToast('error', e.message),
+  })
+
+  return (
+    <div className="mt-8">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-white">Agent Updates</h2>
+          <p className="text-xs text-slate-500">
+            Signed self-update packages. Agents check hourly and only accept packages signed by this server.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowUpload(true)}
+          className="flex items-center gap-2 rounded-lg bg-accent-500 px-3 py-1.5 text-sm font-medium text-white shadow-lg shadow-accent-500/25 transition-colors hover:bg-accent-400"
+        >
+          <Plus className="h-4 w-4" />
+          Upload update
+        </button>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-surface-700 bg-surface-900 shadow-2xl">
+        <table className="w-full text-sm">
+          <thead className="bg-surface-850 text-left text-xs uppercase tracking-wider text-slate-500">
+            <tr>
+              <th className="px-4 py-3">Version</th>
+              <th className="px-4 py-3">Size</th>
+              <th className="px-4 py-3">Rollout</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Uploaded</th>
+              <th className="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-surface-700">
+            {updates?.map((u: AgentUpdateDto) => (
+              <tr key={u.id} className="transition-colors hover:bg-surface-850/50">
+                <td className="px-4 py-3 font-mono font-medium text-white">
+                  {u.version}
+                  {u.minVersion && (
+                    <span className="ml-2 text-xs text-slate-500">min {u.minVersion}</span>
+                  )}
+                  {u.notes && <p className="mt-0.5 font-sans text-xs font-normal text-slate-500">{u.notes}</p>}
+                </td>
+                <td className="px-4 py-3 text-slate-300">{(u.fileSizeBytes / 1048576).toFixed(1)} MB</td>
+                <td className="px-4 py-3 text-slate-300">{u.rolloutPercent}%</td>
+                <td className="px-4 py-3">
+                  {u.isActive ? (
+                    <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400 ring-1 ring-emerald-500/30">
+                      Active
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-surface-700 px-2.5 py-0.5 text-xs text-slate-400">Inactive</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-slate-400">{new Date(u.createdAt).toLocaleDateString()}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-end gap-1">
+                    {u.isActive ? (
+                      <button
+                        onClick={() => deactivateMutation.mutate(u.id)}
+                        className="rounded-lg p-2 text-slate-400 hover:bg-surface-700 hover:text-amber-400"
+                        title="Deactivate (stop offering)"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => activateMutation.mutate(u.id)}
+                        className="rounded-lg px-2 py-1 text-xs font-medium text-emerald-400 hover:bg-surface-700"
+                        title="Activate (offer to agents)"
+                      >
+                        Activate
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setConfirmDelete(u.id)}
+                      className="rounded-lg p-2 text-slate-400 hover:bg-surface-700 hover:text-red-400"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {(!updates || updates.length === 0) && (
+              <tr>
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                  No agent updates uploaded. Build one with{' '}
+                  <code className="text-xs">infrastructure/scripts/publish-agent-update.ps1</code> then upload the zip
+                  here.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {showUpload && (
+        <AgentUpdateUploadModal
+          onClose={() => setShowUpload(false)}
+          onUploaded={() => {
+            queryClient.invalidateQueries({ queryKey: ['agent-updates'] })
+            setShowUpload(false)
+            showToast('success', 'Update uploaded and signed — it is now the active update')
+          }}
+        />
+      )}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-96 rounded-xl border border-surface-800 bg-surface-900 p-6 shadow-2xl">
+            <h3 className="text-base font-semibold text-white">Delete agent update</h3>
+            <p className="mt-2 text-sm text-slate-400">
+              The package files will be removed from the server. Agents that already downloaded it are unaffected.
+            </p>
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="rounded-lg border border-surface-700 px-4 py-2 text-sm text-slate-300 hover:bg-surface-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteMutation.mutate(confirmDelete)}
+                disabled={deleteMutation.isPending}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AgentUpdateUploadModal({ onClose, onUploaded }: { onClose: () => void; onUploaded: () => void }) {
+  const [file, setFile] = useState<File | null>(null)
+  const [version, setVersion] = useState('')
+  const [rolloutPercent, setRolloutPercent] = useState<number | ''>(100)
+  const [minVersion, setMinVersion] = useState('')
+  const [notes, setNotes] = useState('')
+  const [error, setError] = useState('')
+
+  const uploadMutation = useMutation({
+    mutationFn: () =>
+      agentUpdatesApi.upload(file!, {
+        version,
+        rolloutPercent: rolloutPercent !== '' ? rolloutPercent : undefined,
+        minVersion: minVersion || undefined,
+        notes: notes || undefined,
+      }),
+    onSuccess: onUploaded,
+    onError: (e: Error) => setError(e.message),
+  })
+
+  const inputClass =
+    'mt-1.5 w-full rounded-lg border border-surface-700 bg-surface-850 px-3 py-2 text-sm text-white outline-none focus:border-accent-500'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md rounded-2xl border border-surface-700 bg-surface-900 p-6 shadow-2xl">
+        <h3 className="text-lg font-semibold text-white">Upload agent update</h3>
+        <p className="mt-1 text-xs text-slate-500">
+          Upload the zip from <code>publish-agent-update.ps1</code>. The server signs the manifest and deactivates
+          older versions.
+        </p>
+
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-5 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300">Package zip</label>
+            <input
+              type="file"
+              accept=".zip"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className={`${inputClass} file:mr-3 file:rounded-md file:border-0 file:bg-surface-700 file:px-3 file:py-1 file:text-sm file:text-slate-200`}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Version</label>
+              <input
+                value={version}
+                onChange={(e) => setVersion(e.target.value)}
+                placeholder="1.1.0"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Rollout %</label>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={rolloutPercent}
+                onChange={(e) => setRolloutPercent(e.target.value === '' ? '' : Number(e.target.value))}
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300">Minimum agent version (optional)</label>
+            <input
+              value={minVersion}
+              onChange={(e) => setMinVersion(e.target.value)}
+              placeholder="e.g. 1.0.5 — older agents skip this update"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300">Notes (optional)</label>
+            <input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="What changed"
+              className={inputClass}
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-surface-700 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-surface-800"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => uploadMutation.mutate()}
+            disabled={!file || !version || uploadMutation.isPending}
+            className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent-500/25 transition-colors hover:bg-accent-400 disabled:opacity-50"
+          >
+            {uploadMutation.isPending ? 'Uploading…' : 'Upload & sign'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+         

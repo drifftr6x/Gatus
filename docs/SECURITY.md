@@ -23,7 +23,7 @@
 - Multi-tenant isolation
 - Mutual TLS
 - Code-signed agent binaries (Authenticode; the *payload* signing is already done via signed manifests)
-- Admin UI for agent-update publishing (API/curl only today)
+
 
 Enrollment is the only anonymous agent operation. Heartbeat, telemetry, commands, policy, deployments, agent-update checks/downloads, and content downloads validate the issued per-device `deviceSecret` and requested device ID. Client certificates/mTLS remain future hardening.
 
@@ -48,4 +48,4 @@ Enrollment is the only anonymous agent operation. Heartbeat, telemetry, commands
 
 ## Vulnerability disclosures
 
-Report issues privately to the platform owners. Dependency advisories (`NU1903` on some packages) should be triaged in `Directory.Packages.props`.
+Report issues privately to the platform owners. Dependency posture is clean (`dotnet list package --vulnerable` reports zero across all projects); re-run it after any package bump in `Directory.Packages.props`.

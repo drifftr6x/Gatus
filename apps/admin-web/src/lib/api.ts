@@ -30,8 +30,9 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${API_BASE}${endpoint}`
+    const isFormData = options.body instanceof FormData
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(options.headers as Record<string, string>),
     }
 
@@ -611,6 +612,34 @@ export const alertsApi = {
   getDomainHealth: () => api.get<DomainHealthSettings>('/settings/domain-health'),
   updateDomainHealth: (data: DomainHealthSettings) =>
   api.put<DomainHealthSettings>('/settings/domain-health', data),
+  }
+
+  export interface AgentUpdateDto {
+  id: string
+  version: string
+  sha256Checksum: string
+  fileSizeBytes: number
+  rolloutPercent: number
+  minVersion?: string
+  notes?: string
+  isActive: boolean
+  createdAt: string
+  }
+
+  export const agentUpdatesApi = {
+  list: () => api.get<AgentUpdateDto[]>('/agent-updates'),
+  upload: (file: File, data: { version: string; rolloutPercent?: number; minVersion?: string; notes?: string }) => {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('version', data.version)
+  if (data.rolloutPercent) form.append('rolloutPercent', data.rolloutPercent.toString())
+  if (data.minVersion) form.append('minVersion', data.minVersion)
+  if (data.notes) form.append('notes', data.notes)
+  return api.post<AgentUpdateDto>('/agent-updates', form)
+  },
+  activate: (id: string) => api.post(`/agent-updates/${id}/activate`),
+  deactivate: (id: string) => api.post(`/agent-updates/${id}/deactivate`),
+  delete: (id: string) => api.delete(`/agent-updates/${id}`),
   }
 
 export const commandsApi = {
