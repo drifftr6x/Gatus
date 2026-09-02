@@ -97,6 +97,7 @@ Solution file: `KioskPlatform.slnx`.
 | [Deployment](docs/DEPLOYMENT.md) | Compose, agent updates, production caveats |
 | [Backup & restore](docs/BACKUP-RESTORE.md) | Scheduled backups, verified restores, recovery drill |
 | [Client deployment](docs/CLIENT-DEPLOYMENT.md) | Win 11 Pro kiosk installer bundle, domain-join notes, recovery |
+| [Pilot checklist](docs/PILOT-CHECKLIST.md) | Hands-on validation run for a spare PC before fleet rollout |
 | [Roadmap](docs/ROADMAP.md) | Done vs remaining |
 | [Changelog](docs/CHANGELOG.md) | Notable changes |
 | [Technical spec](spec.md) | Longer product/engineering specification |
