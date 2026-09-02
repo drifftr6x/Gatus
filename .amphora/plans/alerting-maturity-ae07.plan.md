@@ -35,7 +35,9 @@ session_id: sess_60616e1870d76f6b
 tool_use_id: create_plan_572
 model: FW-Kimi-K3
 mode_at_creation: auto
+approved_mode: auto
 content_hash: 3fd79f5a1096af3e
+approved_hash: 3fd79f5a1096af3e
 files_referenced:
   - src/Platform.Domain/Entities/Alert.cs
   - src/Platform.Api/Services/AlertEvaluatorService.cs

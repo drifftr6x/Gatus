@@ -89,6 +89,36 @@ public class LocalStateManager
         _logger.LogInformation("Device credentials saved");
     }
 
+    /// <summary>
+    /// Persist the pinned content-signing public key (base64 SubjectPublicKeyInfo) with DPAPI.
+    /// </summary>
+    public async Task SaveSigningKeyAsync(string publicKeyBase64, string keyId)
+    {
+        var keyPath = Path.Combine(ConfigPath, "signing-key.dat");
+        var json = JsonSerializer.Serialize(new SigningKeyPin { PublicKey = publicKeyBase64, KeyId = keyId }, _jsonOptions);
+        var encrypted = ProtectedData.Protect(Encoding.UTF8.GetBytes(json), null, DataProtectionScope.CurrentUser);
+        await File.WriteAllBytesAsync(keyPath, encrypted);
+    }
+
+    public async Task<SigningKeyPin?> LoadSigningKeyAsync()
+    {
+        var keyPath = Path.Combine(ConfigPath, "signing-key.dat");
+        if (!File.Exists(keyPath))
+            return null;
+
+        try
+        {
+            var encrypted = await File.ReadAllBytesAsync(keyPath);
+            var decrypted = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
+            return JsonSerializer.Deserialize<SigningKeyPin>(Encoding.UTF8.GetString(decrypted), _jsonOptions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load pinned signing key");
+            return null;
+        }
+    }
+
     public async Task<AgentState> LoadStateAsync()
     {
         var statePath = Path.Combine(StatePath, "agent-state.json");

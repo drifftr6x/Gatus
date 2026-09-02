@@ -75,6 +75,9 @@ builder.Services.AddHostedService<DeploymentSchedulerService>();
 
 // Content file storage
 builder.Services.AddSingleton<ContentStorageService>();
+
+// Content manifest signing (RSA-4096, key persisted under content root)
+builder.Services.AddSingleton<SigningService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<GeocodingService>();
 builder.Services.AddScoped<DeviceAuthenticationService>();

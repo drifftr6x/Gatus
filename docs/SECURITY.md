@@ -38,7 +38,7 @@ Enrollment is the only anonymous agent operation. Heartbeat, telemetry, commands
 | Stolen enrollment token | Hash, TTL, one-time | Token shown in UI clipboard |
 | Agent impersonation | Per-device secret hash and device-ID binding | Client certificates/mTLS remain future hardening |
 | Privilege escalation | Server-side role policies | UI hiding is not enough; always enforce on API |
-| Malicious content | Checksum + staging | Package signing later |
+| Malicious content | Checksum + staging + **RSA-4096 manifest signing** (agent verifies before activation) | Agent binary self-updates unsigned (no self-updater yet) |
 | Kiosk escape | WebView2 guards + optional OS lockdown | Depends on Windows edition and policy |
 | Irreversible lockdown | Restore scripts, maintenance mode | Test recovery **before** production rollout |
 

@@ -1,49 +1,24 @@
 ---
 schema_version: 1
 name: Production compose stack
-overview: 'Full production docker-compose: API + admin web + nginx TLS reverse proxy, with corrected
-  Dockerfiles matching the current project structure, secrets via env, and one-command
-  deployment.'
+overview: '''Full production docker-compose: API + admin web + nginx TLS reverse proxy, with
+  corrected'
 todos:
-  - id: pc-t1
-    content: Rewrite api.Dockerfile for current project structure (.NET 10 GA)
-    status: pending
-  - id: pc-t2
-    content: Verify frontend API base URL works behind nginx proxy; fix admin-web.Dockerfile if
-  needed
-    status: pending
-  - id: pc-t3
-    content: Update nginx.conf proxy target port + TLS
-    status: pending
-  - id: pc-t4
-    content: Create compose.production.yaml (api + web + postgres, internal networking, volumes)
-    status: pending
-  - id: pc-t5
-    content: Add .env.production.example + self-signed cert script + DEPLOYMENT.md update
-    status: pending
-  - id: pc-t6
-    content: 'Verify: build images, bring stack up, login + SignalR over TLS, commit'
-    status: pending
-isProject: false
+  []
+isProject: true
 created_at: '2026-09-01T21:28:12'
 session_id: sess_60616e1870d76f6b
 tool_use_id: create_plan_309
 model: FW-Kimi-K3
 mode_at_creation: auto
-content_hash: ea707a79c3a51968
-files_referenced:
-  - infrastructure/compose.yaml
-  - infrastructure/docker/api.Dockerfile
-  - infrastructure/docker/admin-web.Dockerfile
-  - infrastructure/docker/nginx.conf
-  - apps/api-server/appsettings.json
-  - docs/DEPLOYMENT.md
+dismissed: true
+content_hash: ea73f62eca4c9a2f
 title: Production compose stack
 ---
 
 # Production compose stack
 
-_Full production docker-compose: API + admin web + nginx TLS reverse proxy, with corrected Dockerfiles matching the current project structure, secrets via env, and one-command deployment._
+_'Full production docker-compose: API + admin web + nginx TLS reverse proxy, with corrected_
 
 ## Context
 `infrastructure/compose.yaml` only runs data stores (Postgres/Redis/MinIO). The existing `infrastructure/docker/api.Dockerfile` is **stale** — it references a removed project layout (`src/Hosts/Kiosk.Api`, `src/Modules/*`). Real layout: `apps/api-server/Platform.ApiServer.csproj` + `src/Platform.{Domain,Infrastructure,Security,Contracts,Api}`. The admin-web Dockerfile and nginx.conf are close but need fixes.

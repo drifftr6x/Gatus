@@ -30,6 +30,7 @@ builder.Services.AddWindowsService(options =>
 // Register agent services
 builder.Services.AddSingleton<LocalStateManager>();
 builder.Services.AddSingleton<EnrollmentService>();
+builder.Services.AddSingleton<SignatureVerifier>();
 builder.Services.AddSingleton<LockdownEngine>();
 builder.Services.AddHostedService<HeartbeatService>();
 builder.Services.AddHostedService<PolicySyncService>();

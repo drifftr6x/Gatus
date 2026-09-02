@@ -14,12 +14,14 @@ public class ContentStorageService
 {
     private readonly string _contentRoot;
     private readonly ILogger<ContentStorageService> _logger;
+    private readonly SigningService _signing;
 
-    public ContentStorageService(IWebHostEnvironment env, ILogger<ContentStorageService> logger)
+    public ContentStorageService(IWebHostEnvironment env, ILogger<ContentStorageService> logger, SigningService signing)
     {
         _contentRoot = Path.Combine(env.ContentRootPath, "AppData", "content");
         Directory.CreateDirectory(_contentRoot);
         _logger = logger;
+        _signing = signing;
     }
 
     /// <summary>
@@ -55,8 +57,26 @@ public class ContentStorageService
             }
         };
 
+        // Sign the canonical (unsigned) manifest JSON, then embed the signature.
+        // Agents verify: strip "signature", serialize remaining fields with the same
+        // canonical shape, and verify against the server public key.
+        var unsignedJson = JsonSerializer.Serialize(manifest);
+        var signature = _signing.Sign(unsignedJson);
+
+        var signedManifest = new
+        {
+            version = version.ToString(),
+            files = new[]
+            {
+                new { path = fileName, sha256, size = fileSize }
+            },
+            signature,
+            signatureAlgorithm = "RSA-SHA256-PSS",
+            signingKeyId = _signing.KeyId
+        };
+
         var manifestPath = Path.Combine(versionDir, "manifest.json");
-        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }), ct);
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(signedManifest, new JsonSerializerOptions { WriteIndented = true }), ct);
 
         // Create zip package (raw file + manifest)
         var zipPath = Path.Combine(versionDir, "package.zip");

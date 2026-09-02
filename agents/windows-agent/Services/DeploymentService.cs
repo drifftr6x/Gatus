@@ -13,6 +13,7 @@ public class DeploymentService : BackgroundService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly LocalStateManager _stateManager;
     private readonly EnrollmentService _enrollmentService;
+    private readonly SignatureVerifier _signatureVerifier;
     private readonly ILogger<DeploymentService> _logger;
     private readonly AgentConfig _config;
     private readonly JsonSerializerOptions _jsonOptions;
@@ -21,12 +22,14 @@ public class DeploymentService : BackgroundService
         IHttpClientFactory httpClientFactory,
         LocalStateManager stateManager,
         EnrollmentService enrollmentService,
+        SignatureVerifier signatureVerifier,
         ILogger<DeploymentService> logger,
         IConfiguration configuration)
     {
         _httpClientFactory = httpClientFactory;
         _stateManager = stateManager;
         _enrollmentService = enrollmentService;
+        _signatureVerifier = signatureVerifier;
         _logger = logger;
         _config = configuration.GetSection("Agent").Get<AgentConfig>() ?? new AgentConfig();
         _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -160,7 +163,14 @@ public class DeploymentService : BackgroundService
                 return;
             }
 
-            // 3. Stage (already in staging path)
+            // Verify manifest signature (publisher authenticity) before activation
+            if (!await VerifyManifestSignatureAsync(manifest, cancellationToken))
+            {
+                await ReportDeploymentStatusAsync(deploymentId, "Failed", "Invalid content signature — refusing activation", credentials, cancellationToken);
+                return;
+            }
+
+                  // 3. Stage (already in staging path)
 
             // 4. Activate atomically
             var activePath = _stateManager.GetActiveContentPath(contentId);
@@ -242,6 +252,28 @@ public class DeploymentService : BackgroundService
             _logger.LogError(ex, "Content download failed");
             return false;
         }
+    }
+
+    /// <summary>
+    /// Reconstruct the canonical unsigned manifest JSON exactly as the server
+    /// signed it (compact serialization, version + files only) and verify the
+    /// RSA-SHA256-PSS signature against the pinned server public key.
+    /// </summary>
+    private async Task<bool> VerifyManifestSignatureAsync(ContentManifest manifest, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(manifest.Signature))
+        {
+            _logger.LogWarning("Manifest has no signature (unsigned legacy content) — refusing under signing enforcement");
+            return false;
+        }
+
+        var canonical = JsonSerializer.Serialize(new
+        {
+            version = manifest.Version,
+            files = manifest.Files.Select(f => new { path = f.Path, sha256 = f.Sha256, size = f.Size }).ToArray()
+        });
+
+        return await _signatureVerifier.VerifyManifestAsync(canonical, manifest.Signature, manifest.SigningKeyId, cancellationToken);
     }
 
     private async Task<bool> VerifyChecksumsAsync(string stagingPath, ContentManifest manifest, CancellationToken cancellationToken)
@@ -369,6 +401,9 @@ public class ContentManifest
 {
     public string Version { get; set; } = string.Empty;
     public List<ManifestFile> Files { get; set; } = [];
+    public string? Signature { get; set; }
+    public string? SignatureAlgorithm { get; set; }
+    public string? SigningKeyId { get; set; }
 }
 
 public class ManifestFile

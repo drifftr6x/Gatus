@@ -22,6 +22,12 @@ public class DeviceCredentials
     public string? CertificateThumbprint { get; set; }
 }
 
+public class SigningKeyPin
+{
+    public string PublicKey { get; set; } = string.Empty;
+    public string KeyId { get; set; } = string.Empty;
+}
+
 public class AgentState
 {
     public string DeviceId { get; set; } = string.Empty;

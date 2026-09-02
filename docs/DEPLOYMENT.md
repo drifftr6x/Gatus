@@ -86,6 +86,7 @@ Self-contained publish (`win-x64`) is configured on the agent csproj so the kios
 - [ ] Rotate JWT signing key; store in a secret manager (currently `.env.production`)
 - [x] Authenticate every agent endpoint with device credentials
 - [ ] Postgres backups + tested restore
-- [ ] Signed agent/runtime binaries
+- [x] Signed content manifests (RSA-4096; agent verifies before activation; key persisted under content root `keys/`, served via `GET /api/signing/public-key`)
+- [ ] Signed agent/runtime binaries (requires agent self-update mechanism — not yet built)
 - [ ] Restrict CORS to the real admin origin (same-origin behind nginx mitigates)
 - [ ] Replace seed users; disable `Admin123!`
