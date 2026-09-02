@@ -24,6 +24,7 @@ public class AlertConfiguration : IEntityTypeConfiguration<Alert>
         builder.Property(a => a.AutoResolved).HasColumnName("auto_resolved");
         builder.Property(a => a.LastNotifiedAt).HasColumnName("last_notified_at");
         builder.Property(a => a.EscalationStep).HasColumnName("escalation_step");
+        builder.Property(a => a.EscalationPolicyId).HasColumnName("escalation_policy_id");
 
         builder.HasOne(a => a.EscalationPolicy)
             .WithMany()
