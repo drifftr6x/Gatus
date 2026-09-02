@@ -8,11 +8,41 @@
 
 This is the only fully exercised path today.
 
+## Production stack (Docker Compose)
+
+`infrastructure/compose.production.yaml` runs the full stack: **Postgres + API + admin web** behind nginx with TLS. One command:
+
+```powershell
+cd infrastructure
+
+# 1. Secrets
+cp .env.production.example .env.production
+#    edit .env.production — set POSTGRES_PASSWORD and JWT_SECRET (min 32 chars)
+
+# 2. TLS (lab self-signed; replace with real certs in production)
+.\scripts\new-dev-cert.ps1            # creates certs\server.crt + server.key
+
+# 3. Build + run
+docker compose --env-file .env.production -f compose.production.yaml up -d --build
+```
+
+Then browse to `https://localhost` (self-signed warning expected in lab). The API applies EF migrations at startup; no separate migration step.
+
+Layout:
+
+| Service | Container | Exposure |
+|---------|-----------|----------|
+| `web` (nginx + static SPA) | gatus-web | Host ports 80/443 (`HTTP_PORT`/`HTTPS_PORT`) |
+| `api` (.NET 10) | gatus-api | Internal only — proxied at `/api/` and `/hubs/` |
+| `postgres` | gatus-postgres | Internal only |
+
+Data persists in named volumes: `postgres-data`, `api-content` (uploaded content packages).
+
+The frontend calls relative `/api` + `/hubs` paths, so no per-environment frontend build is needed. nginx terminates TLS, proxies, and forwards `X-Forwarded-*`; the API honors them via `UseForwardedHeaders` (added for this stack). Redis/MinIO are dev-only and intentionally omitted.
+
 ## Docker Compose notes
 
 `infrastructure/compose.yaml` starts **Postgres, Redis, and MinIO only**. It does not containerize the API or the admin UI. Do not expect `docker compose up` to serve `https://app.example.com`.
-
-Production-shaped compose / nginx files may exist as drafts; treat them as incomplete until they are run in a staging environment.
 
 ## Database
 
@@ -52,10 +82,10 @@ Self-contained publish (`win-x64`) is configured on the agent csproj so the kios
 
 ## Production checklist (not all done)
 
-- [ ] HTTPS reverse proxy and HSTS
-- [ ] Rotate JWT signing key; store in a secret manager
-- [ ] Authenticate every agent endpoint with device credentials
+- [x] HTTPS reverse proxy and HSTS (nginx in `compose.production.yaml`)
+- [ ] Rotate JWT signing key; store in a secret manager (currently `.env.production`)
+- [x] Authenticate every agent endpoint with device credentials
 - [ ] Postgres backups + tested restore
 - [ ] Signed agent/runtime binaries
-- [ ] Restrict CORS to the real admin origin
+- [ ] Restrict CORS to the real admin origin (same-origin behind nginx mitigates)
 - [ ] Replace seed users; disable `Admin123!`

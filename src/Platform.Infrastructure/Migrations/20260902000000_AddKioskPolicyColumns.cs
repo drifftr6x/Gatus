@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Platform.Infrastructure.Persistence;
 
 #nullable disable
 
@@ -9,6 +11,8 @@ namespace Platform.Infrastructure.Migrations;
 /// The local database may have received these columns out-of-band; IF NOT EXISTS keeps
 /// startup safe for both fresh and already-repaired development databases.
 /// </summary>
+[DbContext(typeof(ApplicationDbContext))]
+[Migration("20260902000000_AddKioskPolicyColumns")]
 public partial class AddKioskPolicyColumns : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)

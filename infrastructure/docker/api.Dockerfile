@@ -1,27 +1,43 @@
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview AS base
+# Gatus API server — production image
+# Build context must be the repo root: docker build -f infrastructure/docker/api.Dockerfile .
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 EXPOSE 8080
-EXPOSE 8081
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0-preview AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
-COPY ["src/Hosts/Kiosk.Api/Kiosk.Api.csproj", "src/Hosts/Kiosk.Api/"]
-COPY ["src/Modules/Identity/Kiosk.Modules.Identity/Kiosk.Modules.Identity.csproj", "src/Modules/Identity/Kiosk.Modules.Identity/"]
-COPY ["src/Modules/Devices/Kiosk.Modules.Devices/Kiosk.Modules.Devices.csproj", "src/Modules/Devices/Kiosk.Modules.Devices/"]
-COPY ["src/Modules/Content/Kiosk.Modules.Content/Kiosk.Modules.Content.csproj", "src/Modules/Content/Kiosk.Modules.Content/"]
-COPY ["src/Modules/Sync/Kiosk.Modules.Sync/Kiosk.Modules.Sync.csproj", "src/Modules/Sync/Kiosk.Modules.Sync/"]
-COPY ["src/Modules/Scheduling/Kiosk.Modules.Scheduling/Kiosk.Modules.Scheduling.csproj", "src/Modules/Scheduling/Kiosk.Modules.Scheduling/"]
-COPY ["src/Modules/Telemetry/Kiosk.Modules.Telemetry/Kiosk.Modules.Telemetry.csproj", "src/Modules/Telemetry/Kiosk.Modules.Telemetry/"]
-COPY ["src/Modules/Users/Kiosk.Modules.Users/Kiosk.Modules.Users.csproj", "src/Modules/Users/Kiosk.Modules.Users/"]
-RUN dotnet restore "src/Hosts/Kiosk.Api/Kiosk.Api.csproj"
-COPY . .
-WORKDIR "/src/src/Hosts/Kiosk.Api"
-RUN dotnet build "Kiosk.Api.csproj" -c Release -o /app/build
 
-FROM build AS publish
-RUN dotnet publish "Kiosk.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
+# Central package management + SDK pin
+COPY ["global.json", "./"]
+COPY ["Directory.Packages.props", "./"]
+
+# Project files first for restore-layer caching
+COPY ["apps/api-server/Platform.ApiServer.csproj", "apps/api-server/"]
+COPY ["src/Platform.Api/Platform.Api.csproj", "src/Platform.Api/"]
+COPY ["src/Platform.Application/Platform.Application.csproj", "src/Platform.Application/"]
+COPY ["src/Platform.Contracts/Platform.Contracts.csproj", "src/Platform.Contracts/"]
+COPY ["src/Platform.Domain/Platform.Domain.csproj", "src/Platform.Domain/"]
+COPY ["src/Platform.Infrastructure/Platform.Infrastructure.csproj", "src/Platform.Infrastructure/"]
+COPY ["src/Platform.Security/Platform.Security.csproj", "src/Platform.Security/"]
+COPY ["src/Platform.Shared/Platform.Shared.csproj", "src/Platform.Shared/"]
+
+RUN dotnet restore "apps/api-server/Platform.ApiServer.csproj"
+
+COPY . .
+RUN dotnet publish "apps/api-server/Platform.ApiServer.csproj" \
+      -c Release -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
-COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "Kiosk.Api.dll"]
+
+# Non-root runtime user
+USER $APP_UID
+
+COPY --from=build /app/publish .
+
+ENV ASPNETCORE_URLS=http://+:8080
+# Content store — mount a named volume here to persist uploads across container restarts
+VOLUME ["/app/AppData"]
+
+ENTRYPOINT ["dotnet", "Platform.ApiServer.dll"]

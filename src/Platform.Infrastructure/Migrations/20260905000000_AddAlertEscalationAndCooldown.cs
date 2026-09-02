@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Platform.Infrastructure.Persistence;
 
 #nullable disable
 
@@ -7,6 +9,8 @@ namespace Platform.Infrastructure.Migrations;
 /// <summary>
 /// Adds alert cooldown, escalation policies, and escalation steps.
 /// </summary>
+[DbContext(typeof(ApplicationDbContext))]
+[Migration("20260905000000_AddAlertEscalationAndCooldown")]
 public partial class AddAlertEscalationAndCooldown : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)

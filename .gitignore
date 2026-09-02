@@ -115,3 +115,4 @@ backups/
 *.bak
 *.orig
 apps/api-server/AppData/
+infrastructure/certs/

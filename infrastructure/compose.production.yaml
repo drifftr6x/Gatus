@@ -1,0 +1,73 @@
+# Gatus production stack: API + admin web (nginx TLS) + Postgres.
+#
+#   cp .env.production.example .env.production   # fill in secrets
+#   ./scripts/new-dev-cert.ps1                   # lab TLS cert (or mount real certs in ./certs)
+#   docker compose --env-file .env.production -f compose.production.yaml up -d --build
+#
+# Run from the infrastructure/ directory. Build context is the repo root.
+
+name: gatus
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gatus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kiosk}
+      POSTGRES_USER: ${POSTGRES_USER:-kiosk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
+    # No host port published — internal network only
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/api.Dockerfile
+    container_name: gatus-api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-kiosk};Username=${POSTGRES_USER:-kiosk};Password=${POSTGRES_PASSWORD}"
+      Jwt__Secret: ${JWT_SECRET:?Set JWT_SECRET in .env.production (min 32 chars)}
+      Jwt__Issuer: ${JWT_ISSUER:-GatusKiosk}
+      Jwt__Audience: ${JWT_AUDIENCE:-GatusKiosk}
+      # nginx terminates TLS and forwards X-Forwarded-* — the app reads these
+      # for correct scheme/host in redirects and cookies
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+    volumes:
+      - api-content:/app/AppData
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/product -o /dev/null -w '%{http_code}' | grep -q 401 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  web:
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/admin-web.Dockerfile
+    container_name: gatus-web
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  postgres-data:
+  api-content:

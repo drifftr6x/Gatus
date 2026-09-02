@@ -156,13 +156,20 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Behind a reverse proxy (nginx): honor X-Forwarded-* so scheme/host/cookies are correct
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+                       | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+});
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseHttpsRedirection();
 }
 
-app.UseHttpsRedirection();
 app.UseCors("AllowAdminWeb");
 
 // Correlation ID + request logging

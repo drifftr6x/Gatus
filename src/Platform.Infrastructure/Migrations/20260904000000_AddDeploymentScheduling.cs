@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Platform.Infrastructure.Persistence;
 
 #nullable disable
 
@@ -7,6 +9,8 @@ namespace Platform.Infrastructure.Migrations;
 /// <summary>
 /// Adds rollout wave percentage and scheduled deployment support.
 /// </summary>
+[DbContext(typeof(ApplicationDbContext))]
+[Migration("20260904000000_AddDeploymentScheduling")]
 public partial class AddDeploymentScheduling : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
