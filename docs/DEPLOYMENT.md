@@ -69,13 +69,7 @@ Eligibility gates on the server: strictly newer version, optional `minVersion` f
 
 - Provider: PostgreSQL 16
 - Migrations: applied by the API at startup
-- Backup (lab): `pg_dump` from the `kiosk-postgres` container
-
-```powershell
-docker exec kiosk-postgres pg_dump -U kiosk kiosk > kiosk-backup.sql
-```
-
-Restore only onto a matching schema version.
+- Backup/restore: see **[BACKUP-RESTORE.md](BACKUP-RESTORE.md)** — scripted dumps with retention (`infrastructure/scripts/backup-postgres.ps1`), verified restores with pre-restore snapshots, and the AppData/signing-key backup that must accompany every DB backup.
 
 ## Windows agent (target PC)
 
