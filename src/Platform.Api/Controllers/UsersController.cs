@@ -60,7 +60,8 @@ public class UsersController : ControllerBase
                 $"{u.FirstName} {u.LastName}",
                 u.Role.ToString(),
                 u.IsActive,
-                u.LastLoginAt
+                u.LastLoginAt,
+                u.MustChangePassword
             ))
             .ToListAsync();
 
@@ -84,7 +85,8 @@ public class UsersController : ControllerBase
             $"{user.FirstName} {user.LastName}",
             user.Role.ToString(),
             user.IsActive,
-            user.LastLoginAt
+            user.LastLoginAt,
+            user.MustChangePassword
         ));
     }
 
@@ -129,7 +131,8 @@ public class UsersController : ControllerBase
             $"{user.FirstName} {user.LastName}",
             user.Role.ToString(),
             user.IsActive,
-            user.LastLoginAt
+            user.LastLoginAt,
+            user.MustChangePassword
         ));
     }
 
@@ -167,7 +170,8 @@ public class UsersController : ControllerBase
             $"{user.FirstName} {user.LastName}",
             user.Role.ToString(),
             user.IsActive,
-            user.LastLoginAt
+            user.LastLoginAt,
+            user.MustChangePassword
         ));
     }
 

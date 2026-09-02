@@ -10,11 +10,19 @@ namespace Platform.Infrastructure.Persistence;
 /// </summary>
 public static class DbSeeder
 {
-    public static async Task SeedAsync(ApplicationDbContext context, ILogger logger)
+    public static async Task SeedAsync(ApplicationDbContext context, ILogger logger, string? adminPassword = null)
     {
         if (await context.Users.AnyAsync())
         {
             return; // Already seeded
+        }
+
+        // Password from config, or generate a random one and log it
+        var generatedPassword = false;
+        if (string.IsNullOrEmpty(adminPassword))
+        {
+            adminPassword = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(18));
+            generatedPassword = true;
         }
 
         logger.LogInformation("Seeding development data...");
@@ -26,11 +34,15 @@ public static class DbSeeder
             Email = "admin@gatus.local",
             FirstName = "Admin",
             LastName = "User",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword),
             Role = UserRole.SuperAdmin,
             IsActive = true,
+            MustChangePassword = true,
             CreatedAt = DateTime.UtcNow
         };
+
+        if (generatedPassword)
+            logger.LogWarning("No Seed:AdminPassword configured — generated admin password: {Password} (change immediately after login)", adminPassword);
 
         context.Users.Add(admin);
 

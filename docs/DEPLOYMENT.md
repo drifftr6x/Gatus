@@ -18,6 +18,8 @@ cd infrastructure
 # 1. Secrets
 cp .env.production.example .env.production
 #    edit .env.production — set POSTGRES_PASSWORD and JWT_SECRET (min 32 chars)
+#    Generate a strong JWT secret:  openssl rand -base64 48
+#    The API refuses to start in non-Development with a missing, short (<32), or placeholder secret.
 
 # 2. TLS (lab self-signed; replace with real certs in production)
 .\scripts\new-dev-cert.ps1            # creates certs\server.crt + server.key
@@ -27,6 +29,10 @@ docker compose --env-file .env.production -f compose.production.yaml up -d --bui
 ```
 
 Then browse to `https://localhost` (self-signed warning expected in lab). The API applies EF migrations at startup; no separate migration step.
+
+## First admin account
+
+In **Development** the seeder creates `admin@gatus.local` using the password from `Seed:AdminPassword` in `appsettings.Development.json` (or a randomly generated one, printed to the logs as a warning). The seeded admin is flagged `MustChangePassword` — the web UI forces a password change on first login. In **Production** no users are seeded; create the first admin via the register endpoint or the database, and set `must_change_password = true` on the row to force a change on first login.
 
 Layout:
 

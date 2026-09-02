@@ -16,12 +16,21 @@ import { NotificationsPage } from '@/pages/notifications'
 import { SettingsPage } from '@/pages/settings'
 import { LogsPage } from '@/pages/logs'
 import { LoginPage } from '@/pages/login'
+import { ChangePasswordPage } from '@/pages/change-password'
 
 export default function App() {
   return (
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/change-password"
+          element={
+            <ProtectedRoute>
+              <ChangePasswordPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/*"
           element={

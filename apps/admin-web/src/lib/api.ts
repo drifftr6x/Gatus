@@ -134,6 +134,7 @@ export interface UserDto {
   role: string
   isActive: boolean
   lastLoginAt?: string
+  mustChangePassword?: boolean
 }
 
 export interface DeviceDto {
@@ -224,6 +225,8 @@ export const authApi = {
   login: (data: LoginRequest) => api.post<AuthResponse>('/auth/login', data),
   logout: () => api.post('/auth/logout'),
   getCurrentUser: () => api.get<UserDto>('/auth/me'),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    api.post('/auth/change-password', data),
 }
 
 export interface DevicePolicyDto {

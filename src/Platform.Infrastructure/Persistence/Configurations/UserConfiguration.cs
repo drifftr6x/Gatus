@@ -17,6 +17,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.PasswordHash).HasColumnName("password_hash").HasMaxLength(256).IsRequired();
         builder.Property(u => u.Role).HasColumnName("role").HasConversion<string>().HasMaxLength(20);
         builder.Property(u => u.IsActive).HasColumnName("is_active");
+        builder.Property(u => u.MustChangePassword).HasColumnName("must_change_password");
         builder.Property(u => u.LastLoginAt).HasColumnName("last_login_at");
         builder.Property(u => u.RefreshToken).HasColumnName("refresh_token").HasMaxLength(512);
         builder.Property(u => u.RefreshTokenExpiresAt).HasColumnName("refresh_token_expires_at");

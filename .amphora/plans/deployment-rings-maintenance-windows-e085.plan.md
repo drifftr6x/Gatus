@@ -24,7 +24,7 @@ todos:
     status: completed
   - id: rg-t7
     content: Integration tests + build/test/web verify + commit
-    status: in_progress
+    status: completed
 isProject: false
 created_at: '2026-09-01T23:36:01'
 session_id: sess_60616e1870d76f6b
@@ -32,6 +32,7 @@ tool_use_id: create_plan_505
 model: FW-Kimi-K3
 mode_at_creation: auto
 approved_mode: auto
+dismissed: true
 content_hash: bf000abdbd311fa5
 approved_hash: bf000abdbd311fa5
 files_referenced:

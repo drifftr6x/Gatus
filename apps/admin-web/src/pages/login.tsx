@@ -13,6 +13,7 @@ export function LoginPage() {
   const location = useLocation()
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard'
+  const message = (location.state as { message?: string })?.message
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,6 +49,11 @@ export function LoginPage() {
         </div>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
+          {message && (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">
+              {message}
+            </div>
+          )}
           {error && (
             <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
               {error}

@@ -143,7 +143,7 @@ builder.Services.AddRateLimiter(options =>
 });
 
 // Add Security (JWT, Authorization)
-builder.Services.AddPlatformSecurity(builder.Configuration);
+builder.Services.AddPlatformSecurity(builder.Configuration, builder.Environment.IsDevelopment());
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -285,7 +285,7 @@ using (var scope = app.Services.CreateScope())
     if (app.Environment.IsDevelopment())
     {
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        await DbSeeder.SeedAsync(db, logger);
+        await DbSeeder.SeedAsync(db, logger, app.Configuration["Seed:AdminPassword"]);
     }
 }
 

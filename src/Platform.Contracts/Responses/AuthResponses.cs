@@ -15,7 +15,8 @@ public record UserDto(
     string DisplayName,
     string Role,
     bool IsActive,
-    DateTime? LastLoginAt
+    DateTime? LastLoginAt,
+    bool MustChangePassword = false
 );
 
 public record TokenResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt);

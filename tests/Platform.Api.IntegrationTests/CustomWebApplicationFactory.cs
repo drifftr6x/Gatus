@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,15 @@ namespace Platform.Api.IntegrationTests;
 
 public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
+    static CustomWebApplicationFactory()
+    {
+        // appsettings.json no longer carries a JWT secret; supply a test-only one
+        // via environment variable (most reliable with minimal hosting model).
+        Environment.SetEnvironmentVariable("Jwt__Secret", "integration-test-secret-key-do-not-use-in-prod");
+        Environment.SetEnvironmentVariable("Jwt__Issuer", "GatusKiosk");
+        Environment.SetEnvironmentVariable("Jwt__Audience", "GatusKiosk");
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(services =>

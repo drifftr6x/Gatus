@@ -83,7 +83,8 @@ public class AuthController : ControllerBase
                 user.DisplayName ?? $"{user.FirstName} {user.LastName}",
                 user.Role.ToString(),
                 user.IsActive,
-                user.LastLoginAt
+                user.LastLoginAt,
+                user.MustChangePassword
             )
         ));
     }
@@ -205,9 +206,10 @@ public class AuthController : ControllerBase
             user.DisplayName ?? $"{user.FirstName} {user.LastName}",
             user.Role.ToString(),
             user.IsActive,
-            user.LastLoginAt
+            user.LastLoginAt,
+            user.MustChangePassword
         ));
-    }
+        }
 
     [HttpGet("me")]
     [Microsoft.AspNetCore.Authorization.Authorize]
@@ -233,7 +235,53 @@ public class AuthController : ControllerBase
             user.DisplayName ?? $"{user.FirstName} {user.LastName}",
             user.Role.ToString(),
             user.IsActive,
-            user.LastLoginAt
+            user.LastLoginAt,
+            user.MustChangePassword
         ));
-    }
-}
+        }
+
+        [HttpPost("change-password")]
+        [Microsoft.AspNetCore.Authorization.Authorize]
+        public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
+        {
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null || !user.IsActive)
+        {
+            return NotFound();
+        }
+
+        if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+        {
+            return BadRequest(new { error = "Current password is incorrect" });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+        {
+            return BadRequest(new { error = "New password must be at least 8 characters" });
+        }
+
+        if (request.NewPassword == request.CurrentPassword)
+        {
+            return BadRequest(new { error = "New password must differ from current password" });
+        }
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        user.MustChangePassword = false;
+
+        // Invalidate all existing sessions — force re-login with new password
+        user.RefreshToken = null;
+        user.RefreshTokenExpiresAt = null;
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("User {Email} changed their password", user.Email);
+
+        return Ok(new { message = "Password changed successfully" });
+        }
+        }
