@@ -57,6 +57,36 @@ public class NotificationService
     }
 
     /// <summary>
+    /// Send a notification to a specific channel only (used by escalation steps).
+    /// </summary>
+    public async Task NotifyChannelAsync(Alert alert, string deviceName, Guid channelId)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var channel = await context.NotificationChannels
+            .FirstOrDefaultAsync(c => c.Id == channelId && c.IsEnabled);
+
+        if (channel is null) return;
+
+        try
+        {
+            var task = channel.Type switch
+            {
+                "webhook" => SendWebhookAsync(channel, alert, deviceName),
+                "teams" => SendTeamsAsync(channel, alert, deviceName),
+                "email" => SendEmailAsync(channel, alert, deviceName),
+                _ => Task.CompletedTask
+            };
+            await task;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send escalation notification via channel '{Name}'", channel.Name);
+        }
+    }
+
+    /// <summary>
     /// Test a notification channel by sending a test message.
     /// </summary>
     public async Task<(bool Success, string? Error)> TestChannelAsync(NotificationChannel channel)

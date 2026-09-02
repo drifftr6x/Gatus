@@ -493,7 +493,8 @@ export interface AlertDto {
   acknowledgedByName?: string
   resolvedAt?: string
   autoResolved: boolean
-}
+  escalationStep?: number
+  }
 
 export interface AlertListResponse {
   alerts: AlertDto[]

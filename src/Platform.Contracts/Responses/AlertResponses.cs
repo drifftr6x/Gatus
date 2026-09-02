@@ -12,8 +12,9 @@ public record AlertDto(
     DateTime? AcknowledgedAt,
     string? AcknowledgedByName,
     DateTime? ResolvedAt,
-    bool AutoResolved
-);
+    bool AutoResolved,
+    int EscalationStep = 0
+    );
 
 public record AlertListResponse(
     IEnumerable<AlertDto> Alerts,

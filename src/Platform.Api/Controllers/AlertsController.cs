@@ -55,7 +55,7 @@ public class AlertsController : ControllerBase
                 a.Id, a.DeviceId, a.Device.Name, a.Severity.ToString(), a.Title, a.Message,
                 a.Status.ToString(), a.RaisedAt, a.AcknowledgedAt,
                 a.AcknowledgedBy != null ? a.AcknowledgedBy.FirstName + " " + a.AcknowledgedBy.LastName : null,
-                a.ResolvedAt, a.AutoResolved))
+                a.ResolvedAt, a.AutoResolved, a.EscalationStep))
             .ToListAsync();
 
         return Ok(new AlertListResponse(alerts, total, activeCount));

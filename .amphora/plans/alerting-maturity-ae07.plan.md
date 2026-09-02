@@ -25,10 +25,10 @@ todos:
     status: completed
   - id: am-t7
     content: 'Frontend: escalation policy selector on rules + status badges'
-    status: in_progress
+    status: completed
   - id: am-t8
     content: Integration tests + live verification + commit
-    status: pending
+    status: completed
 isProject: false
 created_at: '2026-09-01T13:46:39'
 session_id: sess_60616e1870d76f6b

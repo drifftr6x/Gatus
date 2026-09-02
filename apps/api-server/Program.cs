@@ -64,6 +64,9 @@ builder.Services.AddSingleton<NotificationService>();
 // Add alert evaluator background service
 builder.Services.AddHostedService<AlertEvaluatorService>();
 
+// Escalates unacknowledged alerts through their policy steps
+builder.Services.AddHostedService<AlertEscalationService>();
+
 // Add ping monitor for unmanaged devices
 builder.Services.AddHostedService<PingMonitorService>();
 
