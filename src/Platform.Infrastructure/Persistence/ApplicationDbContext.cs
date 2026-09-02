@@ -30,6 +30,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Deployment> Deployments => Set<Deployment>();
     public DbSet<DeploymentResult> DeploymentResults => Set<DeploymentResult>();
     public DbSet<PlatformSetting> PlatformSettings => Set<PlatformSetting>();
+    public DbSet<AgentUpdate> AgentUpdates => Set<AgentUpdate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

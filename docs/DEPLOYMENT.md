@@ -46,6 +46,21 @@ Data persists in named volumes: `postgres-data`, `api-content` (uploaded content
 
 The frontend calls relative `/api` + `/hubs` paths, so no per-environment frontend build is needed. nginx terminates TLS, proxies, and forwards `X-Forwarded-*`; the API honors them via `UseForwardedHeaders` (added for this stack). Redis/MinIO are dev-only and intentionally omitted.
 
+## Agent self-updates
+
+Agents poll `GET /api/agent-updates/latest` hourly (`Agent:UpdateCheckIntervalSeconds`) with their device secret. When an active update with a newer version is offered, the agent downloads the package, **verifies the RSA-signed manifest** (same pinned server key as content) plus per-file SHA-256, stages to `%ProgramData%\SentinelKiosk\Updates\staging\`, then runs a self-apply script: stop service → back up current binaries to `Updates\backup\` → copy new files → start service → **restore backup if the new version fails to start**.
+
+Publishing an update (admin action, server signs at upload — the build machine never holds the private key):
+
+```powershell
+cd infrastructure\scripts
+.\publish-agent-update.ps1 -Version 1.1.0     # builds Release win-x64 + zips to dist\
+# Upload dist\agent-update-1.1.0.zip via POST /api/agent-updates (multipart:
+#   file, version, rolloutPercent, optional minVersion/notes) — admin UI TBD
+```
+
+Eligibility gates on the server: strictly newer version, optional `minVersion` floor, and deterministic `rolloutPercent` bucketing (same device always lands in the same bucket per update). Uploading a new update deactivates older ones; re-activate an older version to roll the fleet back. Update application is logged on the device at `Logs\apply-update.log` and visible fleet-wide via `agentVersion` in heartbeats.
+
 ## Docker Compose notes
 
 `infrastructure/compose.yaml` starts **Postgres, Redis, and MinIO only**. It does not containerize the API or the admin UI. Do not expect `docker compose up` to serve `https://app.example.com`.

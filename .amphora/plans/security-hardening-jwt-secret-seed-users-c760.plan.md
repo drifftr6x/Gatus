@@ -22,7 +22,7 @@ todos:
     status: completed
   - id: sec6
     content: Integration tests + docs + build/test/web verify + commit
-    status: in_progress
+    status: completed
 isProject: false
 created_at: '2026-09-02T00:15:23'
 session_id: sess_60616e1870d76f6b
@@ -30,6 +30,7 @@ tool_use_id: create_plan_62
 model: FW-Kimi-K3
 mode_at_creation: auto
 approved_mode: auto
+dismissed: true
 content_hash: 2c57ecdc473de58f
 approved_hash: 2c57ecdc473de58f
 title: 'Security hardening: JWT secret + seed users'

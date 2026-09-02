@@ -99,7 +99,7 @@ public class HeartbeatService : BackgroundService
             diskFreePercent = metrics.DiskFreePercent,
             kioskStatus = state.Status,
             contentVersion = state.CurrentContentVersion,
-            agentVersion = "1.0.0"
+            agentVersion = AgentVersion.Current
         };
 
         try
