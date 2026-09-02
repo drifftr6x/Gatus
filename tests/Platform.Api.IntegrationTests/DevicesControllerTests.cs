@@ -64,6 +64,28 @@ public class DevicesControllerTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
+    public async Task Product_WithAuth_ReturnsConfiguration()
+    {
+        await _client.PostAsJsonAsync("/api/auth/register",
+            new RegisterRequest("product@example.com", "TestPass123!", "Product", "Viewer"));
+        var loginResponse = await _client.PostAsJsonAsync("/api/auth/login",
+            new LoginRequest("product@example.com", "TestPass123!"));
+        var auth = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+
+        _client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", auth!.AccessToken);
+
+        var response = await _client.GetAsync("/api/product");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var product = await response.Content.ReadFromJsonAsync<ProductConfigurationDto>();
+        Assert.NotNull(product);
+        Assert.False(string.IsNullOrEmpty(product.ProductName));
+        Assert.False(string.IsNullOrEmpty(product.Edition));
+        Assert.NotNull(product.Features);
+    }
+
+    [Fact]
     public async Task DevicesCrud_WithAuth_Succeeds()
     {
         // Register and login

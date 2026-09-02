@@ -22,7 +22,7 @@ todos:
     status: completed
   - id: lite-t6
     content: Add endpoint tests and run full build/type verification
-    status: completed
+    status: in_progress
 isProject: false
 created_at: '2026-08-31T19:57:05'
 last_edited_at: '2026-08-31T20:01:31'
