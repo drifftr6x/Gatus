@@ -79,6 +79,17 @@ public class AlertEvaluatorService : BackgroundService
 
         var broadcaster = scope.ServiceProvider.GetRequiredService<IDeviceEventBroadcaster>();
 
+        // Mark devices offline if no heartbeat within the threshold
+        var now2 = DateTime.UtcNow;
+        foreach (var device in devices.Where(d => d.Status == DeviceStatus.Online))
+        {
+            if (device.LastSeenAt.HasValue && now2 - device.LastSeenAt.Value > OfflineThreshold)
+            {
+                device.Status = DeviceStatus.Offline;
+                await broadcaster.DeviceStatusChanged(device.Id, "Offline", now2);
+            }
+        }
+
         foreach (var device in devices)
         {
             foreach (var rule in rules)

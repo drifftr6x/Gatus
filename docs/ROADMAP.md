@@ -19,13 +19,16 @@
 - [x] **Production compose stack**: API + web + Postgres + nginx TLS, internal networking
 - [x] **JWT secret startup validation** + no hardcoded seed passwords; forced password change (`MustChangePassword`) for seeded/provisioned users
 - [x] **Agent self-updater**: server-signed binary packages, eligibility gating (version/minVersion/rollout %), verified self-swap with automatic rollback
+- [x] **Content scheduling**: time-windowed content assignment per device, conflict detection, priority ordering, agent policy integration (`activeSchedules` in device policy)
+- [x] **Live SignalR updates**: device status + telemetry push on heartbeat, offline sweep with broadcast, admin UI real-time cache invalidation
 - [x] **Backup/restore procedures**: scripted `pg_dump` + AppData (incl. signing keys) with retention, verified restore drill, Task Scheduler registration, runbook
 
 ## In progress / hardening
 
 - [x] Package advisories clean (`dotnet list package --vulnerable` = 0 across all 12 projects)
-- [ ] `dotnet` on PATH / documented SDK path for all operators
 - [x] Admin UI for agent updates (Settings → Agent Updates: upload/sign, activate, rollout %, delete)
+- [x] Program.cs + appsettings.json committed (previously compiled-only, not in git)
+- [ ] `dotnet` on PATH / documented SDK path for all operators
 
 ## Later
 

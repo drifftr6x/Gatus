@@ -120,7 +120,12 @@ Agent poll `GET /api/deployments?deviceId=&status=Pending` filters out deploymen
 
 | Method | Path |
 |--------|------|
-| CRUD | `/api/schedules` |
+| GET | `/api/schedules` | Filter: `?deviceId=`, `?contentId=`, `?activeOnly=true`, `?page=`, `?pageSize=` |
+| GET | `/api/schedules/{id}` |
+| POST | `/api/schedules` | `{ deviceId, contentId, name, description?, startTime, endTime, priority, recurrence, recurrencePattern?, isActive }` — 409 on overlap |
+| PUT | `/api/schedules/{id}` | Partial update — 409 on overlap |
+| DELETE | `/api/schedules/{id}` |
+| GET | `/api/schedules/device/{deviceId}/active` | Currently active schedules for a device, ordered by priority |
 | CRUD | `/api/users` |
 | GET | `/api/logs` |
 | CRUD | `/api/notification-channels` |
@@ -132,6 +137,18 @@ Agent poll `GET /api/deployments?deviceId=&status=Pending` filters out deploymen
 ## SignalR
 
 Hub: `/hubs/devices` (JWT on the connection). UI invalidates React Query caches on device/content/schedule/deployment events.
+
+**Server → client events:**
+
+| Event | Payload | When |
+|-------|---------|------|
+| `DeviceStatusChanged` | `{ deviceId, status, timestamp }` | Device transitions Online ↔ Offline (heartbeat or 5-min sweep) |
+| `TelemetryReceived` | `{ deviceId }` | Every agent heartbeat |
+| `AlertTriggered` | `{ alertId, deviceId, deviceName, severity, message }` | New alert raised |
+| `ContentUpdated` | `{ contentId, name }` | Content created/updated |
+| `ScheduleChanged` | `{ scheduleId, deviceId, changeType }` | Schedule CRUD |
+
+All events go to the `admins` group (all authenticated connections). Clients can also `WatchDevice(deviceId)` to join a per-device group.
 
 ## Errors
 

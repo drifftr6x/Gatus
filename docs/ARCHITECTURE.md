@@ -32,11 +32,14 @@ Administrator
 | Enrollment | `EnrollmentTokensController` | One-time hashed tokens |
 | Groups / templates | `DeviceGroupsController`, `DeviceConfigTemplatesController` | Fleet grouping |
 | Content / deploy | `ContentController`, `DeploymentsController` | Versions, SHA-256, jobs |
-| Schedules | `SchedulesController` | Device/content windows + overlap check |
+| Schedules | `SchedulesController` | Device/content time windows, conflict detection, policy integration |
 | Commands | `CommandsController` | Allowlisted remote commands |
 | Telemetry / analytics | `TelemetryController`, `AnalyticsController` | Ingest + reports |
-| Alerts / notify | `AlertsController`, `NotificationChannelsController` | Rules, channels |
+| Alerts / notify | `AlertsController`, `NotificationChannelsController`, `AlertEvaluatorService`, `AlertEscalationService` | Rules, channels, cooldown, escalation |
+| Agent updates | `AgentUpdatesController` | Signed binary packages, eligibility gating |
+| Signing | `SigningService`, `SigningController` | RSA-4096 content/agent manifest signing |
 | Logs / settings | `LogsController`, `SettingsController` | Server logs, platform settings |
+| Real-time | `DeviceHub`, `DeviceEventBroadcaster` | SignalR push: status, telemetry, alerts |
 
 EF Core maps snake_case tables (`devices`, `enrollment_tokens`, `commands`, …) in `ApplicationDbContext`.
 
@@ -52,7 +55,7 @@ EF Core maps snake_case tables (`devices`, `enrollment_tokens`, `commands`, …)
 | Deployments | `GET /api/deployments`, `POST …/status` | Signed download + verify + activate; maintenance-window filtered |
 | Telemetry batch | `POST /api/telemetry` | Device-secret authenticated |
 | Agent updates | `GET /api/agent-updates/latest`, `…/{id}/download` | Signed self-update packages, eligibility gating |
-| Live UI | SignalR `/hubs/devices` | Device/content/schedule events |
+| Live UI | SignalR `/hubs/devices` | Device status/telemetry/alerts pushed on heartbeat and state transitions |
 
 All agent routes above (except enroll) require the per-device secret: `Authorization: Bearer <deviceSecret>` + device-ID binding via `DeviceAuthenticationService`. On 401/403 the agent enters its re-enrollment flow.
 
@@ -60,7 +63,7 @@ The agent continues with last-known-good policy and content if the API is unreac
 
 ## Policy model
 
-Device `policyJson` (camelCase) drives the kiosk runtime: home URL, allow/deny lists, session/inactivity timeouts, restart limits, lockdown profile. Assignment is per-device today; groups exist for targeting deployments and bulk actions, and carry **maintenance windows** (start/duration/days, overnight-safe) that gate when agents may pick up deployments.
+Device `policyJson` (camelCase) drives the kiosk runtime: home URL, allow/deny lists, session/inactivity timeouts, restart limits, lockdown profile. The policy endpoint also returns `activeSchedules` — currently in-window schedule entries with content references, so the kiosk knows what to display. Assignment is per-device today; groups exist for targeting deployments and bulk actions, and carry **maintenance windows** (start/duration/days, overnight-safe) that gate when agents may pick up deployments.
 
 ## Content deployment
 

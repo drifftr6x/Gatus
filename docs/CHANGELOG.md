@@ -4,6 +4,8 @@
 
 ### Added
 
+- **Content scheduling**: `SchedulesController` with CRUD + conflict detection, active schedules flow into device policy (`activeSchedules` on `GET/PUT /api/devices/{id}/policy`), frontend schedules page with device/content/time-window editor
+- **SignalR live device status**: `DeviceStatusChanged` broadcast on heartbeat online/offline transitions, `TelemetryReceived` on every heartbeat, offline sweep in `AlertEvaluatorService` (5-min threshold), all wired to React Query cache invalidation in the admin UI
 - **Agent self-updater**: `agent_updates` table, `AgentUpdatesController` (admin upload/sign/activate, agent `latest`/`download` with version + minVersion + rollout-% gating), agent `UpdateService` (hourly poll, signed-manifest + per-file SHA-256 verification, detached `apply-update.ps1` self-swap with backup/rollback), `publish-agent-update.ps1` packaging script
 - **Backup/restore suite**: `backup-postgres.ps1` (binary-safe `pg_dump -Fc` + integrity check + retention), `restore-postgres.ps1` (pre-restore snapshot + verification), `backup-appdata.ps1` (local or named-volume, covers signing keys), `register-backup-task.ps1` (Task Scheduler), `docs/BACKUP-RESTORE.md` runbook
 - **Security hardening**: JWT secret startup validation (fail fast on missing/short/placeholder outside Development), JWT secret removed from committed `appsettings.json`, config-driven/random seed admin password, `MustChangePassword` flag + forced change-password flow (invalidates all sessions)
@@ -27,6 +29,8 @@
 - `enrollment_tokens.device_id` on fresh databases
 - `ContentStorage:Root` pinned in appsettings so signing keys land under `apps/api-server/AppData` (covered by backups) instead of `bin/.../AppData`
 - Backup scripts hardened for PowerShell 5.1 (binary-safe `docker cp` instead of PS redirection; quote-safe SQL via stdin)
+- `apply-update.ps1` encoding: UTF-8 BOM required for PowerShell 5.1 ANSI parsing of BOM-less files with multibyte chars; direct `CreateProcess` launcher (`UseShellExecute=false`) for Session 0 reliability
+- Program.cs + appsettings.json reconstructed and committed (previously compiled-only artifacts)
 
 ### Security
 

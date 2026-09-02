@@ -45,7 +45,18 @@ public record DeviceDto(
     int MaxRestartAttempts,
     int RestartDelaySeconds,
     bool KioskEnabled,
-    DeviceLockdownDto Lockdown
+    DeviceLockdownDto Lockdown,
+    IReadOnlyList<ScheduledContentDto> ActiveSchedules
+    );
+
+    public record ScheduledContentDto(
+    Guid ScheduleId,
+    Guid ContentId,
+    string ContentName,
+    string ContentType,
+    int Priority,
+    DateTime StartTime,
+    DateTime EndTime
     );
 
     public record DeviceLockdownDto(

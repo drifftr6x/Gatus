@@ -14,7 +14,7 @@ PowerShell may block `npm.ps1`. Use `npm.cmd`, `Set-ExecutionPolicy Bypass -Scop
 | Process | URL | How to start |
 |---------|-----|----------------|
 | PostgreSQL / Redis / MinIO | 5432 / 6379 / 9000 | `docker compose -f infrastructure/compose.yaml up -d` |
-| API | **http://localhost:5163** | `dotnet run --project apps/api-server` |
+| API | **http://localhost:5163** | `cd src/Platform.Api && dotnet run` (with `ASPNETCORE_ENVIRONMENT=Development`) |
 | Admin web | **http://localhost:5173** (or next free port) | `cd apps/admin-web && npm run dev` |
 | Agent | talks to 5163 | `dotnet run --project agents/windows-agent -- --enroll <token>` |
 
@@ -24,7 +24,7 @@ Compose defaults (see `infrastructure/compose.yaml`):
 - Database / user: `kiosk` / `kiosk`
 - Password: `kiosk-dev-password` (local only)
 
-API connection string lives in `apps/api-server/appsettings.json` (`Host=localhost;Port=5432;Database=kiosk;Username=kiosk;Password=kiosk-dev-password`).
+API connection string lives in `src/Platform.Api/appsettings.json` (`Host=localhost;Port=5432;Database=kiosk;Username=kiosk;Password=kiosk-dev-password`).
 
 Vite proxy is in `apps/admin-web/vite.config.ts` and **must** target the API port (5163). A mismatch produces `http proxy error: /api/auth/login` / `ECONNREFUSED`.
 
@@ -34,7 +34,8 @@ Vite proxy is in `apps/admin-web/vite.config.ts` and **must** target the API por
 docker compose -f infrastructure/compose.yaml up -d
 
 # API (migrations apply on startup)
-cd apps\api-server
+cd src\Platform.Api
+set ASPNETCORE_ENVIRONMENT=Development
 C:\Users\001adm_am\dotnet\dotnet.exe run
 
 # Web
@@ -65,7 +66,7 @@ cd apps\admin-web
 npm run build
 ```
 
-API integration tests use `WebApplicationFactory` + EF InMemory. Stop the running API if you need to rebuild `apps/api-server` (DLLs will be locked). Stop a running agent before rebuilding `SentinelKiosk.Agent.exe`.
+API integration tests use `WebApplicationFactory` + EF InMemory. Stop the running API if you need to rebuild `src/Platform.Api` (DLLs will be locked). Stop a running agent before rebuilding `SentinelKiosk.Agent.exe`.
 
 Find the API PID:
 

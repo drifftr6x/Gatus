@@ -501,7 +501,19 @@ public class DevicesController : ControllerBase
         }
         var device = await _context.Devices.FindAsync(id);
         if (device == null) return NotFound();
-        return Ok(BuildPolicyDto(device));
+
+        // Include active schedules so the agent knows what content to show
+        var now = DateTime.UtcNow;
+        var activeSchedules = await _context.Schedules
+            .Include(s => s.Content)
+            .Where(s => s.DeviceId == id && s.IsActive && s.StartTime <= now && s.EndTime >= now)
+            .OrderByDescending(s => s.Priority)
+            .Select(s => new ScheduledContentDto(
+                s.Id, s.ContentId, s.Content.Name, s.Content.Type.ToString(),
+                s.Priority, s.StartTime, s.EndTime))
+            .ToListAsync();
+
+        return Ok(BuildPolicyDto(device, activeSchedules));
         }
 
         [HttpPut("{id}/policy")]
@@ -530,7 +542,18 @@ public class DevicesController : ControllerBase
 
         _logger.LogInformation("Policy updated for {Device}: v{Version} kiosk={Kiosk}",
             device.Name, current.Version, device.KioskEnabled);
-        return Ok(BuildPolicyDto(device));
+
+        var now = DateTime.UtcNow;
+        var activeSchedules = await _context.Schedules
+            .Include(s => s.Content)
+            .Where(s => s.DeviceId == id && s.IsActive && s.StartTime <= now && s.EndTime >= now)
+            .OrderByDescending(s => s.Priority)
+            .Select(s => new ScheduledContentDto(
+                s.Id, s.ContentId, s.Content.Name, s.Content.Type.ToString(),
+                s.Priority, s.StartTime, s.EndTime))
+            .ToListAsync();
+
+        return Ok(BuildPolicyDto(device, activeSchedules));
         }
 
         private static readonly JsonSerializerOptions PolicyJsonOptions = new()
@@ -539,7 +562,7 @@ public class DevicesController : ControllerBase
         PropertyNameCaseInsensitive = true
         };
 
-        private DevicePolicyDto BuildPolicyDto(Device device)
+        private DevicePolicyDto BuildPolicyDto(Device device, List<ScheduledContentDto>? activeSchedules = null)
         {
         var stored = ParseStoredPolicy(device.PolicyJson);
         var kiosk = device.KioskEnabled;
@@ -561,7 +584,8 @@ public class DevicesController : ControllerBase
             stored.MaxRestartAttempts,
             stored.RestartDelaySeconds,
             kiosk,
-            new DeviceLockdownDto(profile, HideDesktop: kiosk, HideTaskbar: kiosk, MaintenanceModeAllowed: true));
+            new DeviceLockdownDto(profile, HideDesktop: kiosk, HideTaskbar: kiosk, MaintenanceModeAllowed: true),
+            activeSchedules ?? []);
         }
 
         private static StoredDevicePolicy ParseStoredPolicy(string? json)
@@ -689,6 +713,9 @@ public class DevicesController : ControllerBase
         {
             await _broadcaster.DeviceStatusChanged(device.Id, device.Status.ToString(), device.LastSeenAt.Value);
         }
+
+        // Push telemetry to live dashboard subscribers on every heartbeat
+        await _broadcaster.TelemetryReceived(device.Id);
 
         return Ok(new { message = "Heartbeat received", timestamp = device.LastSeenAt });
         }
