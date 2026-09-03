@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { devicesApi, enrollmentApi, commandsApi, groupsApi } from '@/lib/api'
 import type { DeviceDto, DeviceListResponse } from '@/lib/api'
 import { useState, useRef, useMemo } from 'react'
-import { Plus, Pencil, Trash2, KeyRound, Copy, Check, Send, Upload, Download, FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Plus, Pencil, Trash2, KeyRound, Copy, Check, Send, Upload, Download, FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react'
 
 type SortField = 'name' | 'group' | 'hostname' | 'ipAddress' | 'status' | 'location' | 'lastSeen'
 type SortDir = 'asc' | 'desc'
@@ -18,6 +18,7 @@ export function DevicesPage() {
   const [editingDevice, setEditingDevice] = useState<DeviceDto | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [groupFilter, setGroupFilter] = useState('')
+  const [search, setSearch] = useState('')
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
 
@@ -43,9 +44,20 @@ export function DevicesPage() {
   }
 
   const sortedDevices = useMemo(() => {
-    const filtered = data?.devices.filter(d =>
-      !groupFilter || d.groupId === groupFilter
-    ) ?? []
+    const q = search.toLowerCase().trim()
+    const filtered = data?.devices.filter(d => {
+      if (groupFilter && d.groupId !== groupFilter) return false
+      if (q && !(
+        d.name.toLowerCase().includes(q) ||
+        (d.hostname ?? '').toLowerCase().includes(q) ||
+        (d.ipAddress ?? '').includes(q) ||
+        (d.location ?? '').toLowerCase().includes(q) ||
+        (d.serialNumber ?? '').toLowerCase().includes(q) ||
+        (d.groupName ?? '').toLowerCase().includes(q) ||
+        d.status.toLowerCase().includes(q)
+      )) return false
+      return true
+    }) ?? []
 
     return [...filtered].sort((a, b) => {
       let cmp = 0
@@ -65,7 +77,7 @@ export function DevicesPage() {
       }
       return sortDir === 'asc' ? cmp : -cmp
     })
-  }, [data, groupFilter, sortField, sortDir])
+  }, [data, groupFilter, search, sortField, sortDir])
 
   const filteredDevices = sortedDevices
 
@@ -99,6 +111,16 @@ export function DevicesPage() {
               Bulk ({selectedIds.size})
             </button>
           )}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search devices..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-56 rounded-lg border border-surface-700 bg-surface-850 py-2 pl-9 pr-3 text-sm text-white placeholder-slate-500 outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
+            />
+          </div>
           <select
             value={groupFilter}
             onChange={(e) => setGroupFilter(e.target.value)}
