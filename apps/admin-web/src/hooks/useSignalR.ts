@@ -4,7 +4,9 @@ import {
   startDeviceHub,
   stopDeviceHub,
   getDeviceHubConnection,
+  setSignalRTokenProvider,
 } from '@/lib/signalr'
+import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 
 /**
@@ -23,6 +25,9 @@ export function useSignalR() {
     }
 
     let cancelled = false
+
+    // Wire the in-memory access token to SignalR's token factory
+    setSignalRTokenProvider(() => api.token)
 
     const connect = async () => {
       try {

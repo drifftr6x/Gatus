@@ -25,6 +25,10 @@ class ApiClient {
     return localStorage.getItem('gatus-session') === 'active'
   }
 
+  get token(): string {
+    return this.accessToken ?? ''
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}

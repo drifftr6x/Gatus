@@ -4,6 +4,13 @@ const HUB_URL = import.meta.env.VITE_HUB_URL || '/hubs/devices'
 
 let connection: signalR.HubConnection | null = null
 
+// Access token provider — set by useSignalR after auth
+let getAccessToken: () => string = () => ''
+
+export function setSignalRTokenProvider(provider: () => string) {
+  getAccessToken = provider
+}
+
 export function getDeviceHubConnection(): signalR.HubConnection {
   if (connection) {
     return connection
@@ -11,7 +18,7 @@ export function getDeviceHubConnection(): signalR.HubConnection {
 
   connection = new signalR.HubConnectionBuilder()
     .withUrl(HUB_URL, {
-      accessTokenFactory: () => localStorage.getItem('accessToken') ?? '',
+      accessTokenFactory: () => getAccessToken(),
     })
     .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
     .configureLogging(signalR.LogLevel.Warning)
