@@ -9,9 +9,11 @@
 
 .PARAMETER ServerUrl
     Public API origin, e.g. https://gatus.contoso.com
+    Optional when the bundle has server-config.json (auto-detected at build time).
 
 .PARAMETER EnrollmentToken
     One-time token from the admin console (Devices -> Enroll a Device).
+    Optional when baked into the bundle via build-client-bundle.ps1 -EnrollmentToken.
 
 .PARAMETER KioskUser
     Local account the kiosk session runs under (created if missing). Default: KioskUser
@@ -23,13 +25,15 @@
     Dry run -- prints every action without changing the system.
 
 .EXAMPLE
-    .\setup.ps1 -ServerUrl https://gatus.contoso.com -EnrollmentToken abc123
+    .\setup.ps1 -EnrollmentToken abc123                    # server auto-detected from bundle
+    .\setup.ps1                                            # zero-touch (token + server embedded)
+    .\setup.ps1 -ServerUrl https://gatus.contoso.com -EnrollmentToken abc123  # explicit
 #>
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [Parameter(Mandatory = $false)]
     [string]$ServerUrl,
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$EnrollmentToken,
     [string]$KioskUser = 'KioskUser',
     [string]$UseDomainUser = '',
@@ -57,20 +61,34 @@ if (-not $isAdmin -and -not $dryRun) { throw 'Run setup.ps1 as Administrator.' }
 if ($dryRun) { Warn 'Dry run: no changes will be made.' }
 Ok 'Running as Administrator'
 
-# -- Auto-detect server URL from bundle config -------------------------------
+# -- Auto-detect server URL + enrollment token from bundle config ------------
+$configPath = Join-Path $PSScriptRoot 'server-config.json'
+$bundleConfig = $null
+if (Test-Path $configPath) {
+    $bundleConfig = Get-Content $configPath -Raw | ConvertFrom-Json
+}
+
 if (-not $ServerUrl) {
-    $configPath = Join-Path $PSScriptRoot 'server-config.json'
-    if (Test-Path $configPath) {
-        $config = Get-Content $configPath -Raw | ConvertFrom-Json
-        $ServerUrl = $config.serverUrl
+    if ($bundleConfig -and $bundleConfig.serverUrl) {
+        $ServerUrl = $bundleConfig.serverUrl
         Ok "Server URL from bundle config: $ServerUrl"
     }
     else {
-        throw 'No -ServerUrl provided and no server-config.json found in bundle. Rebuild the bundle with -ServerUrl or pass -ServerUrl explicitly.'
+        throw 'No -ServerUrl provided and no server-config.json found in bundle. Rebuild the bundle or pass -ServerUrl explicitly.'
     }
 }
 else {
     Ok "Server URL: $ServerUrl (from parameter)"
+}
+
+if (-not $EnrollmentToken) {
+    if ($bundleConfig -and $bundleConfig.enrollmentToken) {
+        $EnrollmentToken = $bundleConfig.enrollmentToken
+        Ok 'Enrollment token from bundle config (single-use)'
+    }
+    else {
+        throw 'No -EnrollmentToken provided and none baked into bundle. Pass -EnrollmentToken or rebuild with: build-client-bundle.ps1 -EnrollmentToken <token>'
+    }
 }
 
 $os = Get-CimInstance Win32_OperatingSystem

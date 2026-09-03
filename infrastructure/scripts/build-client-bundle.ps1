@@ -8,16 +8,21 @@
     to override). Written to server-config.json in the bundle; setup.ps1 reads it
     when -ServerUrl is not passed explicitly.
 
-.EXAMPLE
+    Enrollment token can be baked in with -EnrollmentToken (single-use — one
+    bundle per machine). setup.ps1 reads it when -EnrollmentToken is not passed.
+
+    .EXAMPLE
     .\build-client-bundle.ps1 -Version 1.1.0
     .\build-client-bundle.ps1 -Version 1.1.0 -ServerUrl http://192.168.1.100:5163
-#>
-param(
+    .\build-client-bundle.ps1 -Version 1.1.0 -EnrollmentToken "gt_abc123..."  # zero-touch for one machine
+    #>
+    param(
     [Parameter(Mandatory = $true)]
     [string]$Version,
     [string]$OutDir = '',
-    [string]$ServerUrl = ''
-)
+    [string]$ServerUrl = '',
+    [string]$EnrollmentToken = ''
+    )
 
 $ErrorActionPreference = 'Stop'
 $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
@@ -78,9 +83,12 @@ if (-not $ServerUrl) {
     }
 }
 
-@{ serverUrl = $ServerUrl; bundleVersion = $Version; builtAt = (Get-Date -Format 'o') } |
-    ConvertTo-Json |
-    Set-Content (Join-Path $bundleRoot 'server-config.json') -Encoding utf8
+$config = @{ serverUrl = $ServerUrl; bundleVersion = $Version; builtAt = (Get-Date -Format 'o') }
+if ($EnrollmentToken) {
+    $config.enrollmentToken = $EnrollmentToken
+    Write-Host "  Enrollment token baked in (single-use — this bundle works for ONE machine)" -ForegroundColor Yellow
+}
+$config | ConvertTo-Json | Set-Content (Join-Path $bundleRoot 'server-config.json') -Encoding utf8
 Write-Host "  Server config written: $ServerUrl" -ForegroundColor Cyan
 
 $zipPath = Join-Path $OutDir "GatusKiosk-Bundle-$Version.zip"
@@ -91,5 +99,9 @@ $size = [math]::Round((Get-Item $zipPath).Length / 1MB, 1)
 Write-Host ""
 Write-Host "Bundle: $zipPath ($size MB)" -ForegroundColor Green
 Write-Host "Deploy: copy zip to client, extract, run as Administrator:"
-Write-Host "  .\setup.ps1 -EnrollmentToken <token>"
+if ($EnrollmentToken) {
+    Write-Host "  .\setup.ps1                    # zero-touch (token + server embedded)"
+} else {
+    Write-Host "  .\setup.ps1 -EnrollmentToken <token>"
+}
 Write-Host "  (Server URL is embedded: $ServerUrl)"
