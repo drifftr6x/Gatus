@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { devicesApi, enrollmentApi, api } from '@/lib/api'
 import { Rocket, Copy, Check, Monitor, Globe } from 'lucide-react'
@@ -24,6 +24,7 @@ export function DeployPage() {
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState('')
   const [serverOverride, setServerOverride] = useState<string | null>(null)
+  const [autoFilled, setAutoFilled] = useState(false)
 
   const isLocalhost = /^(localhost|127\.0\.0\.1|\[::1\])/.test(window.location.hostname)
 
@@ -31,11 +32,26 @@ export function DeployPage() {
     queryKey: ['deploy-server-info'],
     queryFn: () => api.get<ServerInfo>('/api/deploy/server-info'),
     staleTime: 60_000,
+    retry: 5,
+    retryDelay: 3000,
+    refetchInterval: (query) => (query.state.data ? false : 5000),
   })
 
-  // Best default: if browsing via localhost, use the server's LAN IP
-  const detectedUrl = isLocalhost && serverInfo?.lanIps?.length
-    ? `http://${serverInfo.lanIps[0]}:${serverInfo.port}`
+  // Auto-fill the server field with the LAN IP as soon as server-info arrives,
+  // unless the user already typed their own value.
+  useEffect(() => {
+    if (isLocalhost && !autoFilled && serverOverride === null && serverInfo?.lanIps?.length) {
+      setServerOverride(`http://${serverInfo.lanIps[0]}:${serverInfo.port}`)
+      setAutoFilled(true)
+      localStorage.setItem('gatus:lastLanIp', serverInfo.lanIps[0])
+    }
+  }, [isLocalhost, autoFilled, serverOverride, serverInfo])
+
+  // Fallback while server-info is loading: last known LAN IP, else window origin.
+  const lastKnownLanIp = localStorage.getItem('gatus:lastLanIp')
+
+  const detectedUrl = isLocalhost && lastKnownLanIp
+    ? `http://${lastKnownLanIp}:5163`
     : window.location.origin.replace(':5173', ':5163')
 
   const serverUrl = serverOverride ?? detectedUrl
@@ -154,9 +170,14 @@ export function DeployPage() {
                     className="min-w-0 flex-1 rounded border border-surface-600 bg-surface-900 px-2 py-1 font-mono text-slate-200 outline-none focus:border-accent-500"
                   />
                 </div>
-                {isLocalhost && serverOverride === null && (
+                {isLocalhost && /localhost|127\.0\.0\.1/.test(serverUrl) && (
                   <p className="mt-1.5 text-amber-400/90">
-                    You're browsing via localhost — remote PCs can't use that. We auto-selected this machine's LAN IP; verify it's correct.
+                    Still set to localhost — remote PCs can't reach that. Pick a LAN IP below or type the address.
+                  </p>
+                )}
+                {isLocalhost && !/localhost|127\.0\.0\.1/.test(serverUrl) && (
+                  <p className="mt-1.5 text-emerald-400/90">
+                    Auto-selected this machine's LAN IP — verify it's reachable from the kiosk PC.
                   </p>
                 )}
                 {serverInfo && serverInfo.lanIps.length > 1 && (
