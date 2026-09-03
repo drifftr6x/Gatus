@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { devicesApi, enrollmentApi, api } from '@/lib/api'
+import { devicesApi, enrollmentApi } from '@/lib/api'
 import { Rocket, Copy, Check, Monitor, Globe } from 'lucide-react'
 
 export function DeployPage() {
@@ -33,15 +33,11 @@ export function DeployPage() {
         deviceId: device.id,
       })
 
-      // 3. Get the one-liner command
-      const cmdResult = await fetch(
-        `/api/deploy/command?token=${encodeURIComponent(tokenResult.token)}&serverUrl=${encodeURIComponent(serverUrl)}`,
-        { headers: { Authorization: `Bearer ${api.token}` } }
-      )
-      if (!cmdResult.ok) throw new Error('Failed to generate deploy command')
-      const cmd = await cmdResult.json()
+      // 3. Build the one-liner (no extra API call needed)
+      const scriptUrl = `${serverUrl}/api/deploy/script?token=${encodeURIComponent(tokenResult.token)}`
+      const command = `irm "${scriptUrl}" | iex`
 
-      return { token: tokenResult.token, command: cmd.command, scriptUrl: cmd.scriptUrl, deviceName }
+      return { token: tokenResult.token, command, scriptUrl, deviceName }
     },
     onSuccess: (data) => {
       setDeployResult(data)
