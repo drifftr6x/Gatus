@@ -136,7 +136,7 @@ export function DeployPage() {
 
             {/* The one-liner */}
             <div className="rounded-xl border border-surface-700 bg-surface-900 p-6 shadow-lg">
-              <h3 className="text-sm font-semibold text-white">Paste this on the kiosk PC (PowerShell as Administrator):</h3>
+              <h3 className="text-sm font-semibold text-white">Your deploy command:</h3>
               <div className="mt-3 flex items-start gap-2">
                 <code className="flex-1 break-all rounded-lg bg-black/50 p-4 font-mono text-sm text-emerald-300 leading-relaxed">
                   {deployResult.command}
@@ -149,9 +149,60 @@ export function DeployPage() {
                   {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
                 </button>
               </div>
-              <p className="mt-3 text-xs text-slate-500">
-                This downloads the bundle, extracts it, writes the server config, and runs setup.ps1 — all in one step.
-              </p>
+            </div>
+
+            {/* How to run it on the remote PC */}
+            <div className="rounded-xl border border-surface-700 bg-surface-900 p-6 shadow-lg">
+              <h3 className="text-sm font-semibold text-white">How to run this on the kiosk PC</h3>
+              <div className="mt-4 space-y-4">
+                <div className="flex gap-3">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-500/20 text-xs font-bold text-accent-400">1</span>
+                  <div>
+                    <p className="text-sm font-medium text-white">Open PowerShell as Administrator on the kiosk PC</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Press <kbd className="rounded bg-surface-800 px-1.5 py-0.5 text-xs">Win + X</kbd> → <strong>Terminal (Admin)</strong> or search "PowerShell" → right-click → <strong>Run as Administrator</strong>
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-500/20 text-xs font-bold text-accent-400">2</span>
+                  <div>
+                    <p className="text-sm font-medium text-white">Paste the command above and press Enter</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      The script downloads the bundle from this server, extracts it, writes the config, and runs setup — all automatically.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-500/20 text-xs font-bold text-accent-400">3</span>
+                  <div>
+                    <p className="text-sm font-medium text-white">Watch the dashboard</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      The device should appear as <strong className="text-emerald-400">Online</strong> within 30 seconds.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-5 border-t border-surface-800 pt-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Alternative methods</p>
+                <div className="mt-3 space-y-2 text-xs text-slate-400">
+                  <p>
+                    <strong className="text-slate-300">RDP / Remote Session:</strong> If you're RDP'd into the kiosk PC, copy the command from this page and paste it in the remote session's PowerShell.
+                  </p>
+                  <p>
+                    <strong className="text-slate-300">USB drive:</strong>{' '}
+                    <a href={`${serverUrl}/api/bundle/download`} className="text-accent-400 hover:underline">Download the bundle zip</a>,
+                    copy to USB, extract on the PC, then run <code className="rounded bg-surface-800 px-1">.\setup.ps1</code> as Administrator.
+                  </p>
+                  <p>
+                    <strong className="text-slate-300">PsExec / SCCM:</strong> Push the command remotely:{' '}
+                    <code className="mt-1 block break-all rounded bg-black/40 px-2 py-1 font-mono">
+                      psexec \\PCNAME -s powershell -Command "{deployResult.command}"
+                    </code>
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Token (for reference) */}
