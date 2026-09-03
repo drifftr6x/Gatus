@@ -18,12 +18,21 @@ export function DeployPage() {
 
   const serverUrl = window.location.origin.replace(':5173', ':5163')
 
+  const DOMAIN_SUFFIX = '.internal.livingspaces.com'
+
+  const toFqdn = (name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) return ''
+    if (trimmed.includes('.')) return trimmed // already FQDN
+    return trimmed + DOMAIN_SUFFIX
+  }
+
   const deployMutation = useMutation({
     mutationFn: async () => {
       // 1. Create the device
       const device = await devicesApi.create({
         name: deviceName,
-        hostname: hostname || deviceName,
+        hostname: toFqdn(hostname || deviceName),
       })
 
       // 2. Generate enrollment token linked to the device
@@ -103,9 +112,14 @@ export function DeployPage() {
                   type="text"
                   value={hostname}
                   onChange={(e) => setHostname(e.target.value)}
-                  placeholder="Defaults to device name"
+                  onBlur={(e) => {
+                    const v = e.target.value.trim()
+                    if (v && !v.includes('.')) setHostname(v + DOMAIN_SUFFIX)
+                  }}
+                  placeholder={`Defaults to device name + ${DOMAIN_SUFFIX}`}
                   className="mt-1.5 block w-full rounded-lg border border-surface-700 bg-surface-850 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
                 />
+                <p className="mt-1 text-xs text-slate-500">Short names get {DOMAIN_SUFFIX} appended automatically.</p>
               </div>
               <div className="flex items-center gap-2 rounded-lg border border-surface-700 bg-surface-850 px-3 py-2 text-xs text-slate-400">
                 <Globe className="h-4 w-4 shrink-0" />

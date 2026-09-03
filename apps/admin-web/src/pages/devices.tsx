@@ -998,10 +998,17 @@ function DeviceModal({
               type="text"
               value={formData.hostname}
               onChange={(e) => setFormData({ ...formData, hostname: e.target.value })}
+              onBlur={(e) => {
+                const v = e.target.value.trim()
+                if (v && !v.includes('.')) {
+                  setFormData({ ...formData, hostname: v + '.internal.livingspaces.com' })
+                }
+              }}
               className={inputClass}
-              placeholder="kiosk01.example.local"
+              placeholder="PCSITG001636 → PCSITG001636.internal.livingspaces.com"
               required
             />
+            <p className="mt-1 text-xs text-slate-500">Short names get .internal.livingspaces.com appended on blur.</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
