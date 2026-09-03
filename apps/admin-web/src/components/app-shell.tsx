@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   ScrollText,
   Send,
+  Users,
   } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuth } from '@/hooks/useAuth'
@@ -34,6 +35,7 @@ const navItems = [
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/notifications', label: 'Notifications', icon: Bell },
   { href: '/logs', label: 'Logs', icon: ScrollText },
+  { href: '/users', label: 'Users', icon: Users },
   { href: '/settings', label: 'Settings', icon: Settings },
   ]
 
@@ -48,7 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     ['/dashboard', '/devices', '/kiosk-profiles', '/remote-actions', '/settings'].includes(item.href),
   )
   const advancedItems = navItems.filter((item) =>
-    ['/groups', '/schedules', '/content', '/alerts', '/analytics', '/notifications', '/logs'].includes(item.href),
+    ['/groups', '/schedules', '/content', '/alerts', '/analytics', '/notifications', '/logs', '/users'].includes(item.href),
   )
 
   const prefetchNavigation = (href: string) => {
