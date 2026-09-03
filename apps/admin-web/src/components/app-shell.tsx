@@ -16,6 +16,7 @@ import {
   ScrollText,
   Send,
   Users,
+  Rocket,
   } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useAuth } from '@/hooks/useAuth'
@@ -36,6 +37,7 @@ const navItems = [
   { href: '/notifications', label: 'Notifications', icon: Bell },
   { href: '/logs', label: 'Logs', icon: ScrollText },
   { href: '/users', label: 'Users', icon: Users },
+  { href: '/deploy', label: 'Deploy', icon: Rocket },
   { href: '/settings', label: 'Settings', icon: Settings },
   ]
 
@@ -47,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: product } = useProductConfig()
 
   const coreItems = navItems.filter((item) =>
-    ['/dashboard', '/devices', '/kiosk-profiles', '/remote-actions', '/settings'].includes(item.href),
+    ['/dashboard', '/devices', '/kiosk-profiles', '/remote-actions', '/deploy', '/settings'].includes(item.href),
   )
   const advancedItems = navItems.filter((item) =>
     ['/groups', '/schedules', '/content', '/alerts', '/analytics', '/notifications', '/logs', '/users'].includes(item.href),

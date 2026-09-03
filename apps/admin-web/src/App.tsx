@@ -16,6 +16,7 @@ import { NotificationsPage } from '@/pages/notifications'
 import { SettingsPage } from '@/pages/settings'
 import { LogsPage } from '@/pages/logs'
 import { UsersPage } from '@/pages/users'
+import { DeployPage } from '@/pages/deploy'
 import { LoginPage } from '@/pages/login'
 import { ChangePasswordPage } from '@/pages/change-password'
 
@@ -53,7 +54,8 @@ export default function App() {
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/logs" element={<LogsPage />} />
                   <Route path="/users" element={<UsersPage />} />
-                </Routes>
+                  <Route path="/deploy" element={<DeployPage />} />
+                  </Routes>
               </AppShell>
             </ProtectedRoute>
           }
