@@ -4,16 +4,19 @@
     self-contained agent + kiosk runtime, setup/uninstall scripts, README.
     Output: dist\GatusKiosk-Bundle-<version>.zip
 
-    The bundle contains NO server URL or enrollment token -- those are
-    per-deployment parameters passed to setup.ps1 on the client.
+    Server URL is auto-detected from the machine's primary IP (or pass -ServerUrl
+    to override). Written to server-config.json in the bundle; setup.ps1 reads it
+    when -ServerUrl is not passed explicitly.
 
 .EXAMPLE
-    .\build-client-bundle.ps1 -Version 1.0.0
+    .\build-client-bundle.ps1 -Version 1.1.0
+    .\build-client-bundle.ps1 -Version 1.1.0 -ServerUrl http://192.168.1.100:5163
 #>
 param(
     [Parameter(Mandatory = $true)]
     [string]$Version,
-    [string]$OutDir = ''
+    [string]$OutDir = '',
+    [string]$ServerUrl = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -54,6 +57,32 @@ Copy-Item (Join-Path $repoRoot 'infrastructure\bundle\README.txt') $bundleRoot
 "Gatus Kiosk client bundle v$Version -- built $(Get-Date -Format 'yyyy-MM-dd HH:mm')" |
     Set-Content (Join-Path $bundleRoot 'VERSION.txt')
 
+# Server URL config — auto-detect or use explicit parameter
+if (-not $ServerUrl) {
+    # Auto-detect: use the primary non-loopback IPv4 address
+    $ip = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        Where-Object { $_.InterfaceAlias -notmatch 'Loopback|Bluetooth|VMware|VirtualBox|Hyper-V|vEthernet' -and
+                       $_.IPAddress -notmatch '^169\.254\.' -and
+                       $_.IPAddress -ne '127.0.0.1' } |
+        Sort-Object InterfaceMetric |
+        Select-Object -First 1).IPAddress
+
+    if ($ip) {
+        $ServerUrl = "http://${ip}:5163"
+        Write-Host "  Auto-detected server: $ServerUrl" -ForegroundColor Yellow
+        Write-Host "  (Override with -ServerUrl if this is not correct)" -ForegroundColor Yellow
+    }
+    else {
+        $ServerUrl = 'http://localhost:5163'
+        Write-Host "  WARNING: Could not auto-detect IP. Using $ServerUrl" -ForegroundColor Red
+    }
+}
+
+@{ serverUrl = $ServerUrl; bundleVersion = $Version; builtAt = (Get-Date -Format 'o') } |
+    ConvertTo-Json |
+    Set-Content (Join-Path $bundleRoot 'server-config.json') -Encoding utf8
+Write-Host "  Server config written: $ServerUrl" -ForegroundColor Cyan
+
 $zipPath = Join-Path $OutDir "GatusKiosk-Bundle-$Version.zip"
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 Compress-Archive -Path (Join-Path $bundleRoot '*') -DestinationPath $zipPath -CompressionLevel Optimal
@@ -62,4 +91,5 @@ $size = [math]::Round((Get-Item $zipPath).Length / 1MB, 1)
 Write-Host ""
 Write-Host "Bundle: $zipPath ($size MB)" -ForegroundColor Green
 Write-Host "Deploy: copy zip to client, extract, run as Administrator:"
-Write-Host "  .\setup.ps1 -ServerUrl https://<your-server> -EnrollmentToken <token>"
+Write-Host "  .\setup.ps1 -EnrollmentToken <token>"
+Write-Host "  (Server URL is embedded: $ServerUrl)"

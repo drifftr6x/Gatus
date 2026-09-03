@@ -27,7 +27,7 @@
 #>
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$ServerUrl,
     [Parameter(Mandatory = $true)]
     [string]$EnrollmentToken,
@@ -56,6 +56,22 @@ $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIden
 if (-not $isAdmin -and -not $dryRun) { throw 'Run setup.ps1 as Administrator.' }
 if ($dryRun) { Warn 'Dry run: no changes will be made.' }
 Ok 'Running as Administrator'
+
+# -- Auto-detect server URL from bundle config -------------------------------
+if (-not $ServerUrl) {
+    $configPath = Join-Path $PSScriptRoot 'server-config.json'
+    if (Test-Path $configPath) {
+        $config = Get-Content $configPath -Raw | ConvertFrom-Json
+        $ServerUrl = $config.serverUrl
+        Ok "Server URL from bundle config: $ServerUrl"
+    }
+    else {
+        throw 'No -ServerUrl provided and no server-config.json found in bundle. Rebuild the bundle with -ServerUrl or pass -ServerUrl explicitly.'
+    }
+}
+else {
+    Ok "Server URL: $ServerUrl (from parameter)"
+}
 
 $os = Get-CimInstance Win32_OperatingSystem
 $caption = $os.Caption

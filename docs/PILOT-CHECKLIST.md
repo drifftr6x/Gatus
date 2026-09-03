@@ -68,7 +68,7 @@ and access to the admin console.
 
 | Symptom | Action |
 |---|---|
-| Device never shows Online | Check `Logs\agent-*.log`; verify ServerUrl reachable from the PC; token may be consumed/expired — generate a new one |
+| Device never shows Online | Check `Logs\agent-*.log`; verify server reachable from the PC; token may be consumed/expired — generate a new one |
 | KioskUser gets normal desktop | First sign-in loads the profile; sign out/in again. If still Explorer, check `HKU\<SID>\...\Winlogon\Shell` exists and scheduled task ran |
 | Need desktop back on kiosk account | `uninstall.ps1` as admin, or Safe Mode |
 | Service won't start | Event Viewer → Application log; run `SentinelKiosk.Agent.exe` manually in a console to see the error |
