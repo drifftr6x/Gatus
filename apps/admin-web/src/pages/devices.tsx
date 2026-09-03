@@ -886,12 +886,37 @@ function DeviceModal({
             </div>
 
             <div className="mt-4 rounded-lg border border-surface-700 bg-surface-850 p-4 text-xs text-slate-300">
-              <p className="font-medium text-slate-200">Deploy on the client:</p>
-              <code className="mt-2 block break-all rounded bg-black/40 px-3 py-2 font-mono">
-                .\setup.ps1 -EnrollmentToken {tokenData.token.slice(0, 16)}…
-              </code>
-              <p className="mt-2 text-slate-500">
-                Or bake the token into a bundle: build-client-bundle.ps1 -EnrollmentToken ...
+              <p className="font-medium text-slate-200">Deploy on the kiosk PC — pick one:</p>
+
+              <div className="mt-3 space-y-3">
+                <div>
+                  <p className="font-medium text-slate-200">Option A — One-liner (easiest)</p>
+                  <p className="mt-1 text-slate-400">On the PC, open PowerShell as Administrator and paste:</p>
+                  <code className="mt-1 block break-all rounded bg-black/40 px-3 py-2 font-mono text-emerald-300">
+                    irm "{window.location.origin.replace(':5173', ':5163')}/api/deploy/script?token={encodeURIComponent(tokenData.token)}" | iex
+                  </code>
+                </div>
+
+                <div>
+                  <p className="font-medium text-slate-200">Option B — USB / manual</p>
+                  <p className="mt-1 text-slate-400">
+                    Download the{' '}
+                    <a
+                      href={`${window.location.origin.replace(':5173', ':5163')}/api/bundle/download`}
+                      className="text-accent-400 hover:underline"
+                    >
+                      bundle zip
+                    </a>
+                    , copy to the PC via USB/network, extract, then run as Administrator:
+                  </p>
+                  <code className="mt-1 block rounded bg-black/40 px-3 py-2 font-mono">
+                    .\setup.ps1 -EnrollmentToken {tokenData.token}
+                  </code>
+                </div>
+              </div>
+
+              <p className="mt-3 text-slate-500">
+                Or go to the <a href="/deploy" className="text-accent-400 hover:underline">Deploy page</a> for the full guided flow.
               </p>
             </div>
 
