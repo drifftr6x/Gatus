@@ -67,11 +67,20 @@ export function DeployPage() {
 
   const deployMutation = useMutation({
     mutationFn: async () => {
-      // 1. Create the device
-      const device = await devicesApi.create({
-        name: deviceName,
-        hostname: toFqdn(hostname || deviceName),
-      })
+      const fqdn = toFqdn(hostname || deviceName)
+
+      // 1. Find existing device by name or hostname; create only if missing
+      const deviceList = await devicesApi.list({ pageSize: 100, search: deviceName })
+      let device = deviceList.devices.find(
+        (d: any) => d.name?.toLowerCase() === deviceName.toLowerCase() ||
+                    d.hostname?.toLowerCase() === fqdn.toLowerCase()
+      )
+      if (!device) {
+        device = await devicesApi.create({
+          name: deviceName,
+          hostname: fqdn,
+        })
+      }
 
       // 2. Generate enrollment token linked to the device
       const tokenResult = await enrollmentApi.create({
