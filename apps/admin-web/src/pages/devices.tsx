@@ -893,7 +893,7 @@ function DeviceModal({
                   <p className="font-medium text-slate-200">Option A — One-liner (easiest)</p>
                   <p className="mt-1 text-slate-400">On the PC, open PowerShell as Administrator and paste:</p>
                   <code className="mt-1 block break-all rounded bg-black/40 px-3 py-2 font-mono text-emerald-300">
-                    irm "{window.location.origin.replace(':5173', ':5163')}/api/deploy/script?token={encodeURIComponent(tokenData.token)}" | iex
+                    powershell -ExecutionPolicy Bypass -Command "irm '{window.location.origin.replace(':5173', ':5163')}/api/deploy/script?token={encodeURIComponent(tokenData.token)}' | iex"
                   </code>
                 </div>
 

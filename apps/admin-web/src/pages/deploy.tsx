@@ -35,7 +35,7 @@ export function DeployPage() {
 
       // 3. Build the one-liner (no extra API call needed)
       const scriptUrl = `${serverUrl}/api/deploy/script?token=${encodeURIComponent(tokenResult.token)}`
-      const command = `irm "${scriptUrl}" | iex`
+      const command = `powershell -ExecutionPolicy Bypass -Command "irm '${scriptUrl}' | iex"`
 
       return { token: tokenResult.token, command, scriptUrl, deviceName }
     },
