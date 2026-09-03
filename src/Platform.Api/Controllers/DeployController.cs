@@ -50,6 +50,37 @@ public class DeployController : ControllerBase
     }
 
     /// <summary>
+    /// Returns server address info (LAN IPs, host) so the UI can help the
+    /// operator pick a reachable address instead of localhost.
+    /// </summary>
+    [HttpGet("server-info")]
+    [AllowAnonymous]
+    public IActionResult GetServerInfo()
+    {
+        var lanIps = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
+            .Where(n => n.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up
+                     && n.NetworkInterfaceType != System.Net.NetworkInformation.NetworkInterfaceType.Loopback)
+            .SelectMany(n => n.GetIPProperties().UnicastAddresses)
+            .Where(a => a.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
+                     && !a.Address.ToString().StartsWith("169.254."))
+            .Select(a => a.Address.ToString())
+            .Distinct()
+            .OrderBy(ip => ip)
+            .ToList();
+
+        var port = Request.Host.Port ?? 5163;
+
+        return Ok(new
+        {
+            requestHost = Request.Host.ToString(),
+            requestScheme = Request.Scheme,
+            port,
+            hostName = Environment.MachineName,
+            lanIps
+        });
+    }
+
+    /// <summary>
     /// Returns the one-liner command the operator pastes on the kiosk PC.
     /// Shown on the admin UI deploy page.
     /// </summary>

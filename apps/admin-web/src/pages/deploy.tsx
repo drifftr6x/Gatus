@@ -1,7 +1,15 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { devicesApi, enrollmentApi } from '@/lib/api'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { devicesApi, enrollmentApi, api } from '@/lib/api'
 import { Rocket, Copy, Check, Monitor, Globe } from 'lucide-react'
+
+interface ServerInfo {
+  requestHost: string
+  requestScheme: string
+  port: number
+  hostName: string
+  lanIps: string[]
+}
 
 export function DeployPage() {
   const queryClient = useQueryClient()
@@ -15,8 +23,22 @@ export function DeployPage() {
   } | null>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState('')
+  const [serverOverride, setServerOverride] = useState<string | null>(null)
 
-  const serverUrl = window.location.origin.replace(':5173', ':5163')
+  const isLocalhost = /^(localhost|127\.0\.0\.1|\[::1\])/.test(window.location.hostname)
+
+  const { data: serverInfo } = useQuery<ServerInfo>({
+    queryKey: ['deploy-server-info'],
+    queryFn: () => api.get<ServerInfo>('/api/deploy/server-info'),
+    staleTime: 60_000,
+  })
+
+  // Best default: if browsing via localhost, use the server's LAN IP
+  const detectedUrl = isLocalhost && serverInfo?.lanIps?.length
+    ? `http://${serverInfo.lanIps[0]}:${serverInfo.port}`
+    : window.location.origin.replace(':5173', ':5163')
+
+  const serverUrl = serverOverride ?? detectedUrl
 
   const DOMAIN_SUFFIX = '.internal.livingspaces.com'
 
@@ -121,9 +143,36 @@ export function DeployPage() {
                 />
                 <p className="mt-1 text-xs text-slate-500">Short names get {DOMAIN_SUFFIX} appended automatically.</p>
               </div>
-              <div className="flex items-center gap-2 rounded-lg border border-surface-700 bg-surface-850 px-3 py-2 text-xs text-slate-400">
-                <Globe className="h-4 w-4 shrink-0" />
-                <span>Server: <code className="text-slate-300">{serverUrl}</code></span>
+              <div className="rounded-lg border border-surface-700 bg-surface-850 px-3 py-2 text-xs text-slate-400">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 shrink-0" />
+                  <span>Server (as seen from the kiosk PC):</span>
+                  <input
+                    type="text"
+                    value={serverUrl}
+                    onChange={(e) => setServerOverride(e.target.value)}
+                    className="min-w-0 flex-1 rounded border border-surface-600 bg-surface-900 px-2 py-1 font-mono text-slate-200 outline-none focus:border-accent-500"
+                  />
+                </div>
+                {isLocalhost && serverOverride === null && (
+                  <p className="mt-1.5 text-amber-400/90">
+                    You're browsing via localhost — remote PCs can't use that. We auto-selected this machine's LAN IP; verify it's correct.
+                  </p>
+                )}
+                {serverInfo && serverInfo.lanIps.length > 1 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {serverInfo.lanIps.map((ip) => (
+                      <button
+                        key={ip}
+                        type="button"
+                        onClick={() => setServerOverride(`http://${ip}:${serverInfo.port}`)}
+                        className={`rounded px-1.5 py-0.5 font-mono ${serverUrl.includes(ip) ? 'bg-accent-600 text-white' : 'bg-surface-800 text-slate-400 hover:text-slate-200'}`}
+                      >
+                        {ip}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
