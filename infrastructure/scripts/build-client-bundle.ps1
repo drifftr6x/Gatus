@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Builds the client installer bundle for Windows 11 Pro kiosk machines:
     self-contained agent + kiosk runtime, setup/uninstall scripts, README.
