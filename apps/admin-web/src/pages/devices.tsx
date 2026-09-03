@@ -767,6 +767,9 @@ function DeviceModal({
   onClose: () => void
 }) {
   const queryClient = useQueryClient()
+  const [createdDeviceId, setCreatedDeviceId] = useState<string | null>(null)
+  const [tokenData, setTokenData] = useState<{ token: string; expiresAt: string } | null>(null)
+  const [copied, setCopied] = useState(false)
   const [formData, setFormData] = useState({
     name: device?.name || '',
     serialNumber: device?.serialNumber || '',
@@ -785,15 +788,38 @@ function DeviceModal({
     queryFn: groupsApi.list,
   })
 
+  const enrollMutation = useMutation({
+    mutationFn: (deviceId: string) =>
+      enrollmentApi.create({ label: formData.name || 'New device', expiresInHours: 72, deviceId }),
+    onSuccess: (data) => {
+      setTokenData({ token: data.token, expiresAt: data.expiresAt })
+      queryClient.invalidateQueries({ queryKey: ['enrollment-tokens'] })
+    },
+  })
+
   const mutation = useMutation({
     mutationFn: (data: Partial<DeviceDto> & { groupId?: string }) =>
       device ? devicesApi.update(device.id, data) : devicesApi.create(data as any),
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ['devices'] })
       queryClient.invalidateQueries({ queryKey: ['deviceGroups'] })
-      onClose()
+      if (!device && result?.id) {
+        // New device — auto-generate enrollment token
+        setCreatedDeviceId(result.id)
+        enrollMutation.mutate(result.id)
+      } else {
+        onClose()
+      }
     },
   })
+
+  const copyToken = async () => {
+    if (tokenData) {
+      await navigator.clipboard.writeText(tokenData.token)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -810,8 +836,64 @@ function DeviceModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-2xl border border-surface-700 bg-surface-900 p-6 shadow-2xl">
         <h2 className="text-lg font-semibold text-white">
-          {device ? 'Edit Device' : 'Add Device'}
+          {device ? 'Edit Device' : tokenData ? 'Device Created' : 'Add Device'}
         </h2>
+
+        {/* Token display after device creation */}
+        {tokenData && !device && (
+          <div className="mt-5">
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4">
+              <p className="text-xs font-medium uppercase tracking-wider text-emerald-300">
+                Enrollment Token (shown once)
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <code className="flex-1 break-all rounded bg-black/40 px-3 py-2 font-mono text-xs text-emerald-200">
+                  {tokenData.token}
+                </code>
+                <button
+                  onClick={copyToken}
+                  className="shrink-0 rounded-lg border border-surface-700 p-2 text-slate-300 transition-colors hover:bg-surface-800"
+                  title="Copy token"
+                >
+                  {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-emerald-300/80">
+                Expires {new Date(tokenData.expiresAt).toLocaleString()}
+              </p>
+            </div>
+
+            <div className="mt-4 rounded-lg border border-surface-700 bg-surface-850 p-4 text-xs text-slate-300">
+              <p className="font-medium text-slate-200">Deploy on the client:</p>
+              <code className="mt-2 block break-all rounded bg-black/40 px-3 py-2 font-mono">
+                .\setup.ps1 -EnrollmentToken {tokenData.token.slice(0, 16)}…
+              </code>
+              <p className="mt-2 text-slate-500">
+                Or bake the token into a bundle: build-client-bundle.ps1 -EnrollmentToken ...
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={onClose}
+                className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-400"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Enrollment pending spinner */}
+        {createdDeviceId && !tokenData && !device && (
+          <div className="mt-8 flex flex-col items-center gap-3 py-4">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-surface-700 border-t-accent-500" />
+            <p className="text-sm text-slate-400">Generating enrollment token...</p>
+          </div>
+        )}
+
+        {/* Device form — hidden after creation */}
+        {!createdDeviceId && (
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-300">Name</label>
@@ -934,10 +1016,11 @@ function DeviceModal({
               disabled={mutation.isPending}
               className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-accent-500/25 transition-colors hover:bg-accent-400 disabled:opacity-50"
             >
-              {mutation.isPending ? 'Saving…' : 'Save'}
+              {mutation.isPending ? 'Saving…' : device ? 'Save' : 'Create & Enroll'}
             </button>
           </div>
         </form>
+        )}
         </div>
         </div>
         )
