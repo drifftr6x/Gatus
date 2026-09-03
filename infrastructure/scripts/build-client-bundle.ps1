@@ -17,8 +17,8 @@
     .\build-client-bundle.ps1 -Version 1.1.0 -EnrollmentToken "gt_abc123..."  # zero-touch for one machine
     #>
     param(
-    [Parameter(Mandatory = $true)]
-    [string]$Version,
+    [Parameter(Mandatory = $false)]
+    [string]$Version = '1.1.0',
     [string]$OutDir = '',
     [string]$ServerUrl = '',
     [string]$EnrollmentToken = ''
